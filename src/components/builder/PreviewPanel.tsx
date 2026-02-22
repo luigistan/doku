@@ -68,7 +68,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh }: PreviewPa
           {/* URL bar */}
           <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1 text-xs text-muted-foreground">
             <Globe className="h-3 w-3" />
-            <span className="font-mono">preview.webbuilder.studio</span>
+            <span className="font-mono">preview.doku.ai</span>
           </div>
         </div>
 

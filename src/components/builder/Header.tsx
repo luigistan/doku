@@ -5,9 +5,9 @@ export function Header() {
     <header className="flex h-12 items-center justify-between border-b border-border bg-surface-1 px-4">
       <div className="flex items-center gap-3">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brain text-brain-foreground text-sm font-bold">
-          W
+          D
         </div>
-        <span className="text-sm font-semibold text-foreground">Web Builder Studio</span>
+        <span className="text-sm font-semibold text-foreground">DOKU AI</span>
         <span className="rounded-md bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
           BETA
         </span>
