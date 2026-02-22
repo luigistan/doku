@@ -5,11 +5,11 @@ import { PreviewPanel } from "@/components/builder/PreviewPanel";
 import { useBuilderState } from "@/hooks/useBuilderState";
 
 const Index = () => {
-  const { mode, setMode, messages, preview, setPreview, isTyping, sendMessage } = useBuilderState();
+  const { mode, setMode, messages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment } = useBuilderState();
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header />
+      <Header onOpenSettings={() => {}} onOpenCode={() => {}} />
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
           <ChatPanel
@@ -18,6 +18,8 @@ const Index = () => {
             messages={messages}
             isTyping={isTyping}
             onSend={sendMessage}
+            onExecute={confirmExecution}
+            onAskMore={requestAdjustment}
           />
         </ResizablePanel>
         <ResizableHandle withHandle />
