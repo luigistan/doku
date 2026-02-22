@@ -118,5 +118,5 @@ export function useBuilderState() {
     [mode, preview.viewport]
   );
 
-  return { mode, setMode, messages, preview, setPreview, isTyping, sendMessage };
+  return { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage };
 }
