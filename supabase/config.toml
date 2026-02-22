@@ -1,1 +1,4 @@
 project_id = "hbdgpvixrdwbvdtxymqa"
+
+[functions.builder-ai]
+verify_jwt = false
