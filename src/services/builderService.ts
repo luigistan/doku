@@ -13,6 +13,7 @@ export interface BuilderResponse {
   };
   plan?: string[];
   html: string;
+  logId?: string;
 }
 
 export async function generateSite(
@@ -29,6 +30,20 @@ export async function generateSite(
   } catch (err) {
     console.warn("Edge function failed, using local fallback:", err);
     return localFallback(message, mode);
+  }
+}
+
+export async function logInteraction(
+  logId: string,
+  accepted: boolean,
+  feedback?: string
+): Promise<void> {
+  try {
+    await supabase.functions.invoke("builder-ai", {
+      body: { action: "feedback", logId, accepted, feedback },
+    });
+  } catch (err) {
+    console.warn("Failed to log interaction feedback:", err);
   }
 }
 

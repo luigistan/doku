@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Message, Mode, PreviewState, AnalysisData } from "@/types/builder";
 import { getDefaultHtml } from "@/lib/templates";
-import { generateSite, BuilderResponse } from "@/services/builderService";
+import { generateSite, BuilderResponse, logInteraction } from "@/services/builderService";
 
 export function useBuilderState() {
   const [mode, setMode] = useState<Mode>("brain");
@@ -80,6 +80,10 @@ export function useBuilderState() {
 
   const confirmExecution = useCallback(() => {
     if (!pendingResult.current) return;
+    // Log acceptance for machine learning
+    if (pendingResult.current.logId) {
+      logInteraction(pendingResult.current.logId, true);
+    }
     // Remove awaiting state from the message
     setMessages((prev) =>
       prev.map((msg) =>
@@ -91,6 +95,10 @@ export function useBuilderState() {
   }, [executeFromResult]);
 
   const requestAdjustment = useCallback(() => {
+    // Log rejection for machine learning
+    if (pendingResult.current?.logId) {
+      logInteraction(pendingResult.current.logId, false, "Usuario pidió ajustes");
+    }
     setMessages((prev) => [
       ...prev.map((msg) =>
         msg.awaitingConfirmation ? { ...msg, awaitingConfirmation: false } : msg
