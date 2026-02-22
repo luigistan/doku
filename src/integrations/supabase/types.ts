@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_learning_logs: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          detected_entities: Json | null
+          detected_intent: string
+          id: string
+          user_accepted: boolean | null
+          user_feedback: string | null
+          user_message: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          detected_entities?: Json | null
+          detected_intent: string
+          id?: string
+          user_accepted?: boolean | null
+          user_feedback?: string | null
+          user_message: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          detected_entities?: Json | null
+          detected_intent?: string
+          id?: string
+          user_accepted?: boolean | null
+          user_feedback?: string | null
+          user_message?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
