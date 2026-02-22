@@ -1,73 +1,83 @@
-# Welcome to your Lovable project
+# BuilderAI Engine 🚀
 
-## Project info
+Motor de IA propio, 100% gratuito y open source, para generar sitios web dinámicamente usando NLP basado en reglas.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## ¿Qué es?
 
-## How can I edit this code?
+BuilderAI Engine es un constructor de sitios web inteligente que:
+- **Entiende texto natural** en español e inglés
+- **Extrae entidades** (nombre del negocio, secciones, colores)
+- **Compone sitios dinámicamente** combinando bloques HTML
+- **No requiere APIs externas** - todo corre en Supabase Edge Functions (Deno)
 
-There are several ways of editing your application.
+## Arquitectura
 
-**Use Lovable**
+```
+Usuario: "Quiero una landing para mi cafetería El Buen Café con menú y contacto"
+                                    │
+                          [Edge Function: builder-ai]
+                                    │
+                    ┌───────────────┼────────────────┐
+                    │               │                │
+             1. Tokenizer    2. Intent        3. Entity
+             (normaliza      Classifier       Extractor
+              texto)         (tipo de sitio)  (nombre, color,
+                                               secciones)
+                    │               │                │
+                    └───────┬───────┴────────────────┘
+                            │
+                   4. Template Composer
+                   (combina bloques HTML)
+                            │
+                   5. HTML Personalizado
+                            │
+                      [Preview Panel]
+```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Industrias Soportadas
 
-Changes made via Lovable will be committed automatically to this repo.
+| Industria | Keywords | Secciones Default |
+|-----------|----------|-------------------|
+| Landing Page | landing, empresa, startup | hero, features, contact |
+| Restaurante | restaurante, café, comida | hero, menu, contact, about |
+| Portfolio | portfolio, proyectos, freelancer | hero, gallery, about, contact |
+| Blog | blog, artículos, noticias | hero, blog, about |
+| Dashboard | dashboard, panel, admin | hero, features |
+| E-Commerce | tienda, shop, productos | hero, features, pricing |
+| Fitness | gimnasio, gym, yoga | hero, pricing, features, contact |
+| Agencia | agencia, servicios, marketing | hero, features, about, contact, testimonials |
 
-**Use your preferred IDE**
+## Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- **Backend**: Supabase Edge Functions (Deno)
+- **NLP**: Motor propio basado en reglas (tokenizer, classifier, extractor)
+- **Costo**: $0 - Sin APIs externas
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Cómo Contribuir
 
-Follow these steps:
+1. Fork el repositorio
+2. Crea una rama: `git checkout -b feature/mi-feature`
+3. Haz tus cambios y commit: `git commit -m "Add: mi feature"`
+4. Push: `git push origin feature/mi-feature`
+5. Abre un Pull Request
+
+### Áreas donde puedes contribuir:
+- **Nuevas industrias**: Agrega más tipos de sitios en el intent classifier
+- **Bloques HTML**: Crea nuevas secciones reutilizables
+- **NLP mejorado**: Expande sinónimos, patrones regex, soporte multi-idioma
+- **Temas de color**: Agrega más esquemas de color
+- **Contenido**: Mejora el contenido predeterminado por industria
+
+## Desarrollo Local
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone <TU_GIT_URL>
+cd <TU_PROYECTO>
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Licencia
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT - Usa, modifica y distribuye libremente.
