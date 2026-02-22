@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
-import { Message, Mode, PreviewState } from "@/types/builder";
+import { useState, useCallback, useRef } from "react";
+import { Message, Mode, PreviewState, AnalysisData } from "@/types/builder";
 import { getDefaultHtml } from "@/lib/templates";
-import { generateSite } from "@/services/builderService";
+import { generateSite, BuilderResponse } from "@/services/builderService";
 
 export function useBuilderState() {
   const [mode, setMode] = useState<Mode>("brain");
@@ -19,6 +19,86 @@ export function useBuilderState() {
     viewport: "desktop",
   });
   const [isTyping, setIsTyping] = useState(false);
+  const pendingResult = useRef<BuilderResponse | null>(null);
+
+  const executeFromResult = useCallback((result: BuilderResponse) => {
+    // Animate plan steps then show preview
+    const planMsg: Message = {
+      id: (Date.now() + 10).toString(),
+      role: "system",
+      content: `⚙️ **Ejecutando plan...**`,
+      timestamp: new Date(),
+      plan: result.plan?.map((label, i) => ({
+        id: `step-${i}`,
+        label,
+        status: "pending" as const,
+      })),
+    };
+    setMessages((prev) => [...prev, planMsg]);
+
+    if (result.plan) {
+      result.plan.forEach((_, i) => {
+        setTimeout(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === planMsg.id && msg.plan
+                ? {
+                    ...msg,
+                    plan: msg.plan.map((step, j) => ({
+                      ...step,
+                      status: j <= i ? ("done" as const) : j === i + 1 ? ("active" as const) : ("pending" as const),
+                    })),
+                  }
+                : msg
+            )
+          );
+          if (i === (result.plan?.length ?? 0) - 1) {
+            setTimeout(() => {
+              setPreview((p) => ({ ...p, html: result.html, status: "ready" }));
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: (Date.now() + 20).toString(),
+                  role: "system",
+                  content: `✅ **${result.entities.businessName}** generado exitosamente con ${result.entities.sections.length} secciones. ¡Revisa el preview!`,
+                  timestamp: new Date(),
+                },
+              ]);
+            }, 500);
+          }
+        }, (i + 1) * 600);
+      });
+    } else {
+      setPreview((p) => ({ ...p, html: result.html, status: "ready" }));
+    }
+  }, []);
+
+  const confirmExecution = useCallback(() => {
+    if (!pendingResult.current) return;
+    // Remove awaiting state from the message
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.awaitingConfirmation ? { ...msg, awaitingConfirmation: false } : msg
+      )
+    );
+    executeFromResult(pendingResult.current);
+    pendingResult.current = null;
+  }, [executeFromResult]);
+
+  const requestAdjustment = useCallback(() => {
+    setMessages((prev) => [
+      ...prev.map((msg) =>
+        msg.awaitingConfirmation ? { ...msg, awaitingConfirmation: false } : msg
+      ),
+      {
+        id: (Date.now() + 5).toString(),
+        role: "system",
+        content: "🔧 ¡Perfecto! Dime qué quieres ajustar. Puedes cambiar:\n\n• **Nombre** del negocio\n• **Secciones** (agregar/quitar)\n• **Colores** (rojo, azul, verde, oscuro, elegante...)\n• **Tipo** de sitio\n• Cualquier otro detalle\n\nEscribe los cambios y volveré a analizar.",
+        timestamp: new Date(),
+      },
+    ]);
+    pendingResult.current = null;
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -35,56 +115,28 @@ export function useBuilderState() {
       try {
         const result = await generateSite(content, mode);
 
-        if (mode === "brain" && result.plan) {
-          // Brain mode: show analysis + animated plan
-          const planMsg: Message = {
+        if (mode === "brain") {
+          // Brain mode: show analysis and ASK for confirmation
+          pendingResult.current = result;
+          const analysisMsg: Message = {
             id: (Date.now() + 1).toString(),
             role: "system",
-            content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**`,
+            content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Quieres que lo ejecute o prefieres ajustar algo?`,
             timestamp: new Date(),
-            plan: result.plan.map((label, i) => ({
-              id: `step-${i}`,
-              label,
-              status: "pending" as const,
-            })),
+            awaitingConfirmation: true,
+            analysisData: {
+              intent: result.intent,
+              confidence: result.confidence,
+              label: result.label,
+              entities: result.entities,
+              plan: result.plan || [],
+            },
           };
-          setMessages((prev) => [...prev, planMsg]);
+          setMessages((prev) => [...prev, analysisMsg]);
           setIsTyping(false);
-
-          // Animate plan steps
-          result.plan.forEach((_, i) => {
-            setTimeout(() => {
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === planMsg.id && msg.plan
-                    ? {
-                        ...msg,
-                        plan: msg.plan.map((step, j) => ({
-                          ...step,
-                          status: j <= i ? ("done" as const) : j === i + 1 ? ("active" as const) : ("pending" as const),
-                        })),
-                      }
-                    : msg
-                )
-              );
-              if (i === (result.plan?.length ?? 0) - 1) {
-                setTimeout(() => {
-                  setPreview({ html: result.html, status: "ready", viewport: preview.viewport });
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      id: (Date.now() + 2).toString(),
-                      role: "system",
-                      content: `✅ **${result.entities.businessName}** generado exitosamente con ${result.entities.sections.length} secciones. ¡Revisa el preview!`,
-                      timestamp: new Date(),
-                    },
-                  ]);
-                }, 500);
-              }
-            }, (i + 1) * 600);
-          });
+          setPreview((p) => ({ ...p, status: "idle" }));
         } else {
-          // Execute mode: show result directly
+          // Execute mode: generate directly
           setPreview({ html: result.html, status: "ready", viewport: preview.viewport });
           setMessages((prev) => [
             ...prev,
@@ -115,8 +167,8 @@ export function useBuilderState() {
         setIsTyping(false);
       }
     },
-    [mode, preview.viewport]
+    [mode, preview.viewport, executeFromResult]
   );
 
-  return { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage };
+  return { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment };
 }

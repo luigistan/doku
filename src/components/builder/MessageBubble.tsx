@@ -1,12 +1,15 @@
 import { Message } from "@/types/builder";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ConfirmationButtons } from "./ConfirmationButtons";
 
 interface MessageBubbleProps {
   message: Message;
+  onExecute?: () => void;
+  onAskMore?: () => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onExecute, onAskMore }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -51,6 +54,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               </div>
             ))}
           </div>
+        )}
+
+        {message.awaitingConfirmation && onExecute && onAskMore && (
+          <ConfirmationButtons onExecute={onExecute} onAskMore={onAskMore} />
         )}
 
         <div className={cn("mt-1.5 text-[10px]", isUser ? "text-brain-foreground/60" : "text-muted-foreground")}>

@@ -6,6 +6,21 @@ export interface Message {
   content: string;
   timestamp: Date;
   plan?: PlanStep[];
+  awaitingConfirmation?: boolean;
+  analysisData?: AnalysisData;
+}
+
+export interface AnalysisData {
+  intent: string;
+  confidence: number;
+  label: string;
+  entities: {
+    businessName: string;
+    sections: string[];
+    colorScheme: string;
+    industry: string;
+  };
+  plan: string[];
 }
 
 export interface PlanStep {

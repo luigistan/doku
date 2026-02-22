@@ -1,23 +1,39 @@
 import { Code2, Settings, ArrowLeft, Download } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import JSZip from "jszip";
 
 interface HeaderProps {
   projectName?: string;
   projectId?: string;
+  onOpenSettings: () => void;
+  onOpenCode: () => void;
 }
 
-export function Header({ projectName, projectId }: HeaderProps) {
+export function Header({ projectName, projectId, onOpenSettings, onOpenCode }: HeaderProps) {
   const navigate = useNavigate();
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const iframe = document.querySelector("iframe") as HTMLIFrameElement;
     if (!iframe?.contentDocument) return;
     const html = iframe.contentDocument.documentElement.outerHTML;
-    const blob = new Blob([`<!DOCTYPE html>\n${html}`], { type: "text/html" });
+    const fullHtml = `<!DOCTYPE html>\n${html}`;
+
+    // Extract CSS and JS
+    const styleMatch = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/);
+    const scriptMatches = fullHtml.match(/<script[^>]*>([\s\S]*?)<\/script>/g);
+    const jsContent = scriptMatches?.map(s => s.replace(/<\/?script[^>]*>/g, "").trim()).filter(Boolean).join("\n\n") || "";
+
+    const zip = new JSZip();
+    zip.file("index.html", fullHtml);
+    if (styleMatch) zip.file("styles.css", styleMatch[1].trim());
+    if (jsContent) zip.file("script.js", jsContent);
+    zip.file("README.md", `# ${projectName || "DOKU Site"}\n\nGenerado con DOKU AI - https://www.doku.red\n`);
+
+    const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${projectName || "doku-site"}.html`;
+    a.download = `${projectName || "doku-site"}.zip`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -42,13 +58,19 @@ export function Header({ projectName, projectId }: HeaderProps) {
           className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
         >
           <Download className="h-3.5 w-3.5" />
-          Exportar
+          Exportar ZIP
         </button>
-        <button className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+        <button
+          onClick={onOpenCode}
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
           <Code2 className="h-3.5 w-3.5" />
           Código
         </button>
-        <button className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+        <button
+          onClick={onOpenSettings}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
           <Settings className="h-4 w-4" />
         </button>
       </div>

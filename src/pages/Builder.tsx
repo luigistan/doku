@@ -4,8 +4,10 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { Header } from "@/components/builder/Header";
 import { ChatPanel } from "@/components/builder/ChatPanel";
 import { PreviewPanel } from "@/components/builder/PreviewPanel";
+import { ProjectSettings } from "@/components/builder/ProjectSettings";
+import { CodeViewer } from "@/components/builder/CodeViewer";
 import { useBuilderState } from "@/hooks/useBuilderState";
-import { getProject, updateProject, saveChatMessage, getChatMessages } from "@/services/projectService";
+import { getProject, updateProject, saveChatMessage, getChatMessages, deleteProject } from "@/services/projectService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Message } from "@/types/builder";
 import { Loader2 } from "lucide-react";
@@ -15,9 +17,12 @@ const Builder = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projectName, setProjectName] = useState("Cargando...");
+  const [isPublic, setIsPublic] = useState(false);
   const [loadingProject, setLoadingProject] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
 
-  const { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage } = useBuilderState();
+  const { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment } = useBuilderState();
 
   // Load project data
   useEffect(() => {
@@ -27,13 +32,12 @@ const Builder = () => {
       try {
         const project = await getProject(projectId);
         setProjectName(project.name);
+        setIsPublic(project.is_public);
 
-        // Load existing HTML into preview
         if (project.html) {
           setPreview(prev => ({ ...prev, html: project.html!, status: "ready" }));
         }
 
-        // Load chat messages
         const chatMsgs = await getChatMessages(projectId);
         if (chatMsgs && chatMsgs.length > 0) {
           const restored: Message[] = chatMsgs.map((m: { id: string; role: string; content: string; plan: unknown; created_at: string }) => ({
@@ -43,7 +47,7 @@ const Builder = () => {
             timestamp: new Date(m.created_at),
             plan: m.plan as Message["plan"],
           }));
-          setMessages(prev => [prev[0], ...restored]); // Keep welcome + restored
+          setMessages(prev => [prev[0], ...restored]);
         }
       } catch (err) {
         console.error("Error loading project:", err);
@@ -56,23 +60,44 @@ const Builder = () => {
     loadProject();
   }, [projectId]);
 
-  // Auto-save HTML to project when preview changes
+  // Auto-save HTML
   useEffect(() => {
     if (!projectId || preview.status !== "ready" || loadingProject) return;
-
     const saveTimeout = setTimeout(() => {
       updateProject(projectId, { html: preview.html }).catch(console.error);
     }, 1000);
-
     return () => clearTimeout(saveTimeout);
   }, [preview.html, preview.status, projectId, loadingProject]);
 
-  // Wrap sendMessage to also save chat messages
-  const handleSend = async (content: string) => {
-    if (projectId) {
-      saveChatMessage(projectId, "user", content).catch(console.error);
+  // Save chat messages on change
+  useEffect(() => {
+    if (!projectId || loadingProject || messages.length <= 1) return;
+    const last = messages[messages.length - 1];
+    if (last.id !== "welcome") {
+      saveChatMessage(projectId, last.role, last.content, last.plan).catch(console.error);
     }
+  }, [messages.length]);
+
+  const handleSend = async (content: string) => {
     await sendMessage(content);
+  };
+
+  const handleUpdateName = (name: string) => {
+    if (!projectId) return;
+    setProjectName(name);
+    updateProject(projectId, { name }).catch(console.error);
+  };
+
+  const handleTogglePublic = (pub: boolean) => {
+    if (!projectId) return;
+    setIsPublic(pub);
+    updateProject(projectId, { is_public: pub }).catch(console.error);
+  };
+
+  const handleDelete = async () => {
+    if (!projectId) return;
+    await deleteProject(projectId);
+    navigate("/dashboard");
   };
 
   if (loadingProject) {
@@ -85,7 +110,12 @@ const Builder = () => {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header projectName={projectName} projectId={projectId} />
+      <Header
+        projectName={projectName}
+        projectId={projectId}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenCode={() => setCodeOpen(true)}
+      />
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
           <ChatPanel
@@ -94,6 +124,8 @@ const Builder = () => {
             messages={messages}
             isTyping={isTyping}
             onSend={handleSend}
+            onExecute={confirmExecution}
+            onAskMore={requestAdjustment}
           />
         </ResizablePanel>
         <ResizableHandle withHandle />
@@ -112,6 +144,24 @@ const Builder = () => {
           />
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <ProjectSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        projectName={projectName}
+        projectId={projectId}
+        isPublic={isPublic}
+        onUpdateName={handleUpdateName}
+        onTogglePublic={handleTogglePublic}
+        onDelete={handleDelete}
+      />
+
+      <CodeViewer
+        open={codeOpen}
+        onClose={() => setCodeOpen(false)}
+        html={preview.html}
+        projectName={projectName}
+      />
     </div>
   );
 };

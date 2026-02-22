@@ -11,9 +11,11 @@ interface ChatPanelProps {
   messages: Message[];
   isTyping: boolean;
   onSend: (message: string) => void;
+  onExecute: () => void;
+  onAskMore: () => void;
 }
 
-export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend }: ChatPanelProps) {
+export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend, onExecute, onAskMore }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +37,12 @@ export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend }: Ch
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 scrollbar-thin">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onExecute={msg.awaitingConfirmation ? onExecute : undefined}
+            onAskMore={msg.awaitingConfirmation ? onAskMore : undefined}
+          />
         ))}
         {isTyping && <TypingIndicator />}
       </div>
