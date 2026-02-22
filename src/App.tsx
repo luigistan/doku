@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Builder from "./pages/Builder";
+import PublicPreview from "./pages/PublicPreview";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/builder/:projectId" element={<ProtectedRoute><Builder /></ProtectedRoute>} />
+            <Route path="/preview/:projectId" element={<PublicPreview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

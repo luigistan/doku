@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { getProjects, createProject, deleteProject, Project } from "@/services/projectService";
-import { Plus, Folder, Trash2, LogOut, Globe, Lock, Loader2 } from "lucide-react";
+import { getProjects, createProject, deleteProject, updateProject, Project } from "@/services/projectService";
+import { Plus, Folder, Trash2, LogOut, Globe, Lock, Loader2, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
@@ -55,6 +55,23 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
+  };
+
+  const handleTogglePublic = async (id: string, isPublic: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await updateProject(id, { is_public: !isPublic });
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, is_public: !isPublic } : p));
+      if (!isPublic) {
+        const url = `${window.location.origin}/preview/${id}`;
+        navigator.clipboard.writeText(url).catch(() => {});
+        toast({ title: "Proyecto público", description: `Link copiado: ${url}` });
+      } else {
+        toast({ title: "Proyecto privado" });
+      }
+    } catch {
+      toast({ title: "Error al cambiar visibilidad", variant: "destructive" });
+    }
   };
 
   return (
@@ -121,11 +138,17 @@ const Dashboard = () => {
                     <h3 className="font-semibold text-sm truncate">{project.name}</h3>
                   </div>
                   <div className="flex items-center gap-1">
-                    {project.is_public ? (
-                      <Globe className="h-3.5 w-3.5 text-execute" />
-                    ) : (
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
+                    <button
+                      onClick={(e) => handleTogglePublic(project.id, project.is_public, e)}
+                      className="p-1 rounded hover:bg-surface-2 text-muted-foreground hover:text-foreground transition-all"
+                      title={project.is_public ? "Hacer privado" : "Hacer público"}
+                    >
+                      {project.is_public ? (
+                        <Globe className="h-3.5 w-3.5 text-execute" />
+                      ) : (
+                        <Lock className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                     <button
                       onClick={(e) => handleDelete(project.id, e)}
                       className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"

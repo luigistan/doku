@@ -1,13 +1,14 @@
-# BuilderAI Engine 🚀
+# DOKU AI 🚀
 
-Motor de IA propio, 100% gratuito y open source, para generar sitios web dinámicamente usando NLP basado en reglas.
+Motor de IA propio, 100% gratuito y open source, para generar sitios web dinámicamente usando NLP basado en reglas. Genera HTML profesional y también TypeScript/React.
 
 ## ¿Qué es?
 
-BuilderAI Engine es un constructor de sitios web inteligente que:
+DOKU AI es un constructor de sitios web inteligente que:
 - **Entiende texto natural** en español e inglés
 - **Extrae entidades** (nombre del negocio, secciones, colores)
-- **Compone sitios dinámicamente** combinando bloques HTML
+- **Compone sitios dinámicamente** combinando bloques HTML con CSS moderno y JavaScript interactivo
+- **Genera código TypeScript/React** para proyectos avanzados
 - **No requiere APIs externas** - todo corre en Supabase Edge Functions (Deno)
 
 ## Arquitectura
@@ -27,11 +28,12 @@ Usuario: "Quiero una landing para mi cafetería El Buen Café con menú y contac
                     └───────┬───────┴────────────────┘
                             │
                    4. Template Composer
-                   (combina bloques HTML)
+                   (combina bloques HTML/React)
                             │
-                   5. HTML Personalizado
+                   5. Código Profesional
+                   (HTML + CSS + JS / TSX + React)
                             │
-                      [Preview Panel]
+                      [Preview en Vivo]
 ```
 
 ## Industrias Soportadas
@@ -47,36 +49,60 @@ Usuario: "Quiero una landing para mi cafetería El Buen Café con menú y contac
 | Fitness | gimnasio, gym, yoga | hero, pricing, features, contact |
 | Agencia | agencia, servicios, marketing | hero, features, about, contact, testimonials |
 
+## Funcionalidades
+
+- ✅ Generación de sitios con NLP en español/inglés
+- ✅ Preview en vivo con viewport desktop/tablet/mobile
+- ✅ Autenticación con Supabase Auth
+- ✅ Multi-proyecto con dashboard
+- ✅ Historial de versiones auto-guardado
+- ✅ Chat persistente por proyecto
+- ✅ Exportar HTML descargable
+- ✅ Compartir con link público
+- ✅ Imágenes reales de Unsplash
+- ✅ Google Fonts integrados
+- ✅ SEO y Open Graph automáticos
+- ✅ Accesibilidad (skip-link, aria-labels, focus states)
+- ✅ Animaciones con IntersectionObserver
+- ✅ Menu mobile responsive funcional
+
 ## Tech Stack
 
 - **Frontend**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
-- **Backend**: Supabase Edge Functions (Deno)
+- **Backend**: Supabase Edge Functions (Deno) + Supabase Auth + PostgreSQL
 - **NLP**: Motor propio basado en reglas (tokenizer, classifier, extractor)
 - **Costo**: $0 - Sin APIs externas
-
-## Cómo Contribuir
-
-1. Fork el repositorio
-2. Crea una rama: `git checkout -b feature/mi-feature`
-3. Haz tus cambios y commit: `git commit -m "Add: mi feature"`
-4. Push: `git push origin feature/mi-feature`
-5. Abre un Pull Request
-
-### Áreas donde puedes contribuir:
-- **Nuevas industrias**: Agrega más tipos de sitios en el intent classifier
-- **Bloques HTML**: Crea nuevas secciones reutilizables
-- **NLP mejorado**: Expande sinónimos, patrones regex, soporte multi-idioma
-- **Temas de color**: Agrega más esquemas de color
-- **Contenido**: Mejora el contenido predeterminado por industria
 
 ## Desarrollo Local
 
 ```sh
-git clone <TU_GIT_URL>
-cd <TU_PROYECTO>
+git clone https://github.com/TU_USUARIO/doku-ai.git
+cd doku-ai
 npm install
 npm run dev
 ```
+
+## Cómo Contribuir
+
+Lee nuestra [Guía de Contribución](CONTRIBUTING.md) para detalles completos.
+
+### Resumen rápido:
+
+1. Fork el repositorio
+2. Crea una rama: `git checkout -b feature/mi-feature`
+3. Haz tus cambios y commit: `git commit -m "feat: mi feature"`
+4. Push: `git push origin feature/mi-feature`
+5. Abre un Pull Request
+
+### Áreas donde puedes contribuir:
+- 🧠 Mejorar el motor NLP (sinónimos, detección de intents, multi-idioma)
+- 🎨 Nuevos templates y bloques HTML/CSS
+- 💻 Generación de TypeScript/React components
+- 🏭 Nuevas industrias (clínica, inmobiliaria, escuela, veterinaria)
+- 🌐 Traducciones a otros idiomas
+- ♿ Mejorar accesibilidad (WCAG AA)
+- 🧪 Escribir tests automatizados
+- 📖 Documentación y tutoriales
 
 ## Licencia
 
