@@ -4,6 +4,7 @@ export interface Project {
   id: string;
   user_id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   html: string | null;
   intent: string | null;
@@ -35,7 +36,7 @@ export async function createProject(name: string, description?: string): Promise
   return data as Project;
 }
 
-export async function updateProject(id: string, updates: { name?: string; html?: string; intent?: string; entities?: unknown; is_public?: boolean; description?: string }): Promise<void> {
+export async function updateProject(id: string, updates: { name?: string; html?: string; intent?: string; entities?: unknown; is_public?: boolean; description?: string; slug?: string }): Promise<void> {
   const { error } = await supabase
     .from("projects")
     .update(updates as Record<string, unknown>)
@@ -55,6 +56,24 @@ export async function getProject(id: string): Promise<Project> {
     .eq("id", id)
     .single();
   if (error) throw error;
+  return data as Project;
+}
+
+export async function checkSlugAvailable(slug: string, currentProjectId?: string): Promise<boolean> {
+  let query = supabase.from("projects").select("id").eq("slug", slug);
+  if (currentProjectId) query = query.neq("id", currentProjectId);
+  const { data } = await query;
+  return !data || data.length === 0;
+}
+
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_public", true)
+    .single();
+  if (error) return null;
   return data as Project;
 }
 

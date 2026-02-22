@@ -1,29 +1,61 @@
-import { useState } from "react";
-import { X, Trash2, Globe, Lock, Copy, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { checkSlugAvailable } from "@/services/projectService";
 
 interface ProjectSettingsProps {
   open: boolean;
   onClose: () => void;
   projectName: string;
   projectId?: string;
+  slug: string | null;
   isPublic: boolean;
   onUpdateName: (name: string) => void;
+  onUpdateSlug: (slug: string) => void;
   onTogglePublic: (isPublic: boolean) => void;
   onDelete: () => void;
 }
 
+function sanitizeSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+}
+
 export function ProjectSettings({
-  open, onClose, projectName, projectId, isPublic,
-  onUpdateName, onTogglePublic, onDelete,
+  open, onClose, projectName, projectId, slug, isPublic,
+  onUpdateName, onUpdateSlug, onTogglePublic, onDelete,
 }: ProjectSettingsProps) {
   const [name, setName] = useState(projectName);
+  const [slugInput, setSlugInput] = useState(slug || "");
+  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  useEffect(() => {
+    setName(projectName);
+    setSlugInput(slug || sanitizeSlug(projectName));
+  }, [projectName, slug, open]);
+
+  const checkSlug = useCallback(async (val: string) => {
+    if (!val || val.length < 2) { setSlugStatus("idle"); return; }
+    setSlugStatus("checking");
+    const available = await checkSlugAvailable(val, projectId);
+    setSlugStatus(available ? "available" : "taken");
+  }, [projectId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (slugInput) checkSlug(slugInput); }, 400);
+    return () => clearTimeout(t);
+  }, [slugInput, checkSlug]);
+
   if (!open) return null;
 
-  const publicUrl = `https://www.doku.red/preview/${projectId}`;
+  const publicUrl = slugInput ? `https://www.doku.red/p/${slugInput}` : `https://www.doku.red/preview/${projectId}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -32,15 +64,16 @@ export function ProjectSettings({
   };
 
   const handleSaveName = () => {
-    if (name.trim() && name !== projectName) {
-      onUpdateName(name.trim());
-    }
+    if (name.trim() && name !== projectName) onUpdateName(name.trim());
+  };
+
+  const handleSaveSlug = () => {
+    if (slugStatus === "available" && slugInput) onUpdateSlug(slugInput);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl border border-border bg-surface-1 shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Configuración del proyecto</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground transition-colors">
@@ -62,6 +95,38 @@ export function ProjectSettings({
                 Guardar
               </button>
             </div>
+          </div>
+
+          {/* Slug / Custom URL */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">URL personalizada</label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-mono shrink-0">doku.red/p/</span>
+              <div className="relative flex-1">
+                <input
+                  value={slugInput}
+                  onChange={(e) => setSlugInput(sanitizeSlug(e.target.value))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-8 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
+                  placeholder="mi-proyecto"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  {slugStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {slugStatus === "available" && <Check className="h-4 w-4 text-execute" />}
+                  {slugStatus === "taken" && <AlertCircle className="h-4 w-4 text-destructive" />}
+                </div>
+              </div>
+            </div>
+            {slugStatus === "taken" && (
+              <p className="text-xs text-destructive">Este slug ya está en uso. Prueba con otro.</p>
+            )}
+            {slugStatus === "available" && (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-execute flex-1">¡Disponible!</p>
+                <button onClick={handleSaveSlug} className="rounded-lg bg-brain px-3 py-1.5 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors">
+                  Guardar URL
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Domain */}

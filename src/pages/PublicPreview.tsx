@@ -4,21 +4,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 const PublicPreview = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, slug } = useParams<{ projectId?: string; slug?: string }>();
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId && !slug) return;
 
     const load = async () => {
-      const { data, error: err } = await supabase
+      let query = supabase
         .from("projects")
         .select("html, is_public, name")
-        .eq("id", projectId)
-        .eq("is_public", true)
-        .single();
+        .eq("is_public", true);
+
+      if (slug) {
+        query = query.eq("slug", slug);
+      } else if (projectId) {
+        query = query.eq("id", projectId);
+      }
+
+      const { data, error: err } = await query.single();
 
       if (err || !data) {
         setError(true);
@@ -29,7 +35,7 @@ const PublicPreview = () => {
     };
 
     load();
-  }, [projectId]);
+  }, [projectId, slug]);
 
   if (loading) {
     return (
@@ -53,7 +59,7 @@ const PublicPreview = () => {
       srcDoc={html}
       className="h-screen w-screen border-0"
       title="Public Preview"
-      sandbox="allow-scripts"
+      sandbox="allow-scripts allow-same-origin"
     />
   );
 };

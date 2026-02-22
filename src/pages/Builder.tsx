@@ -17,6 +17,7 @@ const Builder = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projectName, setProjectName] = useState("Cargando...");
+  const [projectSlug, setProjectSlug] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [loadingProject, setLoadingProject] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -32,6 +33,7 @@ const Builder = () => {
       try {
         const project = await getProject(projectId);
         setProjectName(project.name);
+        setProjectSlug(project.slug || null);
         setIsPublic(project.is_public);
 
         if (project.html) {
@@ -146,8 +148,14 @@ const Builder = () => {
         onClose={() => setSettingsOpen(false)}
         projectName={projectName}
         projectId={projectId}
+        slug={projectSlug}
         isPublic={isPublic}
         onUpdateName={handleUpdateName}
+        onUpdateSlug={(s) => {
+          if (!projectId) return;
+          setProjectSlug(s);
+          updateProject(projectId, { slug: s }).catch(console.error);
+        }}
         onTogglePublic={handleTogglePublic}
         onDelete={handleDelete}
       />

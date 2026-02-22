@@ -118,6 +118,7 @@ export type Database = {
           intent: string | null
           is_public: boolean
           name: string
+          slug: string | null
           thumbnail_url: string | null
           updated_at: string
           user_id: string
@@ -131,6 +132,7 @@ export type Database = {
           intent?: string | null
           is_public?: boolean
           name: string
+          slug?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id: string
@@ -144,6 +146,7 @@ export type Database = {
           intent?: string | null
           is_public?: boolean
           name?: string
+          slug?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
