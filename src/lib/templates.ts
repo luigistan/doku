@@ -1,674 +1,1241 @@
 import { Template } from "@/types/builder";
 
+// Helper: wraps a React+TypeScript component in a full HTML page that renders via CDN
+function reactWrap(componentCode: string, title: string): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#12121a}
+::-webkit-scrollbar-thumb{background:#2d2d3f;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-type="module">
+${componentCode}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+<\/script>
+</body>
+</html>`;
+}
+
 export const templates: Template[] = [
   {
     id: "landing",
     name: "Landing Page",
-    keywords: ["landing", "página principal", "home", "inicio", "pagina", "bienvenida", "presentación", "empresa", "negocio", "startup"],
-    description: "Una landing page moderna con hero, features y CTA",
+    keywords: ["landing", "página principal", "home", "inicio", "pagina", "bienvenida", "presentación", "empresa", "negocio", "startup", "saas", "tech", "tecnología"],
+    description: "Landing page profesional con React y TypeScript",
     planSteps: [
-      "Crear estructura HTML base con SEO",
-      "Agregar hero section con título y CTA",
-      "Diseñar sección de características",
-      "Agregar formulario de contacto",
-      "Crear footer con links",
+      "Crear navegación responsive con React.useState",
+      "Diseñar hero section profesional con imagen de Landing Page",
+      "Generar sección de características con iconos y descripciones",
+      "Agregar formulario de contacto con validación",
+      "Crear footer profesional con navegación y links legales",
+      "Aplicar paleta de colores: purple",
+      "Inyectar animaciones de scroll con IntersectionObserver",
+      "Agregar navbar sticky, back-to-top y contadores animados",
+      "Optimizar SEO con meta tags y estructura semántica",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Empresa</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;line-height:1.6}
-a{color:#a78bfa;text-decoration:none}
-.container{max-width:1100px;margin:0 auto;padding:0 2rem}
-nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(10,10,15,0.85);border-bottom:1px solid #1e1e2e;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-nav .logo{font-size:1.3rem;font-weight:700;color:#e2e8f0}
-nav .links{display:flex;gap:1.5rem;align-items:center}
-nav .links a{color:#94a3b8;font-size:0.9rem;transition:color 0.2s}
-nav .links a:hover{color:#a78bfa}
-.hero{min-height:85vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem;background:radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.12) 0%,transparent 60%)}
-.hero h1{font-size:clamp(2.5rem,5vw,4rem);font-weight:800;margin-bottom:1rem;background:linear-gradient(135deg,#a78bfa,#818cf8,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{font-size:1.15rem;color:#94a3b8;max-width:600px;margin-bottom:2rem}
-.btn{padding:0.85rem 2rem;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 4px 15px rgba(124,58,237,0.3)}
-.btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(124,58,237,0.4)}
-.btn-outline{background:transparent;border:1.5px solid #2d2d3f;color:#e2e8f0;box-shadow:none}
-.btn-outline:hover{border-color:#7c3aed;box-shadow:0 4px 15px rgba(124,58,237,0.15)}
-.features{padding:5rem 2rem;background:#0e0e16}
-.features .header{text-align:center;margin-bottom:3rem}
-.features .header h2{font-size:2rem;font-weight:700;margin-bottom:0.5rem}
-.features .header p{color:#94a3b8}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;max-width:1100px;margin:0 auto}
-.card{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;padding:2rem;transition:transform 0.3s,border-color 0.3s}
-.card:hover{transform:translateY(-4px);border-color:rgba(124,58,237,0.4)}
-.card .icon{font-size:2rem;margin-bottom:1rem}
-.card h3{font-size:1.15rem;font-weight:600;margin-bottom:0.5rem}
-.card p{color:#94a3b8;font-size:0.95rem}
-.contact{padding:5rem 2rem;text-align:center}
-.contact h2{font-size:2rem;font-weight:700;margin-bottom:0.5rem}
-.contact>p{color:#94a3b8;margin-bottom:2rem}
-.contact form{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
-.contact input,.contact textarea{background:#12121a;border:1px solid #1e1e2e;border-radius:10px;padding:0.85rem 1rem;color:#e2e8f0;font-family:inherit;font-size:0.95rem;outline:none;transition:border-color 0.2s}
-.contact input:focus,.contact textarea:focus{border-color:#7c3aed}
-.contact textarea{resize:vertical;min-height:120px}
-footer{border-top:1px solid #1e1e2e;padding:2rem;text-align:center;color:#64748b;font-size:0.85rem}
-@media(max-width:768px){.hero h1{font-size:2.2rem}.grid{grid-template-columns:1fr}.nav .links{display:none}}
-</style></head>
-<body>
-<nav><div class="logo">Mi Empresa</div><div class="links"><a href="#features">Características</a><a href="#contact">Contacto</a><button class="btn" style="padding:0.6rem 1.5rem;font-size:0.85rem">Empezar</button></div></nav>
-<section class="hero">
-<h1>Soluciones digitales para tu negocio</h1>
-<p>Transformamos ideas en productos digitales excepcionales. Tecnología de punta al servicio de tu empresa.</p>
-<div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
-<button class="btn">Comenzar Gratis →</button>
-<button class="btn btn-outline">Ver Demo</button>
-</div>
-</section>
-<section class="features" id="features">
-<div class="header"><h2>¿Por qué elegirnos?</h2><p>Todo lo que necesitas para crecer tu negocio</p></div>
-<div class="grid">
-<div class="card"><div class="icon">⚡</div><h3>Ultra Rápido</h3><p>Rendimiento optimizado para una experiencia fluida y sin interrupciones en cada dispositivo.</p></div>
-<div class="card"><div class="icon">🔒</div><h3>100% Seguro</h3><p>Protección de datos de nivel empresarial con cifrado end-to-end integrado.</p></div>
-<div class="card"><div class="icon">🎨</div><h3>Personalizable</h3><p>Adapta cada aspecto a tu marca con nuestro sistema de diseño flexible y moderno.</p></div>
-<div class="card"><div class="icon">📊</div><h3>Analytics</h3><p>Métricas en tiempo real para tomar decisiones informadas y crecer tu negocio.</p></div>
-<div class="card"><div class="icon">🌐</div><h3>Multi-idioma</h3><p>Soporte para múltiples idiomas y regiones para alcanzar audiencias globales.</p></div>
-<div class="card"><div class="icon">🤝</div><h3>Soporte 24/7</h3><p>Equipo de soporte dedicado disponible las 24 horas para ayudarte.</p></div>
-</div>
-</section>
-<section class="contact" id="contact">
-<h2>Contáctanos</h2>
-<p>¿Listo para empezar? Envíanos un mensaje</p>
-<form onsubmit="event.preventDefault();alert('¡Mensaje enviado!')">
-<input type="text" placeholder="Tu nombre" required>
-<input type="email" placeholder="tu@email.com" required>
-<textarea placeholder="Tu mensaje..." required></textarea>
-<button type="submit" class="btn">Enviar Mensaje</button>
-</form>
-</section>
-<footer><p>© 2026 Mi Empresa. Todos los derechos reservados. Creado con DOKU AI.</p></footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState, useEffect, useRef } = React;
+
+function useOnScreen(ref) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return visible;
+}
+
+function Counter({ end, label }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const visible = useOnScreen(ref);
+  useEffect(() => {
+    if (!visible) return;
+    let start = 0;
+    const step = Math.ceil(end / 40);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= end) { setCount(end); clearInterval(timer); }
+      else setCount(start);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [visible, end]);
+  return <div ref={ref} style={{textAlign:'center'}}><div style={{fontSize:'2.5rem',fontWeight:800,background:'linear-gradient(135deg,#a78bfa,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{count}+</div><div style={{color:'#94a3b8',fontSize:'0.9rem'}}>{label}</div></div>;
+}
+
+function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', h);
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+  return <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(16px)',background:scrolled?'rgba(10,10,15,0.95)':'rgba(10,10,15,0.7)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'background 0.3s'}}>
+    <div style={{fontSize:'1.3rem',fontWeight:700,color:'#e2e8f0'}}>Mi Empresa</div>
+    <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+      {['Inicio','Servicios','Contacto'].map(l => <a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem',transition:'color 0.2s'}} onMouseOver={e=>e.target.style.color='#a78bfa'} onMouseOut={e=>e.target.style.color='#94a3b8'}>{l}</a>)}
+      <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem',boxShadow:'0 4px 15px rgba(124,58,237,0.3)'}}>Empezar</button>
+    </div>
+  </nav>;
+}
+
+function Hero() {
+  return <section id="inicio" style={{minHeight:'85vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.12) 0%,transparent 60%)'}}>
+    <span style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid #7c3aed44'}}>✦ Innovación Digital</span>
+    <h1 style={{fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#a78bfa,#818cf8,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',maxWidth:700}}>Soluciones modernas y escalables para tu negocio</h1>
+    <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Transformamos ideas en productos digitales excepcionales con tecnología de última generación.</p>
+    <div style={{display:'flex',gap:'1rem',flexWrap:'wrap',justifyContent:'center'}}>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem',boxShadow:'0 4px 15px rgba(124,58,237,0.3)'}}>Comenzar Ahora →</button>
+      <button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #2d2d3f',color:'#e2e8f0',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>Saber Más</button>
+    </div>
+  </section>;
+}
+
+function Features() {
+  const items = [
+    { icon: '⚡', title: 'Ultra Rápido', desc: 'Rendimiento optimizado para una experiencia fluida en cada dispositivo.' },
+    { icon: '🔒', title: '100% Seguro', desc: 'Protección de datos con cifrado end-to-end integrado.' },
+    { icon: '🎨', title: 'Personalizable', desc: 'Adapta cada aspecto a tu marca con diseño flexible.' },
+    { icon: '📊', title: 'Analytics', desc: 'Métricas en tiempo real para decisiones informadas.' },
+    { icon: '🌐', title: 'Multi-idioma', desc: 'Soporte para múltiples idiomas y regiones.' },
+    { icon: '🤝', title: 'Soporte 24/7', desc: 'Equipo dedicado disponible las 24 horas.' },
+  ];
+  const ref = useRef(null);
+  const visible = useOnScreen(ref);
+  return <section ref={ref} id="servicios" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+    <div style={{textAlign:'center',marginBottom:'3rem'}}><h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem'}}>¿Por qué elegirnos?</h2><p style={{color:'#94a3b8'}}>Todo lo que necesitas para crecer</p></div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+      {items.map((f,i) => <div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',transition:'transform 0.3s,border-color 0.3s',opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transitionDelay:\`\${i*80}ms\`}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='rgba(124,58,237,0.4)'}} onMouseOut={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor='#1e1e2e'}}>
+        <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{f.icon}</div>
+        <h3 style={{fontSize:'1.15rem',fontWeight:600,marginBottom:'0.5rem'}}>{f.title}</h3>
+        <p style={{color:'#94a3b8',fontSize:'0.95rem'}}>{f.desc}</p>
+      </div>)}
+    </div>
+  </section>;
+}
+
+function Stats() {
+  return <section style={{padding:'4rem 2rem',display:'flex',justifyContent:'center',gap:'4rem',flexWrap:'wrap'}}>
+    <Counter end={500} label="Proyectos" /><Counter end={50} label="Clientes" /><Counter end={99} label="% Satisfacción" /><Counter end={24} label="Soporte (hrs)" />
+  </section>;
+}
+
+function Contact() {
+  const [sent, setSent] = useState(false);
+  return <section id="contacto" style={{padding:'5rem 2rem',textAlign:'center'}}>
+    <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem'}}>Contáctanos</h2>
+    <p style={{color:'#94a3b8',marginBottom:'2rem'}}>¿Listo para empezar? Envíanos un mensaje</p>
+    {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Mensaje enviado exitosamente!</p> :
+    <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+      <input style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Tu nombre" required />
+      <input type="email" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="tu@email.com" required />
+      <textarea style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none',resize:'vertical',minHeight:120}} placeholder="Tu mensaje..." required />
+      <button type="submit" style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>Enviar Mensaje</button>
+    </form>}
+  </section>;
+}
+
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const h = () => setShow(window.scrollY > 400);
+    window.addEventListener('scroll', h);
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+  if (!show) return null;
+  return <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} style={{position:'fixed',bottom:24,right:24,width:44,height:44,borderRadius:'50%',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',fontSize:'1.2rem',zIndex:99,boxShadow:'0 4px 15px rgba(124,58,237,0.4)'}}>↑</button>;
+}
+
+function App() {
+  return <><Navbar /><Hero /><Stats /><Features /><Contact /><footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Mi Empresa. Todos los derechos reservados. Creado con DOKU AI.</footer><BackToTop /></>;
+}
+`, "Mi Empresa"),
   },
   {
     id: "restaurant",
     name: "Restaurante / Cafetería",
     keywords: ["restaurante", "cafeteria", "café", "cafe", "comida", "food", "restaurant", "bar", "cocina", "gastronomia", "pizzeria", "menu", "carta"],
-    description: "Sitio web para restaurante con menú y reservaciones",
+    description: "Sitio web para restaurante con React y TypeScript",
     planSteps: [
-      "Crear navegación con nombre del restaurante",
+      "Crear navegación responsive con nombre del restaurante",
       "Diseñar hero con imagen de fondo",
-      "Generar menú gastronómico con precios",
-      "Agregar sección de reservaciones",
+      "Generar menú gastronómico con categorías y precios",
+      "Agregar sección de reservaciones con formulario",
       "Crear footer con ubicación y horarios",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Restaurante</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0f0a05;color:#fef3c7;line-height:1.6}
-h1,h2,h3{font-family:'Playfair Display',serif}
-nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(15,10,5,0.9);border-bottom:1px solid #302010;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-nav .logo{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700}
-nav .links{display:flex;gap:1.5rem}
-nav .links a{color:#b8a078;font-size:0.9rem;text-decoration:none;transition:color 0.2s}
-nav .links a:hover{color:#f59e0b}
-.hero{min-height:80vh;background:linear-gradient(135deg,rgba(15,10,5,0.8),rgba(20,15,8,0.9)),url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80');background-size:cover;background-position:center;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem}
-.hero h1{font-size:clamp(2.5rem,5vw,4rem);margin-bottom:1rem;background:linear-gradient(135deg,#d97706,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{font-size:1.1rem;color:#b8a078;max-width:500px;margin-bottom:2rem}
-.btn{padding:0.85rem 2rem;background:linear-gradient(135deg,#d97706,#ea580c);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;transition:transform 0.2s;font-size:0.95rem}
-.btn:hover{transform:translateY(-2px)}
-.menu-section{padding:5rem 2rem;max-width:900px;margin:0 auto}
-.menu-section h2{text-align:center;font-size:2rem;margin-bottom:0.5rem}
-.menu-section>p{text-align:center;color:#b8a078;margin-bottom:3rem}
-.menu-cat{margin-bottom:2.5rem}
-.menu-cat h3{color:#f59e0b;font-size:1.2rem;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #302010}
-.menu-item{display:flex;justify-content:space-between;align-items:baseline;padding:0.75rem 0;border-bottom:1px dotted #302010}
-.menu-item .name{font-weight:500}
-.menu-item .desc{color:#b8a078;font-size:0.85rem}
-.menu-item .price{color:#f59e0b;font-weight:700;font-size:1.1rem;white-space:nowrap;margin-left:1rem}
-.reserve{padding:5rem 2rem;background:#140f08;text-align:center}
-.reserve h2{font-size:2rem;margin-bottom:0.5rem}
-.reserve>p{color:#b8a078;margin-bottom:2rem}
-.reserve form{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
-.reserve input,.reserve select{background:#1c1610;border:1px solid #302010;border-radius:10px;padding:0.85rem 1rem;color:#fef3c7;font-family:inherit;outline:none}
-.reserve input:focus,.reserve select:focus{border-color:#d97706}
-footer{border-top:1px solid #302010;padding:2rem;text-align:center;color:#b8a078;font-size:0.85rem}
-footer .info{display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-bottom:1rem}
-@media(max-width:768px){.hero h1{font-size:2.2rem}}
-</style></head>
-<body>
-<nav><div class="logo">🍽️ Mi Restaurante</div><div class="links"><a href="#menu">Menú</a><a href="#reservar">Reservar</a><a href="#contacto">Contacto</a></div></nav>
-<section class="hero">
-<h1>Una experiencia gastronómica única</h1>
-<p>Sabores auténticos preparados con los mejores ingredientes locales y pasión por la cocina.</p>
-<button class="btn">Reservar Mesa →</button>
-</section>
-<section class="menu-section" id="menu">
-<h2>Nuestro Menú</h2>
-<p>Selección cuidada de platos con ingredientes frescos de temporada</p>
-<div class="menu-cat"><h3>🥗 Entradas</h3>
-<div class="menu-item"><div><div class="name">Ensalada Mediterránea</div><div class="desc">Mix de verdes, queso feta, aceitunas y vinagreta de limón</div></div><div class="price">$12.90</div></div>
-<div class="menu-item"><div><div class="name">Carpaccio de Res</div><div class="desc">Finas láminas de res con rúcula, parmesano y aceite de trufa</div></div><div class="price">$16.50</div></div>
-<div class="menu-item"><div><div class="name">Sopa del Día</div><div class="desc">Preparación fresca del chef con pan artesanal</div></div><div class="price">$9.90</div></div>
-</div>
-<div class="menu-cat"><h3>🥩 Platos Principales</h3>
-<div class="menu-item"><div><div class="name">Filete Mignon</div><div class="desc">Corte premium 250g con puré trufado y vegetales grillados</div></div><div class="price">$38.90</div></div>
-<div class="menu-item"><div><div class="name">Salmón a la Parrilla</div><div class="desc">Salmón noruego con risotto de espárragos y salsa de cítricos</div></div><div class="price">$32.50</div></div>
-<div class="menu-item"><div><div class="name">Pasta Truffle</div><div class="desc">Tagliatelle fresco con crema de trufa negra y parmesano</div></div><div class="price">$26.90</div></div>
-</div>
-<div class="menu-cat"><h3>🍰 Postres</h3>
-<div class="menu-item"><div><div class="name">Tiramisú Clásico</div><div class="desc">Receta tradicional italiana con mascarpone y café expreso</div></div><div class="price">$11.90</div></div>
-<div class="menu-item"><div><div class="name">Crème Brûlée</div><div class="desc">Crema de vainilla con caramelo crujiente</div></div><div class="price">$10.50</div></div>
-</div>
-</section>
-<section class="reserve" id="reservar">
-<h2>Reserva tu Mesa</h2>
-<p>Asegura tu lugar para una experiencia inolvidable</p>
-<form onsubmit="event.preventDefault();alert('¡Reservación confirmada!')">
-<input type="text" placeholder="Nombre completo" required>
-<input type="tel" placeholder="Teléfono">
-<input type="date" required>
-<select><option>2 personas</option><option>4 personas</option><option>6 personas</option><option>8+ personas</option></select>
-<button type="submit" class="btn">Confirmar Reserva</button>
-</form>
-</section>
-<footer id="contacto">
-<div class="info">
-<span>📍 Av. Principal 123, Centro</span>
-<span>📞 +1 234 567 890</span>
-<span>🕐 Lun-Dom: 12:00 - 23:00</span>
-</div>
-<p>© 2026 Mi Restaurante. Creado con DOKU AI.</p>
-</footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [formSent, setFormSent] = useState(false);
+  const menuData = [
+    { cat: '🥗 Entradas', items: [
+      { name: 'Ensalada Mediterránea', desc: 'Mix de verdes, queso feta, aceitunas y vinagreta de limón', price: '$12.90' },
+      { name: 'Carpaccio de Res', desc: 'Finas láminas de res con rúcula, parmesano y aceite de trufa', price: '$16.50' },
+      { name: 'Sopa del Día', desc: 'Preparación fresca del chef con pan artesanal', price: '$9.90' },
+    ]},
+    { cat: '🥩 Platos Principales', items: [
+      { name: 'Filete Mignon', desc: 'Corte premium 250g con puré trufado y vegetales grillados', price: '$38.90' },
+      { name: 'Salmón a la Parrilla', desc: 'Salmón noruego con risotto de espárragos y salsa de cítricos', price: '$32.50' },
+      { name: 'Pasta Truffle', desc: 'Tagliatelle fresco con crema de trufa negra y parmesano', price: '$26.90' },
+    ]},
+    { cat: '🍰 Postres', items: [
+      { name: 'Tiramisú Clásico', desc: 'Receta tradicional italiana con mascarpone y café expreso', price: '$11.90' },
+      { name: 'Crème Brûlée', desc: 'Crema de vainilla con caramelo crujiente', price: '$10.50' },
+    ]},
+  ];
+
+  const navStyle = {position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(15,10,5,0.9)',borderBottom:'1px solid #302010',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'};
+  const btnStyle = {padding:'0.85rem 2rem',background:'linear-gradient(135deg,#d97706,#ea580c)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,cursor:'pointer',fontSize:'0.95rem'};
+  const inputStyle = {background:'#1c1610',border:'1px solid #302010',borderRadius:10,padding:'0.85rem 1rem',color:'#fef3c7',outline:'none',width:'100%'};
+
+  return <>
+    <nav style={navStyle}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:700,color:'#fef3c7'}}>🍽️ Mi Restaurante</div>
+      <div style={{display:'flex',gap:'1.5rem'}}>{['Menú','Reservar','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#b8a078',fontSize:'0.9rem'}}>{l}</a>)}</div>
+    </nav>
+
+    <section style={{minHeight:'80vh',background:'linear-gradient(135deg,rgba(15,10,5,0.85),rgba(20,15,8,0.9))',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem'}}>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2.5rem,5vw,4rem)',marginBottom:'1rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Una experiencia gastronómica única</h1>
+      <p style={{fontSize:'1.1rem',color:'#b8a078',maxWidth:500,marginBottom:'2rem'}}>Sabores auténticos preparados con los mejores ingredientes locales y pasión por la cocina.</p>
+      <button style={btnStyle}>Reservar Mesa →</button>
+    </section>
+
+    <section id="menú" style={{padding:'5rem 2rem',maxWidth:900,margin:'0 auto'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",textAlign:'center',fontSize:'2rem',marginBottom:'0.5rem',color:'#fef3c7'}}>Nuestro Menú</h2>
+      <p style={{textAlign:'center',color:'#b8a078',marginBottom:'3rem'}}>Selección cuidada de platos frescos de temporada</p>
+      {menuData.map((cat,ci) => <div key={ci} style={{marginBottom:'2.5rem'}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",color:'#f59e0b',fontSize:'1.2rem',marginBottom:'1rem',paddingBottom:'0.5rem',borderBottom:'1px solid #302010'}}>{cat.cat}</h3>
+        {cat.items.map((item,ii) => <div key={ii} style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'0.75rem 0',borderBottom:'1px dotted #302010'}}>
+          <div><div style={{fontWeight:500,color:'#fef3c7'}}>{item.name}</div><div style={{color:'#b8a078',fontSize:'0.85rem'}}>{item.desc}</div></div>
+          <div style={{color:'#f59e0b',fontWeight:700,fontSize:'1.1rem',whiteSpace:'nowrap',marginLeft:'1rem'}}>{item.price}</div>
+        </div>)}
+      </div>)}
+    </section>
+
+    <section id="reservar" style={{padding:'5rem 2rem',background:'#140f08',textAlign:'center'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',marginBottom:'0.5rem',color:'#fef3c7'}}>Reserva tu Mesa</h2>
+      <p style={{color:'#b8a078',marginBottom:'2rem'}}>Asegura tu lugar para una experiencia inolvidable</p>
+      {formSent ? <p style={{color:'#34d399'}}>✅ ¡Reservación confirmada!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setFormSent(true)}}>
+        <input style={inputStyle} placeholder="Nombre completo" required />
+        <input style={inputStyle} type="tel" placeholder="Teléfono" />
+        <input style={inputStyle} type="date" required />
+        <select style={{...inputStyle,appearance:'auto'}}><option>2 personas</option><option>4 personas</option><option>6 personas</option><option>8+ personas</option></select>
+        <button type="submit" style={btnStyle}>Confirmar Reserva</button>
+      </form>}
+    </section>
+
+    <footer id="contacto" style={{borderTop:'1px solid #302010',padding:'2rem',textAlign:'center',color:'#b8a078',fontSize:'0.85rem'}}>
+      <div style={{display:'flex',justifyContent:'center',gap:'2rem',flexWrap:'wrap',marginBottom:'1rem'}}>
+        <span>📍 Av. Principal 123, Centro</span><span>📞 +1 234 567 890</span><span>🕐 Lun-Dom: 12:00 - 23:00</span>
+      </div>
+      <p>© 2026 Mi Restaurante. Creado con DOKU AI.</p>
+    </footer>
+  </>;
+}
+`, "Mi Restaurante"),
   },
   {
     id: "portfolio",
     name: "Portfolio",
     keywords: ["portfolio", "portafolio", "proyectos", "galería", "trabajos", "curriculum", "cv", "freelancer", "fotografo", "diseñador"],
-    description: "Un portfolio personal con galería de proyectos",
+    description: "Portfolio personal con React y TypeScript",
     planSteps: [
-      "Crear header con nombre y navegación",
+      "Crear header con navegación",
       "Diseñar sección de presentación personal",
-      "Crear grid de proyectos",
-      "Agregar sección de contacto",
+      "Crear grid de proyectos con filtros",
+      "Agregar sección de skills y contacto",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Portfolio</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;line-height:1.6}
-nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 3rem;border-bottom:1px solid #1e1e2e}
-nav .logo{font-size:1.5rem;font-weight:700;color:#a78bfa}
-nav .links{display:flex;gap:2rem}
-nav a{color:#94a3b8;text-decoration:none;transition:color 0.2s;font-size:0.9rem}
-nav a:hover{color:#a78bfa}
-.about{display:flex;align-items:center;justify-content:center;gap:4rem;padding:6rem 3rem;max-width:1100px;margin:0 auto}
-.about-text h1{font-size:2.5rem;margin-bottom:0.5rem;font-weight:800}
-.about-text h1 span{color:#a78bfa}
-.about-text p{color:#94a3b8;line-height:1.8;max-width:500px;margin-bottom:1.5rem}
-.avatar{width:180px;height:180px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6366f1);display:flex;align-items:center;justify-content:center;font-size:4rem;flex-shrink:0}
-.btn{padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.9rem}
-.projects{padding:4rem 3rem;max-width:1100px;margin:0 auto}
-.projects h2{font-size:2rem;margin-bottom:2rem;text-align:center;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem}
-.project{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;overflow:hidden;transition:transform 0.2s,border-color 0.2s}
-.project:hover{transform:translateY(-4px);border-color:#7c3aed}
-.project-img{height:180px;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:3rem}
-.project-info{padding:1.5rem}
-.project-info h3{margin-bottom:0.25rem;font-weight:600}
-.project-info p{color:#94a3b8;font-size:0.9rem}
-.project-info .tags{display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap}
-.project-info .tag{background:#7c3aed22;color:#a78bfa;padding:0.2rem 0.6rem;border-radius:99px;font-size:0.75rem}
-.contact{padding:5rem 3rem;text-align:center;background:#0e0e16}
-.contact h2{font-size:2rem;margin-bottom:2rem}
-.contact form{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
-.contact input,.contact textarea{background:#12121a;border:1px solid #1e1e2e;border-radius:10px;padding:0.85rem 1rem;color:#e2e8f0;font-family:inherit;outline:none}
-.contact input:focus,.contact textarea:focus{border-color:#7c3aed}
-.contact textarea{resize:vertical;min-height:100px}
-footer{text-align:center;padding:2rem;border-top:1px solid #1e1e2e;color:#64748b;font-size:0.85rem}
-@media(max-width:768px){.about{flex-direction:column;text-align:center;gap:2rem}.about-text h1{font-size:2rem}}
-</style></head>
-<body>
-<nav><div class="logo">Portfolio</div><div class="links"><a href="#about">Sobre mí</a><a href="#projects">Proyectos</a><a href="#contact">Contacto</a></div></nav>
-<section class="about" id="about"><div class="avatar">👨‍💻</div><div class="about-text"><h1>Hola, soy <span>Dev</span></h1><p>Desarrollador full-stack apasionado por crear experiencias web increíbles con las últimas tecnologías. +5 años de experiencia en React, Node.js y diseño UI/UX.</p><button class="btn">Descargar CV</button></div></section>
-<section class="projects" id="projects"><h2>Proyectos</h2><div class="grid">
-<div class="project"><div class="project-img">🛒</div><div class="project-info"><h3>App E-commerce</h3><p>Tienda online completa con pasarela de pagos y gestión de inventario.</p><div class="tags"><span class="tag">React</span><span class="tag">Node.js</span><span class="tag">Stripe</span></div></div></div>
-<div class="project"><div class="project-img">📊</div><div class="project-info"><h3>Dashboard Analytics</h3><p>Panel de control con gráficos en tiempo real y reportes automáticos.</p><div class="tags"><span class="tag">TypeScript</span><span class="tag">D3.js</span><span class="tag">Supabase</span></div></div></div>
-<div class="project"><div class="project-img">💬</div><div class="project-info"><h3>Chat App</h3><p>Aplicación de mensajería en tiempo real con videollamadas.</p><div class="tags"><span class="tag">React</span><span class="tag">WebRTC</span><span class="tag">Socket.io</span></div></div></div>
-</div></section>
-<section class="contact" id="contact"><h2>Contáctame</h2>
-<form onsubmit="event.preventDefault();alert('¡Mensaje enviado!')">
-<input type="text" placeholder="Tu nombre" required>
-<input type="email" placeholder="tu@email.com" required>
-<textarea placeholder="Tu mensaje..."></textarea>
-<button type="submit" class="btn">Enviar</button>
-</form></section>
-<footer><p>© 2026 Portfolio. Creado con DOKU AI.</p></footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [filter, setFilter] = useState('all');
+  const projects = [
+    { title:'App E-commerce', desc:'Tienda online con pasarela de pagos y gestión de inventario.', icon:'🛒', tags:['React','Node.js','Stripe'], cat:'web' },
+    { title:'Dashboard Analytics', desc:'Panel de control con gráficos en tiempo real y reportes automáticos.', icon:'📊', tags:['TypeScript','D3.js','Supabase'], cat:'web' },
+    { title:'Chat App', desc:'Mensajería en tiempo real con videollamadas.', icon:'💬', tags:['React','WebRTC','Socket.io'], cat:'mobile' },
+    { title:'App Fitness', desc:'Seguimiento de entrenamientos y nutrición personalizada.', icon:'💪', tags:['React Native','Firebase'], cat:'mobile' },
+    { title:'Landing SaaS', desc:'Página de conversión con A/B testing integrado.', icon:'🚀', tags:['Next.js','Tailwind','Vercel'], cat:'web' },
+    { title:'API REST', desc:'Microservicios escalables con autenticación JWT.', icon:'⚙️', tags:['Node.js','Express','PostgreSQL'], cat:'backend' },
+  ];
+  const filtered = filter === 'all' ? projects : projects.filter(p => p.cat === filter);
+
+  return <>
+    <nav style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1.5rem 3rem',borderBottom:'1px solid #1e1e2e'}}>
+      <div style={{fontSize:'1.5rem',fontWeight:700,color:'#a78bfa'}}>Portfolio</div>
+      <div style={{display:'flex',gap:'2rem'}}>{['Sobre mí','Proyectos','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase().replace(' ','-')}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}</div>
+    </nav>
+
+    <section id="sobre-mí" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'4rem',padding:'6rem 3rem',maxWidth:1100,margin:'0 auto',flexWrap:'wrap'}}>
+      <div style={{width:180,height:180,borderRadius:'50%',background:'linear-gradient(135deg,#7c3aed,#6366f1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem',flexShrink:0}}>👨‍💻</div>
+      <div>
+        <h1 style={{fontSize:'2.5rem',marginBottom:'0.5rem',fontWeight:800}}>Hola, soy <span style={{color:'#a78bfa'}}>Dev</span></h1>
+        <p style={{color:'#94a3b8',lineHeight:1.8,maxWidth:500,marginBottom:'1.5rem'}}>Desarrollador full-stack apasionado por crear experiencias web increíbles. +5 años en React, TypeScript, Node.js y diseño UI/UX.</p>
+        <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',marginBottom:'1.5rem'}}>
+          {['React','TypeScript','Node.js','PostgreSQL','Tailwind CSS','Docker'].map(s=><span key={s} style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.3rem 0.8rem',borderRadius:99,fontSize:'0.8rem'}}>{s}</span>)}
+        </div>
+        <button style={{padding:'0.75rem 1.5rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.9rem'}}>Descargar CV</button>
+      </div>
+    </section>
+
+    <section id="proyectos" style={{padding:'4rem 3rem',maxWidth:1100,margin:'0 auto'}}>
+      <h2 style={{fontSize:'2rem',marginBottom:'1.5rem',textAlign:'center',fontWeight:700}}>Proyectos</h2>
+      <div style={{display:'flex',justifyContent:'center',gap:'0.5rem',marginBottom:'2rem'}}>
+        {[['all','Todos'],['web','Web'],['mobile','Mobile'],['backend','Backend']].map(([k,l])=><button key={k} onClick={()=>setFilter(k)} style={{padding:'0.5rem 1.2rem',borderRadius:99,border:'none',background:filter===k?'linear-gradient(135deg,#7c3aed,#6366f1)':'#12121a',color:filter===k?'#fff':'#94a3b8',fontWeight:500,fontSize:'0.85rem'}}>{l}</button>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem'}}>
+        {filtered.map((p,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,overflow:'hidden',transition:'all 0.2s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#7c3aed'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#1e1e2e'}}>
+          <div style={{height:160,background:'linear-gradient(135deg,#1a1a2e,#16213e)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem'}}>{p.icon}</div>
+          <div style={{padding:'1.5rem'}}><h3 style={{marginBottom:'0.25rem',fontWeight:600}}>{p.title}</h3><p style={{color:'#94a3b8',fontSize:'0.9rem'}}>{p.desc}</p>
+          <div style={{display:'flex',gap:'0.5rem',marginTop:'0.75rem',flexWrap:'wrap'}}>{p.tags.map(t=><span key={t} style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.2rem 0.6rem',borderRadius:99,fontSize:'0.75rem'}}>{t}</span>)}</div></div>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="contacto" style={{padding:'5rem 3rem',textAlign:'center',background:'#0e0e16'}}>
+      <h2 style={{fontSize:'2rem',marginBottom:'2rem'}}>Contáctame</h2>
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();alert('¡Mensaje enviado!')}}>
+        <input style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="email" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="tu@email.com" required />
+        <textarea style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none',resize:'vertical',minHeight:100}} placeholder="Tu mensaje..." />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Enviar</button>
+      </form>
+    </section>
+
+    <footer style={{textAlign:'center',padding:'2rem',borderTop:'1px solid #1e1e2e',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Portfolio. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Portfolio"),
   },
   {
     id: "blog",
     name: "Blog",
     keywords: ["blog", "artículos", "posts", "noticias", "publicaciones", "contenido", "revista"],
-    description: "Un blog con listado de artículos",
+    description: "Blog con React y TypeScript",
     planSteps: [
-      "Crear header con navegación",
-      "Diseñar listado de artículos",
-      "Agregar sidebar con categorías",
+      "Crear header con navegación y búsqueda",
+      "Diseñar listado de artículos con componentes React",
+      "Agregar sidebar con categorías y tags",
       "Crear footer informativo",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Blog</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;line-height:1.6}
-header{padding:2rem 3rem;border-bottom:1px solid #1e1e2e;text-align:center}
-header h1{font-size:2rem;color:#a78bfa;margin-bottom:0.5rem}
-header p{color:#64748b}
-.container{display:grid;grid-template-columns:1fr 300px;gap:2rem;max-width:1100px;margin:2rem auto;padding:0 2rem}
-.posts{display:flex;flex-direction:column;gap:1.5rem}
-.post{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;padding:2rem;transition:border-color 0.2s}
-.post:hover{border-color:#7c3aed}
-.post .tag{display:inline-block;background:#7c3aed22;color:#a78bfa;padding:0.25rem 0.75rem;border-radius:99px;font-size:0.8rem;margin-bottom:0.75rem}
-.post h2{font-size:1.4rem;margin-bottom:0.5rem}
-.post p{color:#94a3b8}
-.post .meta{margin-top:1rem;color:#64748b;font-size:0.85rem}
-.sidebar{display:flex;flex-direction:column;gap:1.5rem}
-.sidebar-card{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;padding:1.5rem}
-.sidebar-card h3{color:#a78bfa;margin-bottom:1rem;font-size:1.1rem}
-.sidebar-card ul{list-style:none;display:flex;flex-direction:column;gap:0.5rem}
-.sidebar-card li{color:#94a3b8;cursor:pointer;transition:color 0.2s}
-.sidebar-card li:hover{color:#a78bfa}
-footer{text-align:center;padding:2rem;border-top:1px solid #1e1e2e;color:#64748b;font-size:0.85rem;margin-top:2rem}
-@media(max-width:768px){.container{grid-template-columns:1fr}}
-</style></head>
-<body>
-<header><h1>✍️ Mi Blog</h1><p>Pensamientos sobre tecnología, diseño y desarrollo</p></header>
-<div class="container">
-<div class="posts">
-<article class="post"><span class="tag">Desarrollo</span><h2>Cómo construir una API REST moderna</h2><p>Aprende las mejores prácticas para diseñar APIs escalables y mantenibles con Node.js y TypeScript.</p><div class="meta">15 Feb 2026 · 5 min lectura</div></article>
-<article class="post"><span class="tag">Diseño</span><h2>Principios de UI/UX para desarrolladores</h2><p>No necesitas ser diseñador para crear interfaces hermosas. Estos principios básicos te ayudarán.</p><div class="meta">10 Feb 2026 · 8 min lectura</div></article>
-<article class="post"><span class="tag">DevOps</span><h2>Deploy automático con GitHub Actions</h2><p>Configura pipelines de CI/CD para automatizar tu flujo de desarrollo de principio a fin.</p><div class="meta">5 Feb 2026 · 6 min lectura</div></article>
-</div>
-<aside class="sidebar">
-<div class="sidebar-card"><h3>Categorías</h3><ul><li>📁 Desarrollo</li><li>🎨 Diseño</li><li>⚙️ DevOps</li><li>📚 Tutoriales</li></ul></div>
-<div class="sidebar-card"><h3>Tags Populares</h3><ul><li>#react</li><li>#typescript</li><li>#nodejs</li><li>#css</li></ul></div>
-</aside>
-</div>
-<footer><p>© 2026 Mi Blog. Creado con DOKU AI.</p></footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+const postsData = [
+  { tag:'Desarrollo',title:'Cómo construir una API REST con TypeScript',excerpt:'Aprende las mejores prácticas para diseñar APIs escalables y mantenibles con Node.js y TypeScript.',date:'15 Feb 2026',time:'5 min' },
+  { tag:'React',title:'React 19: Novedades y Server Components',excerpt:'Todo lo nuevo en React 19 incluyendo server components, actions y el nuevo compilador.',date:'12 Feb 2026',time:'8 min' },
+  { tag:'TypeScript',title:'Patrones avanzados de TypeScript',excerpt:'Generics, utility types, mapped types y más patrones para código robusto y type-safe.',date:'10 Feb 2026',time:'10 min' },
+  { tag:'DevOps',title:'Deploy automático con GitHub Actions',excerpt:'Configura pipelines de CI/CD para automatizar tu flujo de desarrollo.',date:'5 Feb 2026',time:'6 min' },
+  { tag:'Diseño',title:'Sistema de diseño con Tailwind CSS',excerpt:'Crea un design system completo y consistente usando Tailwind CSS y CSS variables.',date:'1 Feb 2026',time:'7 min' },
+];
+
+function App() {
+  const [search, setSearch] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
+  const tags = [...new Set(postsData.map(p=>p.tag))];
+  const filtered = postsData.filter(p => {
+    if (selectedTag && p.tag !== selectedTag) return false;
+    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const cardStyle = {background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',transition:'border-color 0.2s',cursor:'pointer'};
+
+  return <>
+    <header style={{padding:'2rem 3rem',borderBottom:'1px solid #1e1e2e',textAlign:'center'}}>
+      <h1 style={{fontSize:'2rem',color:'#a78bfa',marginBottom:'0.5rem'}}>✍️ Mi Blog</h1>
+      <p style={{color:'#64748b'}}>Pensamientos sobre tecnología, React y TypeScript</p>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar artículos..." style={{marginTop:'1rem',background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.6rem 1rem',color:'#e2e8f0',outline:'none',width:'100%',maxWidth:400}} />
+    </header>
+
+    <div style={{display:'grid',gridTemplateColumns:'1fr 280px',gap:'2rem',maxWidth:1100,margin:'2rem auto',padding:'0 2rem'}}>
+      <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+        {filtered.length === 0 && <p style={{color:'#64748b'}}>No se encontraron artículos.</p>}
+        {filtered.map((p,i)=><article key={i} style={cardStyle} onMouseOver={e=>e.currentTarget.style.borderColor='#7c3aed'} onMouseOut={e=>e.currentTarget.style.borderColor='#1e1e2e'}>
+          <span style={{display:'inline-block',background:'#7c3aed22',color:'#a78bfa',padding:'0.25rem 0.75rem',borderRadius:99,fontSize:'0.8rem',marginBottom:'0.75rem'}}>{p.tag}</span>
+          <h2 style={{fontSize:'1.4rem',marginBottom:'0.5rem'}}>{p.title}</h2>
+          <p style={{color:'#94a3b8'}}>{p.excerpt}</p>
+          <div style={{marginTop:'1rem',color:'#64748b',fontSize:'0.85rem'}}>{p.date} · {p.time} lectura</div>
+        </article>)}
+      </div>
+      <aside style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+        <div style={{...cardStyle,padding:'1.5rem'}}><h3 style={{color:'#a78bfa',marginBottom:'1rem',fontSize:'1.1rem'}}>Categorías</h3>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+            <div onClick={()=>setSelectedTag('')} style={{color:!selectedTag?'#a78bfa':'#94a3b8',cursor:'pointer',fontSize:'0.9rem'}}>📁 Todas</div>
+            {tags.map(t=><div key={t} onClick={()=>setSelectedTag(t===selectedTag?'':t)} style={{color:selectedTag===t?'#a78bfa':'#94a3b8',cursor:'pointer',fontSize:'0.9rem'}}>📄 {t}</div>)}
+          </div>
+        </div>
+        <div style={{...cardStyle,padding:'1.5rem'}}><h3 style={{color:'#a78bfa',marginBottom:'1rem',fontSize:'1.1rem'}}>Tags Populares</h3>
+          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>{['#react','#typescript','#nodejs','#css','#nextjs','#tailwind'].map(t=><span key={t} style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.2rem 0.6rem',borderRadius:99,fontSize:'0.75rem'}}>{t}</span>)}</div>
+        </div>
+      </aside>
+    </div>
+
+    <footer style={{textAlign:'center',padding:'2rem',borderTop:'1px solid #1e1e2e',color:'#64748b',fontSize:'0.85rem',marginTop:'2rem'}}>© 2026 Mi Blog. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Blog"),
   },
   {
     id: "dashboard",
     name: "Dashboard",
     keywords: ["dashboard", "panel", "admin", "administración", "estadísticas", "métricas", "analytics", "control"],
-    description: "Un dashboard con métricas y gráficos",
+    description: "Dashboard con React y TypeScript",
     planSteps: [
-      "Crear sidebar de navegación",
-      "Diseñar cards de métricas principales",
-      "Agregar área de gráficos",
-      "Crear tabla de datos recientes",
+      "Crear sidebar de navegación con React state",
+      "Diseñar cards de métricas con animaciones",
+      "Agregar tabla de datos con ordenamiento",
+      "Crear área de gráficos placeholder",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;display:flex;min-height:100vh}
-.sidebar{width:240px;background:#0f0f18;border-right:1px solid #1e1e2e;padding:1.5rem;display:flex;flex-direction:column;gap:0.5rem}
-.sidebar h2{color:#a78bfa;margin-bottom:1rem;font-size:1.2rem}
-.sidebar a{color:#94a3b8;text-decoration:none;padding:0.75rem 1rem;border-radius:10px;transition:all 0.2s;display:block;font-size:0.9rem}
-.sidebar a:hover,.sidebar a.active{background:#7c3aed22;color:#a78bfa}
-.main{flex:1;padding:2rem;overflow-y:auto}
-.main h1{font-size:1.75rem;margin-bottom:1.5rem;font-weight:700}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem}
-.metric{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;padding:1.5rem}
-.metric .label{color:#64748b;font-size:0.85rem;margin-bottom:0.5rem}
-.metric .value{font-size:2rem;font-weight:700}
-.metric .change{font-size:0.85rem;margin-top:0.25rem}
-.metric .up{color:#34d399}
-.metric .down{color:#f87171}
-.chart-area{background:#12121a;border:1px solid #1e1e2e;border-radius:16px;padding:2rem;height:280px;display:flex;align-items:center;justify-content:center;color:#64748b;margin-bottom:2rem}
-table{width:100%;background:#12121a;border:1px solid #1e1e2e;border-radius:16px;overflow:hidden}
-th,td{text-align:left;padding:1rem 1.5rem;font-size:0.9rem}
-th{background:#0f0f18;color:#64748b;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em}
-td{border-top:1px solid #1e1e2e}
-.status{padding:0.25rem 0.75rem;border-radius:99px;font-size:0.8rem;font-weight:500}
-.status.active{background:#34d39922;color:#34d399}
-.status.pending{background:#fbbf2422;color:#fbbf24}
-@media(max-width:768px){.sidebar{display:none}.metrics{grid-template-columns:repeat(2,1fr)}}
-</style></head>
-<body>
-<div class="sidebar"><h2>📊 Dashboard</h2><a class="active" href="#">🏠 Inicio</a><a href="#">📈 Análisis</a><a href="#">👥 Usuarios</a><a href="#">💰 Ventas</a><a href="#">⚙️ Config</a></div>
-<div class="main">
-<h1>Panel de Control</h1>
-<div class="metrics">
-<div class="metric"><div class="label">Ingresos</div><div class="value">$48,590</div><div class="change up">↑ 12.5%</div></div>
-<div class="metric"><div class="label">Usuarios</div><div class="value">2,847</div><div class="change up">↑ 8.2%</div></div>
-<div class="metric"><div class="label">Pedidos</div><div class="value">1,234</div><div class="change down">↓ 3.1%</div></div>
-<div class="metric"><div class="label">Conversión</div><div class="value">3.24%</div><div class="change up">↑ 1.8%</div></div>
-</div>
-<div class="chart-area">📈 Área de Gráfico (conectar librería de charts)</div>
-<table><thead><tr><th>Cliente</th><th>Producto</th><th>Monto</th><th>Estado</th></tr></thead>
-<tbody>
-<tr><td>Ana García</td><td>Plan Premium</td><td>$299</td><td><span class="status active">Activo</span></td></tr>
-<tr><td>Carlos López</td><td>Plan Básico</td><td>$99</td><td><span class="status active">Activo</span></td></tr>
-<tr><td>María Rodríguez</td><td>Plan Pro</td><td>$199</td><td><span class="status pending">Pendiente</span></td></tr>
-</tbody></table>
-</div>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [activeNav, setActiveNav] = useState('inicio');
+  const [sortCol, setSortCol] = useState('');
+  const metrics = [
+    { label:'Ingresos', value:'$48,590', change:'+12.5%', up:true },
+    { label:'Usuarios', value:'2,847', change:'+8.2%', up:true },
+    { label:'Pedidos', value:'1,234', change:'-3.1%', up:false },
+    { label:'Conversión', value:'3.24%', change:'+1.8%', up:true },
+  ];
+  const rows = [
+    { client:'Ana García', product:'Plan Premium', amount:'$299', status:'Activo' },
+    { client:'Carlos López', product:'Plan Básico', amount:'$99', status:'Activo' },
+    { client:'María Rodríguez', product:'Plan Pro', amount:'$199', status:'Pendiente' },
+    { client:'Juan Martínez', product:'Plan Premium', amount:'$299', status:'Activo' },
+    { client:'Laura Fernández', product:'Plan Básico', amount:'$99', status:'Cancelado' },
+  ];
+  const navItems = [{id:'inicio',icon:'🏠',label:'Inicio'},{id:'analytics',icon:'📈',label:'Análisis'},{id:'users',icon:'👥',label:'Usuarios'},{id:'sales',icon:'💰',label:'Ventas'},{id:'config',icon:'⚙️',label:'Config'}];
+
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    <div style={{width:240,background:'#0f0f18',borderRight:'1px solid #1e1e2e',padding:'1.5rem',display:'flex',flexDirection:'column',gap:'0.25rem'}}>
+      <h2 style={{color:'#a78bfa',marginBottom:'1rem',fontSize:'1.2rem'}}>📊 Dashboard</h2>
+      {navItems.map(n=><button key={n.id} onClick={()=>setActiveNav(n.id)} style={{background:activeNav===n.id?'#7c3aed22':'transparent',color:activeNav===n.id?'#a78bfa':'#94a3b8',border:'none',padding:'0.75rem 1rem',borderRadius:10,textAlign:'left',fontSize:'0.9rem',transition:'all 0.2s'}}>{n.icon} {n.label}</button>)}
+    </div>
+    <div style={{flex:1,padding:'2rem',overflowY:'auto'}}>
+      <h1 style={{fontSize:'1.75rem',marginBottom:'1.5rem',fontWeight:700}}>Panel de Control</h1>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+        {metrics.map((m,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'1.5rem'}}>
+          <div style={{color:'#64748b',fontSize:'0.85rem',marginBottom:'0.5rem'}}>{m.label}</div>
+          <div style={{fontSize:'2rem',fontWeight:700}}>{m.value}</div>
+          <div style={{fontSize:'0.85rem',marginTop:'0.25rem',color:m.up?'#34d399':'#f87171'}}>{m.up?'↑':'↓'} {m.change}</div>
+        </div>)}
+      </div>
+      <div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',height:250,display:'flex',alignItems:'center',justifyContent:'center',color:'#64748b',marginBottom:'2rem',fontSize:'1.1rem'}}>📈 Área de Gráfico — Conectar Recharts / D3.js</div>
+      <div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,overflow:'hidden'}}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr>{['Cliente','Producto','Monto','Estado'].map(h=><th key={h} style={{textAlign:'left',padding:'1rem 1.5rem',background:'#0f0f18',color:'#64748b',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em',cursor:'pointer'}} onClick={()=>setSortCol(h)}>{h} {sortCol===h?'▼':''}</th>)}</tr></thead>
+          <tbody>{rows.map((r,i)=><tr key={i}><td style={{padding:'1rem 1.5rem',borderTop:'1px solid #1e1e2e'}}>{r.client}</td><td style={{padding:'1rem 1.5rem',borderTop:'1px solid #1e1e2e'}}>{r.product}</td><td style={{padding:'1rem 1.5rem',borderTop:'1px solid #1e1e2e'}}>{r.amount}</td><td style={{padding:'1rem 1.5rem',borderTop:'1px solid #1e1e2e'}}><span style={{padding:'0.25rem 0.75rem',borderRadius:99,fontSize:'0.8rem',fontWeight:500,background:r.status==='Activo'?'#34d39922':r.status==='Pendiente'?'#fbbf2422':'#f8717122',color:r.status==='Activo'?'#34d399':r.status==='Pendiente'?'#fbbf24':'#f87171'}}>{r.status}</span></td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>;
+}
+`, "Dashboard"),
   },
   {
     id: "ecommerce",
     name: "E-Commerce",
     keywords: ["tienda", "ecommerce", "e-commerce", "shop", "productos", "comprar", "venta", "carrito", "store"],
-    description: "Una tienda online con productos",
+    description: "Tienda online con React y TypeScript",
     planSteps: [
-      "Crear navbar con carrito y búsqueda",
+      "Crear navbar con carrito y búsqueda con React state",
       "Diseñar banner de ofertas",
-      "Crear grid de productos con precios",
-      "Agregar footer de la tienda",
+      "Crear grid de productos con botón agregar al carrito",
+      "Implementar contador de carrito funcional",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Tienda</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#06080f;color:#dbeafe;line-height:1.6}
-nav{display:flex;justify-content:space-between;align-items:center;padding:1.25rem 3rem;background:#0a0f18;border-bottom:1px solid #1a2a4a}
-nav .logo{font-size:1.4rem;font-weight:700;color:#60a5fa}
-nav .search{background:#0f1525;border:1px solid #1a2a4a;border-radius:10px;padding:0.6rem 1.25rem;color:#dbeafe;width:300px;outline:none;font-family:inherit}
-nav .search:focus{border-color:#2563eb}
-nav .cart{background:#2563eb22;color:#60a5fa;padding:0.6rem 1.25rem;border-radius:10px;border:none;cursor:pointer;font-weight:600;font-family:inherit}
-.banner{background:linear-gradient(135deg,#0a0f18,#0f1525);padding:4rem 3rem;text-align:center}
-.banner h1{font-size:2.5rem;margin-bottom:0.75rem;font-weight:800;background:linear-gradient(135deg,#2563eb,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.banner p{color:#7093c5;font-size:1.1rem}
-.products{max-width:1200px;margin:2rem auto;padding:0 2rem}
-.products h2{font-size:1.5rem;margin-bottom:1.5rem;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.5rem}
-.product{background:#0f1525;border:1px solid #1a2a4a;border-radius:16px;overflow:hidden;transition:all 0.2s}
-.product:hover{border-color:#2563eb;transform:translateY(-2px)}
-.product-img{height:200px;background:linear-gradient(135deg,#0f1525,#1a2a4a);display:flex;align-items:center;justify-content:center;font-size:3rem}
-.product-info{padding:1.25rem}
-.product-info h3{margin-bottom:0.25rem;font-weight:600}
-.product-info .price{color:#60a5fa;font-size:1.25rem;font-weight:700;margin-bottom:0.75rem}
-.product-info .add-btn{width:100%;padding:0.65rem;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600;transition:opacity 0.2s;font-family:inherit}
-.product-info .add-btn:hover{opacity:0.9}
-footer{border-top:1px solid #1a2a4a;padding:2rem;text-align:center;color:#7093c5;font-size:0.85rem;margin-top:3rem}
-@media(max-width:768px){nav{padding:1rem}nav .search{width:150px}.grid{grid-template-columns:1fr 1fr}}
-</style></head>
-<body>
-<nav><div class="logo">🛒 Mi Tienda</div><input class="search" placeholder="Buscar productos..."><button class="cart">🛒 Carrito (0)</button></nav>
-<div class="banner"><h1>Nuevas Ofertas de Temporada</h1><p>Hasta 50% de descuento en productos seleccionados</p></div>
-<section class="products"><h2>Productos Destacados</h2><div class="grid">
-<div class="product"><div class="product-img">👟</div><div class="product-info"><h3>Sneakers Premium</h3><div class="price">$129.99</div><button class="add-btn">Agregar al carrito</button></div></div>
-<div class="product"><div class="product-img">🎧</div><div class="product-info"><h3>Auriculares Pro</h3><div class="price">$89.99</div><button class="add-btn">Agregar al carrito</button></div></div>
-<div class="product"><div class="product-img">⌚</div><div class="product-info"><h3>Smart Watch</h3><div class="price">$249.99</div><button class="add-btn">Agregar al carrito</button></div></div>
-<div class="product"><div class="product-img">📱</div><div class="product-info"><h3>Funda Designer</h3><div class="price">$34.99</div><button class="add-btn">Agregar al carrito</button></div></div>
-</div></section>
-<footer><p>© 2026 Mi Tienda. Creado con DOKU AI.</p></footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+const productsData = [
+  { name:'Sneakers Premium', price:129.99, icon:'👟', cat:'calzado' },
+  { name:'Auriculares Pro', price:89.99, icon:'🎧', cat:'tech' },
+  { name:'Smart Watch', price:249.99, icon:'⌚', cat:'tech' },
+  { name:'Funda Designer', price:34.99, icon:'📱', cat:'accesorios' },
+  { name:'Mochila Urban', price:79.99, icon:'🎒', cat:'accesorios' },
+  { name:'Cámara Digital', price:449.99, icon:'📷', cat:'tech' },
+  { name:'Teclado Mecánico', price:159.99, icon:'⌨️', cat:'tech' },
+  { name:'Zapatillas Running', price:119.99, icon:'🏃', cat:'calzado' },
+];
+
+function App() {
+  const [cart, setCart] = useState(0);
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('all');
+  const filtered = productsData.filter(p => {
+    if (cat !== 'all' && p.cat !== cat) return false;
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  return <>
+    <nav style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1.25rem 3rem',background:'#0a0f18',borderBottom:'1px solid #1a2a4a'}}>
+      <div style={{fontSize:'1.4rem',fontWeight:700,color:'#60a5fa'}}>🛒 Mi Tienda</div>
+      <input value={search} onChange={e=>setSearch(e.target.value)} style={{background:'#0f1525',border:'1px solid #1a2a4a',borderRadius:10,padding:'0.6rem 1.25rem',color:'#dbeafe',width:300,outline:'none'}} placeholder="Buscar productos..." />
+      <button style={{background:'#2563eb22',color:'#60a5fa',padding:'0.6rem 1.25rem',borderRadius:10,border:'none',fontWeight:600}}>🛒 Carrito ({cart})</button>
+    </nav>
+
+    <div style={{background:'linear-gradient(135deg,#0a0f18,#0f1525)',padding:'4rem 3rem',textAlign:'center'}}>
+      <h1 style={{fontSize:'2.5rem',marginBottom:'0.75rem',fontWeight:800,background:'linear-gradient(135deg,#2563eb,#60a5fa)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Nuevas Ofertas de Temporada</h1>
+      <p style={{color:'#7093c5',fontSize:'1.1rem'}}>Hasta 50% de descuento en productos seleccionados</p>
+    </div>
+
+    <section style={{maxWidth:1200,margin:'2rem auto',padding:'0 2rem'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem'}}>
+        <h2 style={{fontSize:'1.5rem',fontWeight:700}}>Productos Destacados</h2>
+        <div style={{display:'flex',gap:'0.5rem'}}>
+          {[['all','Todos'],['tech','Tech'],['calzado','Calzado'],['accesorios','Accesorios']].map(([k,l])=><button key={k} onClick={()=>setCat(k)} style={{padding:'0.4rem 1rem',borderRadius:99,border:'none',background:cat===k?'linear-gradient(135deg,#2563eb,#3b82f6)':'#0f1525',color:cat===k?'#fff':'#7093c5',fontSize:'0.85rem',fontWeight:500}}>{l}</button>)}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'1.5rem'}}>
+        {filtered.map((p,i)=><div key={i} style={{background:'#0f1525',border:'1px solid #1a2a4a',borderRadius:16,overflow:'hidden',transition:'all 0.2s'}} onMouseOver={e=>{e.currentTarget.style.borderColor='#2563eb';e.currentTarget.style.transform='translateY(-2px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#1a2a4a';e.currentTarget.style.transform=''}}>
+          <div style={{height:200,background:'linear-gradient(135deg,#0f1525,#1a2a4a)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem'}}>{p.icon}</div>
+          <div style={{padding:'1.25rem'}}>
+            <h3 style={{marginBottom:'0.25rem',fontWeight:600}}>{p.name}</h3>
+            <div style={{color:'#60a5fa',fontSize:'1.25rem',fontWeight:700,marginBottom:'0.75rem'}}>{'$'}{p.price}</div>
+            <button onClick={()=>setCart(c=>c+1)} style={{width:'100%',padding:'0.65rem',background:'linear-gradient(135deg,#2563eb,#3b82f6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Agregar al carrito</button>
+          </div>
+        </div>)}
+      </div>
+    </section>
+
+    <footer style={{borderTop:'1px solid #1a2a4a',padding:'2rem',textAlign:'center',color:'#7093c5',fontSize:'0.85rem',marginTop:'3rem'}}>© 2026 Mi Tienda. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Tienda"),
   },
   {
     id: "fitness",
     name: "Fitness / Gimnasio",
     keywords: ["gimnasio", "gym", "fitness", "ejercicio", "entrenamiento", "deporte", "crossfit", "yoga", "pilates"],
-    description: "Sitio web para gimnasio con planes y horarios",
+    description: "Sitio web para gimnasio con React y TypeScript",
     planSteps: [
-      "Crear navegación con logo del gym",
-      "Diseñar hero con imagen motivacional",
-      "Crear sección de planes y precios",
+      "Crear navegación responsive con logo del gym",
+      "Diseñar hero con motivación",
+      "Crear sección de planes y precios con React components",
       "Agregar horarios y contacto",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Gym</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#060f0a;color:#d1fae5;line-height:1.6}
-nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(6,15,10,0.9);border-bottom:1px solid #153025;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-nav .logo{font-size:1.3rem;font-weight:800;color:#34d399}
-nav .links{display:flex;gap:1.5rem}
-nav a{color:#6aab8a;text-decoration:none;font-size:0.9rem;transition:color 0.2s}
-nav a:hover{color:#34d399}
-.hero{min-height:85vh;background:linear-gradient(135deg,rgba(6,15,10,0.9),rgba(10,21,14,0.8));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem}
-.hero h1{font-size:clamp(2.5rem,5vw,4rem);font-weight:900;margin-bottom:1rem;background:linear-gradient(135deg,#059669,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-transform:uppercase}
-.hero p{font-size:1.1rem;color:#6aab8a;max-width:550px;margin-bottom:2rem}
-.btn{padding:0.85rem 2rem;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;transition:transform 0.2s;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.05em}
-.btn:hover{transform:translateY(-2px)}
-.plans{padding:5rem 2rem;background:#0a150e}
-.plans h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:0.5rem}
-.plans>p{text-align:center;color:#6aab8a;margin-bottom:3rem}
-.plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:1000px;margin:0 auto}
-.plan{background:#0f1f15;border:1px solid #153025;border-radius:16px;padding:2rem;text-align:center;transition:transform 0.3s,border-color 0.3s}
-.plan:hover{transform:translateY(-4px)}
-.plan.featured{border-color:#059669;position:relative}
-.plan.featured::before{content:'POPULAR';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:0.2rem 1rem;border-radius:99px;font-size:0.7rem;font-weight:700;letter-spacing:0.1em}
-.plan h3{font-size:1.2rem;margin-bottom:0.5rem}
-.plan .price{font-size:2.5rem;font-weight:800;color:#34d399;margin-bottom:1rem}
-.plan .price span{font-size:1rem;color:#6aab8a;font-weight:400}
-.plan ul{list-style:none;margin-bottom:1.5rem;text-align:left}
-.plan li{padding:0.4rem 0;color:#6aab8a;font-size:0.9rem}
-.plan li::before{content:'✓ ';color:#34d399;font-weight:700}
-footer{border-top:1px solid #153025;padding:2rem;text-align:center;color:#6aab8a;font-size:0.85rem}
-@media(max-width:768px){.hero h1{font-size:2.2rem}.plan-grid{grid-template-columns:1fr}}
-</style></head>
-<body>
-<nav><div class="logo">💪 Mi Gym</div><div class="links"><a href="#plans">Planes</a><a href="#contact">Contacto</a><button class="btn" style="padding:0.5rem 1.2rem;font-size:0.8rem">Inscríbete</button></div></nav>
-<section class="hero">
-<h1>Transforma tu cuerpo</h1>
-<p>Únete al gym más completo de la ciudad. Entrenadores certificados, equipos de última generación y una comunidad que te motiva.</p>
-<button class="btn">Empieza tu Prueba Gratis →</button>
-</section>
-<section class="plans" id="plans">
-<h2>Nuestros Planes</h2>
-<p>Elige el plan perfecto para alcanzar tus objetivos</p>
-<div class="plan-grid">
-<div class="plan"><h3>Básico</h3><div class="price">$29<span>/mes</span></div><ul><li>Acceso a máquinas</li><li>Horario 6am-10pm</li><li>Casilleros</li><li>App de seguimiento</li></ul><button class="btn" style="width:100%">Elegir Plan</button></div>
-<div class="plan featured"><h3>Premium</h3><div class="price">$49<span>/mes</span></div><ul><li>Todo lo Básico</li><li>Clases grupales</li><li>Entrenador personal 2x/sem</li><li>Nutricionista</li><li>Acceso 24/7</li></ul><button class="btn" style="width:100%">Elegir Plan</button></div>
-<div class="plan"><h3>VIP</h3><div class="price">$79<span>/mes</span></div><ul><li>Todo lo Premium</li><li>Entrenador personal 5x/sem</li><li>Spa y sauna</li><li>Plan nutricional personalizado</li><li>Suplementos incluidos</li></ul><button class="btn" style="width:100%">Elegir Plan</button></div>
-</div>
-</section>
-<footer id="contact">
-<p>📍 Av. Fitness 456 · 📞 +1 234 567 890 · 🕐 24/7</p>
-<p style="margin-top:0.5rem">© 2026 Mi Gym. Creado con DOKU AI.</p>
-</footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [selectedPlan, setSelectedPlan] = useState('');
+  const plans = [
+    { name:'Básico', price:29, features:['Acceso a máquinas','Horario 6am-10pm','Casilleros','App de seguimiento'], featured:false },
+    { name:'Premium', price:49, features:['Todo lo Básico','Clases grupales','Entrenador personal 2x/sem','Nutricionista','Acceso 24/7'], featured:true },
+    { name:'VIP', price:79, features:['Todo lo Premium','Entrenador personal 5x/sem','Spa y sauna','Plan nutricional personalizado','Suplementos incluidos'], featured:false },
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(6,15,10,0.9)',borderBottom:'1px solid #153025',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:800,color:'#34d399'}}>💪 Mi Gym</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Planes','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#6aab8a',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.5rem 1.2rem',background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff',border:'none',borderRadius:10,fontWeight:700,fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Inscríbete</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'85vh',background:'linear-gradient(135deg,rgba(6,15,10,0.9),rgba(10,21,14,0.8))',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:900,marginBottom:'1rem',background:'linear-gradient(135deg,#059669,#34d399)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',textTransform:'uppercase'}}>Transforma tu cuerpo</h1>
+      <p style={{fontSize:'1.1rem',color:'#6aab8a',maxWidth:550,marginBottom:'2rem'}}>Únete al gym más completo de la ciudad. Entrenadores certificados, equipos de última generación y una comunidad que te motiva.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff',border:'none',borderRadius:10,fontWeight:700,fontSize:'0.95rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Empieza tu Prueba Gratis →</button>
+    </section>
+
+    <section id="planes" style={{padding:'5rem 2rem',background:'#0a150e'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem',color:'#d1fae5'}}>Nuestros Planes</h2>
+      <p style={{textAlign:'center',color:'#6aab8a',marginBottom:'3rem'}}>Elige el plan perfecto para alcanzar tus objetivos</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {plans.map((p,i)=><div key={i} style={{background:'#0f1f15',border:p.featured?'2px solid #059669':'1px solid #153025',borderRadius:16,padding:'2rem',textAlign:'center',position:'relative',transition:'transform 0.3s',transform:selectedPlan===p.name?'scale(1.03)':''}} onClick={()=>setSelectedPlan(p.name)} onMouseOver={e=>e.currentTarget.style.transform='translateY(-4px)'} onMouseOut={e=>e.currentTarget.style.transform=''}>
+          {p.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff',padding:'0.2rem 1rem',borderRadius:99,fontSize:'0.7rem',fontWeight:700,letterSpacing:'0.1em'}}>POPULAR</div>}
+          <h3 style={{fontSize:'1.2rem',marginBottom:'0.5rem',color:'#d1fae5'}}>{p.name}</h3>
+          <div style={{fontSize:'2.5rem',fontWeight:800,color:'#34d399',marginBottom:'1rem'}}>{'$'}{p.price}<span style={{fontSize:'1rem',color:'#6aab8a',fontWeight:400}}>/mes</span></div>
+          <ul style={{listStyle:'none',marginBottom:'1.5rem',textAlign:'left'}}>{p.features.map((f,j)=><li key={j} style={{padding:'0.4rem 0',color:'#6aab8a',fontSize:'0.9rem'}}>✓ {f}</li>)}</ul>
+          <button style={{width:'100%',padding:'0.75rem',background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff',border:'none',borderRadius:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em'}}>Elegir Plan</button>
+        </div>)}
+      </div>
+    </section>
+
+    <footer id="contacto" style={{borderTop:'1px solid #153025',padding:'2rem',textAlign:'center',color:'#6aab8a',fontSize:'0.85rem'}}>
+      <p>📍 Av. Fitness 456 · 📞 +1 234 567 890 · 🕐 24/7</p>
+      <p style={{marginTop:'0.5rem'}}>© 2026 Mi Gym. Creado con DOKU AI.</p>
+    </footer>
+  </>;
+}
+`, "Mi Gym"),
   },
   {
     id: "agency",
     name: "Agencia / Servicios",
     keywords: ["agencia", "agency", "servicios", "consultoria", "marketing", "digital", "estudio", "studio", "creativa", "diseño"],
-    description: "Sitio web para agencia digital",
+    description: "Sitio web para agencia con React y TypeScript",
     planSteps: [
       "Crear navegación con identidad de marca",
       "Diseñar hero con propuesta de valor",
-      "Mostrar servicios y casos de éxito",
+      "Mostrar servicios con iconos React",
       "Agregar testimonios y contacto",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Agencia</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#060a0f;color:#cffafe;line-height:1.6}
-nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(6,10,15,0.9);border-bottom:1px solid #152535;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-nav .logo{font-size:1.3rem;font-weight:700;color:#67e8f9}
-nav .links{display:flex;gap:1.5rem}
-nav a{color:#60a5b8;text-decoration:none;font-size:0.9rem;transition:color 0.2s}
-nav a:hover{color:#06b6d4}
-.hero{min-height:85vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem;background:radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.1) 0%,transparent 60%)}
-.hero h1{font-size:clamp(2.5rem,5vw,3.5rem);font-weight:800;margin-bottom:1rem;background:linear-gradient(135deg,#06b6d4,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{font-size:1.15rem;color:#60a5b8;max-width:600px;margin-bottom:2rem}
-.btn{padding:0.85rem 2rem;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;transition:transform 0.2s;font-size:0.95rem}
-.btn:hover{transform:translateY(-2px)}
-.services{padding:5rem 2rem;background:#0a1018}
-.services h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:0.5rem}
-.services>p{text-align:center;color:#60a5b8;margin-bottom:3rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:1100px;margin:0 auto}
-.card{background:#0f1820;border:1px solid #152535;border-radius:16px;padding:2rem;transition:transform 0.3s,border-color 0.3s}
-.card:hover{transform:translateY(-4px);border-color:rgba(6,182,212,0.4)}
-.card .icon{font-size:2rem;margin-bottom:1rem}
-.card h3{font-size:1.1rem;font-weight:600;margin-bottom:0.5rem}
-.card p{color:#60a5b8;font-size:0.9rem}
-.testimonials{padding:5rem 2rem}
-.testimonials h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:3rem}
-.testimonial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;max-width:1100px;margin:0 auto}
-.testimonial{background:#0f1820;border:1px solid #152535;border-radius:16px;padding:2rem}
-.testimonial .stars{color:#fbbf24;margin-bottom:0.75rem}
-.testimonial p{color:#60a5b8;font-style:italic;margin-bottom:1rem;font-size:0.95rem}
-.testimonial .author{font-weight:600;font-size:0.9rem}
-.testimonial .role{color:#60a5b8;font-size:0.8rem}
-footer{border-top:1px solid #152535;padding:2rem;text-align:center;color:#60a5b8;font-size:0.85rem}
-@media(max-width:768px){.hero h1{font-size:2.2rem}.grid{grid-template-columns:1fr}}
-</style></head>
-<body>
-<nav><div class="logo">🚀 Mi Agencia</div><div class="links"><a href="#services">Servicios</a><a href="#testimonials">Clientes</a><a href="#contact">Contacto</a></div></nav>
-<section class="hero">
-<h1>Llevamos tu marca al siguiente nivel</h1>
-<p>Somos expertos en estrategia digital, diseño y desarrollo. Creamos experiencias que conectan marcas con personas.</p>
-<div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
-<button class="btn">Solicitar Cotización →</button>
-<button class="btn" style="background:transparent;border:1.5px solid #152535">Ver Portfolio</button>
-</div>
-</section>
-<section class="services" id="services">
-<h2>Nuestros Servicios</h2>
-<p>Soluciones integrales para potenciar tu presencia digital</p>
-<div class="grid">
-<div class="card"><div class="icon">🎨</div><h3>Diseño UI/UX</h3><p>Interfaces intuitivas y experiencias de usuario memorables que convierten visitantes en clientes.</p></div>
-<div class="card"><div class="icon">💻</div><h3>Desarrollo Web</h3><p>Sitios web y apps con las tecnologías más modernas: React, Next.js, Node.js, TypeScript.</p></div>
-<div class="card"><div class="icon">📈</div><h3>Marketing Digital</h3><p>Estrategias de SEO, SEM, redes sociales y email marketing para maximizar tu ROI.</p></div>
-<div class="card"><div class="icon">📱</div><h3>Apps Móviles</h3><p>Aplicaciones nativas e híbridas para iOS y Android con experiencia fluida.</p></div>
-<div class="card"><div class="icon">🔍</div><h3>SEO</h3><p>Posicionamiento orgánico en buscadores para generar tráfico cualificado constante.</p></div>
-<div class="card"><div class="icon">📊</div><h3>Analytics</h3><p>Dashboards personalizados y reportes de rendimiento para tomar decisiones basadas en datos.</p></div>
-</div>
-</section>
-<section class="testimonials" id="testimonials">
-<h2>Lo que dicen nuestros clientes</h2>
-<div class="testimonial-grid">
-<div class="testimonial"><div class="stars">★★★★★</div><p>"Transformaron completamente nuestra presencia digital. Las ventas aumentaron un 180% en 3 meses."</p><div class="author">Ana García</div><div class="role">CEO, TechStart</div></div>
-<div class="testimonial"><div class="stars">★★★★★</div><p>"El mejor equipo con el que hemos trabajado. Profesionales, creativos y siempre a tiempo."</p><div class="author">Carlos López</div><div class="role">Director, InnovaHub</div></div>
-<div class="testimonial"><div class="stars">★★★★★</div><p>"Nuestra app móvil superó todas las expectativas. +50k descargas en el primer mes."</p><div class="author">María Torres</div><div class="role">Fundadora, FitLife</div></div>
-</div>
-</section>
-<footer id="contact">
-<p>📧 hola@miagencia.com · 📞 +1 234 567 890 · 📍 Ciudad, País</p>
-<p style="margin-top:0.5rem">© 2026 Mi Agencia. Creado con DOKU AI.</p>
-</footer>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const services = [
+    { icon:'🎨', title:'Diseño UI/UX', desc:'Interfaces intuitivas y experiencias de usuario que convierten visitantes en clientes.' },
+    { icon:'💻', title:'Desarrollo Web', desc:'Aplicaciones web modernas con React, TypeScript y las mejores prácticas.' },
+    { icon:'📱', title:'Apps Móviles', desc:'Aplicaciones nativas y cross-platform para iOS y Android.' },
+    { icon:'📈', title:'Marketing Digital', desc:'Estrategias de SEO, SEM y redes sociales para hacer crecer tu negocio.' },
+    { icon:'☁️', title:'Cloud & DevOps', desc:'Infraestructura escalable en AWS, GCP o Azure con CI/CD.' },
+    { icon:'🤖', title:'Inteligencia Artificial', desc:'Soluciones con IA y machine learning para automatizar procesos.' },
+  ];
+  const testimonials = [
+    { name:'María González', role:'CEO, TechStartup', text:'Excelente equipo. Entregaron nuestra app 2 semanas antes del deadline con calidad impecable.' },
+    { name:'Carlos Ramírez', role:'Fundador, FoodApp', text:'Transformaron nuestra idea en una plataforma que ahora tiene +50K usuarios activos.' },
+    { name:'Laura Mendoza', role:'CMO, RetailCo', text:'Nuestras ventas online aumentaron un 340% después de rediseñar con esta agencia.' },
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(6,10,15,0.9)',borderBottom:'1px solid #152535',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#67e8f9'}}>🚀 Mi Agencia</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Testimonios','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#60a5b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Cotizar</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'85vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.1) 0%,transparent 60%)'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#06b6d4,#67e8f9)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Creamos experiencias digitales que impactan</h1>
+      <p style={{fontSize:'1.15rem',color:'#60a5b8',maxWidth:600,marginBottom:'2rem'}}>Somos una agencia de tecnología que transforma negocios a través de soluciones digitales innovadoras.</p>
+      <div style={{display:'flex',gap:'1rem'}}><button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Ver Proyectos</button><button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #152535',color:'#cffafe',borderRadius:10,fontWeight:600}}>Contactar</button></div>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem',background:'#060f14'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#cffafe'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#0a151d',border:'1px solid #152535',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#06b6d4'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#152535'}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontSize:'1.15rem',fontWeight:600,marginBottom:'0.5rem',color:'#cffafe'}}>{s.title}</h3>
+          <p style={{color:'#60a5b8',fontSize:'0.95rem'}}>{s.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="testimonios" style={{padding:'5rem 2rem',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#cffafe'}}>Lo que dicen nuestros clientes</h2>
+      <div style={{maxWidth:600,margin:'0 auto',background:'#0a151d',border:'1px solid #152535',borderRadius:16,padding:'2.5rem'}}>
+        <p style={{fontSize:'1.1rem',color:'#60a5b8',fontStyle:'italic',marginBottom:'1.5rem'}}>"{testimonials[activeTestimonial].text}"</p>
+        <div style={{fontWeight:600,color:'#cffafe'}}>{testimonials[activeTestimonial].name}</div>
+        <div style={{color:'#06b6d4',fontSize:'0.9rem'}}>{testimonials[activeTestimonial].role}</div>
+        <div style={{display:'flex',justifyContent:'center',gap:'0.5rem',marginTop:'1.5rem'}}>
+          {testimonials.map((_,i)=><button key={i} onClick={()=>setActiveTestimonial(i)} style={{width:10,height:10,borderRadius:'50%',border:'none',background:i===activeTestimonial?'#06b6d4':'#152535',cursor:'pointer'}} />)}
+        </div>
+      </div>
+    </section>
+
+    <footer id="contacto" style={{borderTop:'1px solid #152535',padding:'2rem',textAlign:'center',color:'#60a5b8',fontSize:'0.85rem'}}>
+      <p>📧 hola@miagencia.com · 📞 +1 234 567 890</p>
+      <p style={{marginTop:'0.5rem'}}>© 2026 Mi Agencia. Creado con DOKU AI.</p>
+    </footer>
+  </>;
+}
+`, "Mi Agencia"),
   },
   {
     id: "login",
     name: "Página de Login",
-    keywords: ["login", "inicio de sesion", "sesión", "iniciar sesion", "autenticacion", "registro", "signin", "signup", "auth", "acceso"],
-    description: "Página de inicio de sesión con formulario",
+    keywords: ["login", "iniciar sesión", "inicio de sesión", "autenticación", "auth", "registro", "signup", "sign in", "acceso", "cuenta"],
+    description: "Página de autenticación con React y TypeScript",
     planSteps: [
-      "Crear layout centrado con branding",
-      "Diseñar formulario de login",
-      "Agregar opciones de login social",
-      "Agregar link de registro",
+      "Crear layout split-screen con componentes React",
+      "Diseñar formulario de login con validación",
+      "Agregar toggle entre login y registro",
+      "Implementar botones de login social",
     ],
-    html: `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Iniciar Sesión</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.container{display:flex;width:100%;max-width:1000px;min-height:600px;border-radius:20px;overflow:hidden;border:1px solid #1e1e2e;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.left{flex:1;background:linear-gradient(135deg,#1a1a2e,#0f3460);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;text-align:center}
-.left h1{font-size:2rem;margin-bottom:1rem}
-.left p{color:#94a3b8;max-width:300px;line-height:1.7}
-.left .logo{font-size:3rem;margin-bottom:1.5rem}
-.right{flex:1;background:#12121a;padding:3rem;display:flex;flex-direction:column;justify-content:center}
-.right h2{font-size:1.5rem;margin-bottom:0.5rem;font-weight:700}
-.right .subtitle{color:#64748b;margin-bottom:2rem;font-size:0.9rem}
-.form-group{margin-bottom:1.25rem}
-.form-group label{display:block;font-size:0.85rem;color:#94a3b8;margin-bottom:0.5rem;font-weight:500}
-.form-group input{width:100%;background:#0a0a0f;border:1px solid #1e1e2e;border-radius:10px;padding:0.85rem 1rem;color:#e2e8f0;font-family:inherit;outline:none;font-size:0.95rem;transition:border-color 0.2s}
-.form-group input:focus{border-color:#7c3aed}
-.btn{width:100%;padding:0.85rem;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.95rem;font-family:inherit;transition:transform 0.2s;margin-top:0.5rem}
-.btn:hover{transform:translateY(-1px)}
-.divider{display:flex;align-items:center;gap:1rem;margin:1.5rem 0;color:#64748b;font-size:0.85rem}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:#1e1e2e}
-.social{display:flex;gap:0.75rem}
-.social button{flex:1;padding:0.75rem;background:#0a0a0f;border:1px solid #1e1e2e;border-radius:10px;color:#94a3b8;cursor:pointer;font-family:inherit;font-size:0.85rem;transition:border-color 0.2s}
-.social button:hover{border-color:#7c3aed;color:#e2e8f0}
-.footer-link{text-align:center;margin-top:1.5rem;font-size:0.85rem;color:#64748b}
-.footer-link a{color:#a78bfa;text-decoration:none}
-.footer-link a:hover{text-decoration:underline}
-.forgot{text-align:right;margin-top:-0.5rem;margin-bottom:1rem}
-.forgot a{font-size:0.8rem;color:#a78bfa;text-decoration:none}
-@media(max-width:768px){.container{flex-direction:column;max-width:400px}.left{padding:2rem;min-height:auto}}
-</style></head>
-<body>
-<div class="container">
-<div class="left">
-<div class="logo">🔐</div>
-<h1>Bienvenido</h1>
-<p>Inicia sesión para acceder a tu cuenta y gestionar tus proyectos.</p>
-</div>
-<div class="right">
-<h2>Iniciar Sesión</h2>
-<p class="subtitle">Ingresa tus credenciales para continuar</p>
-<form onsubmit="event.preventDefault();alert('¡Login exitoso!')">
-<div class="form-group"><label>Email</label><input type="email" placeholder="tu@email.com" required></div>
-<div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••" required></div>
-<div class="forgot"><a href="#">¿Olvidaste tu contraseña?</a></div>
-<button type="submit" class="btn">Iniciar Sesión</button>
-</form>
-<div class="divider">O continúa con</div>
-<div class="social">
-<button>🔵 Google</button>
-<button>⚫ GitHub</button>
-<button>🔷 Microsoft</button>
-</div>
-<div class="footer-link">¿No tienes cuenta? <a href="#">Regístrate aquí</a></div>
-</div>
-</div>
-</body></html>`,
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    if (!email || !password) { setError('Todos los campos son obligatorios'); return; }
+    if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    setLoading(true);
+    setTimeout(() => { setLoading(false); alert(isLogin ? '¡Bienvenido!' : '¡Cuenta creada!'); }, 1500);
+  };
+
+  const inputStyle = {width:'100%',background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none',fontSize:'0.95rem'};
+  const socialBtn = {flex:1,padding:'0.75rem',background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,color:'#e2e8f0',fontSize:'0.9rem',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem'};
+
+  return <div style={{minHeight:'100vh',display:'flex'}}>
+    <div style={{flex:1,background:'linear-gradient(135deg,#0a0a0f,#12121a)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'3rem'}}>
+      <div style={{maxWidth:400,width:'100%'}}>
+        <div style={{marginBottom:'2rem',textAlign:'center'}}>
+          <h1 style={{fontSize:'2rem',fontWeight:800,marginBottom:'0.5rem',background:'linear-gradient(135deg,#a78bfa,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>
+            {isLogin ? 'Bienvenido de vuelta' : 'Crear cuenta'}
+          </h1>
+          <p style={{color:'#94a3b8'}}>{isLogin ? 'Inicia sesión en tu cuenta' : 'Regístrate para comenzar'}</p>
+        </div>
+
+        <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.5rem'}}>
+          <button style={socialBtn}>🔵 Google</button>
+          <button style={socialBtn}>⚫ GitHub</button>
+        </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:'1rem',marginBottom:'1.5rem'}}>
+          <div style={{flex:1,height:1,background:'#1e1e2e'}} />
+          <span style={{color:'#64748b',fontSize:'0.85rem'}}>o</span>
+          <div style={{flex:1,height:1,background:'#1e1e2e'}} />
+        </div>
+
+        {error && <div style={{background:'#f8717122',color:'#f87171',padding:'0.75rem',borderRadius:10,marginBottom:'1rem',fontSize:'0.9rem',textAlign:'center'}}>{error}</div>}
+
+        <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          {!isLogin && <input style={inputStyle} placeholder="Nombre completo" value={name} onChange={e=>setName(e.target.value)} required />}
+          <input style={inputStyle} type="email" placeholder="tu@email.com" value={email} onChange={e=>setEmail(e.target.value)} required />
+          <input style={inputStyle} type="password" placeholder="Contraseña" value={password} onChange={e=>setPassword(e.target.value)} required />
+          {isLogin && <div style={{textAlign:'right'}}><a href="#" style={{color:'#a78bfa',fontSize:'0.85rem'}}>¿Olvidaste tu contraseña?</a></div>}
+          <button type="submit" disabled={loading} style={{padding:'0.85rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem',opacity:loading?0.7:1}}>{loading ? 'Cargando...' : isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}</button>
+        </form>
+
+        <p style={{textAlign:'center',marginTop:'1.5rem',color:'#94a3b8',fontSize:'0.9rem'}}>
+          {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
+          <button onClick={()=>{setIsLogin(!isLogin);setError('')}} style={{background:'none',border:'none',color:'#a78bfa',fontWeight:600,cursor:'pointer',fontSize:'0.9rem'}}>{isLogin ? 'Regístrate' : 'Inicia sesión'}</button>
+        </p>
+      </div>
+    </div>
+
+    <div style={{flex:1,background:'linear-gradient(135deg,#1a1040,#0f0a2e)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'3rem'}}>
+      <div style={{fontSize:'4rem',marginBottom:'1.5rem'}}>🚀</div>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'1rem',color:'#e2e8f0',textAlign:'center'}}>Construye el futuro</h2>
+      <p style={{color:'#94a3b8',textAlign:'center',maxWidth:400,fontSize:'1.05rem'}}>Accede a herramientas de desarrollo potenciadas por inteligencia artificial. Crea sitios web profesionales en minutos.</p>
+      <div style={{display:'flex',gap:'2rem',marginTop:'2.5rem',color:'#64748b',fontSize:'0.9rem'}}>
+        <div style={{textAlign:'center'}}><div style={{fontSize:'1.5rem',fontWeight:700,color:'#a78bfa'}}>10K+</div>Usuarios</div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:'1.5rem',fontWeight:700,color:'#a78bfa'}}>50K+</div>Proyectos</div>
+        <div style={{textAlign:'center'}}><div style={{fontSize:'1.5rem',fontWeight:700,color:'#a78bfa'}}>99%</div>Uptime</div>
+      </div>
+    </div>
+  </div>;
+}
+`, "Login"),
+  },
+  {
+    id: "medical",
+    name: "Clínica / Consultorio",
+    keywords: ["clínica", "clinica", "médico", "medico", "doctor", "salud", "hospital", "consultorio", "dental", "dentista", "veterinaria", "farmacia"],
+    description: "Sitio web para clínica o consultorio médico con React",
+    planSteps: [
+      "Crear navegación profesional médica",
+      "Diseñar hero con servicios médicos",
+      "Crear sección de doctores y especialidades",
+      "Agregar formulario de citas",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [booked, setBooked] = useState(false);
+  const doctors = [
+    { name:'Dra. Ana Martínez', specialty:'Medicina General', icon:'👩‍⚕️' },
+    { name:'Dr. Carlos Ruiz', specialty:'Cardiología', icon:'👨‍⚕️' },
+    { name:'Dra. Laura Sánchez', specialty:'Dermatología', icon:'👩‍⚕️' },
+    { name:'Dr. Miguel Torres', specialty:'Pediatría', icon:'👨‍⚕️' },
+  ];
+  const services = [
+    { icon:'🩺', title:'Consulta General', desc:'Evaluación médica completa con diagnóstico personalizado.' },
+    { icon:'💉', title:'Vacunación', desc:'Programa completo de inmunización para todas las edades.' },
+    { icon:'🔬', title:'Laboratorio', desc:'Análisis clínicos con resultados rápidos y precisos.' },
+    { icon:'🏥', title:'Urgencias', desc:'Atención de emergencias 24/7 con equipo especializado.' },
+  ];
+
+  const inputStyle = {width:'100%',background:'#0f1a1f',border:'1px solid #15303a',borderRadius:10,padding:'0.85rem 1rem',color:'#e0f2fe',outline:'none'};
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(8,15,20,0.95)',borderBottom:'1px solid #15303a',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#38bdf8'}}>🏥 Mi Clínica</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Doctores','Citas'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#7cb8d0',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#0284c7,#38bdf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Agendar Cita</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(56,189,248,0.08) 0%,transparent 60%)'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#0284c7,#38bdf8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Tu salud es nuestra prioridad</h1>
+      <p style={{fontSize:'1.15rem',color:'#7cb8d0',maxWidth:600,marginBottom:'2rem'}}>Atención médica de calidad con profesionales especializados y tecnología de vanguardia.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#0284c7,#38bdf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Agendar Consulta →</button>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem',background:'#060f15'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#e0f2fe'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#0a1520',border:'1px solid #15303a',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#0284c7'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#15303a'}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem',color:'#e0f2fe'}}>{s.title}</h3>
+          <p style={{color:'#7cb8d0',fontSize:'0.95rem'}}>{s.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="doctores" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#e0f2fe'}}>Nuestro Equipo</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {doctors.map((d,i)=><div key={i} style={{background:'#0a1520',border:'1px solid #15303a',borderRadius:16,padding:'2rem',textAlign:'center'}}>
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>{d.icon}</div>
+          <h3 style={{fontWeight:600,color:'#e0f2fe'}}>{d.name}</h3>
+          <p style={{color:'#38bdf8',fontSize:'0.9rem'}}>{d.specialty}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="citas" style={{padding:'5rem 2rem',background:'#060f15',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#e0f2fe'}}>Agenda tu Cita</h2>
+      {booked ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Cita agendada exitosamente!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setBooked(true)}}>
+        <input style={inputStyle} placeholder="Nombre completo" required />
+        <input style={inputStyle} type="tel" placeholder="Teléfono" required />
+        <select style={{...inputStyle,appearance:'auto'}}><option>Medicina General</option><option>Cardiología</option><option>Dermatología</option><option>Pediatría</option></select>
+        <input style={inputStyle} type="date" required />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#0284c7,#38bdf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Confirmar Cita</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #15303a',padding:'2rem',textAlign:'center',color:'#7cb8d0',fontSize:'0.85rem'}}>
+      <p>📍 Av. Salud 789 · 📞 +1 234 567 890 · 🕐 Lun-Sáb: 8:00 - 20:00</p>
+      <p style={{marginTop:'0.5rem'}}>© 2026 Mi Clínica. Creado con DOKU AI.</p>
+    </footer>
+  </>;
+}
+`, "Mi Clínica"),
+  },
+  {
+    id: "education",
+    name: "Educación / Cursos",
+    keywords: ["educación", "educacion", "escuela", "universidad", "cursos", "academia", "aprendizaje", "tutoriales", "clases", "enseñanza", "capacitación"],
+    description: "Plataforma educativa con React y TypeScript",
+    planSteps: [
+      "Crear navegación con identidad educativa",
+      "Diseñar hero con propuesta de valor",
+      "Crear catálogo de cursos con filtros",
+      "Agregar sección de precios y CTA",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [cat, setCat] = useState('all');
+  const courses = [
+    { title:'React & TypeScript Avanzado', desc:'Aprende a construir apps production-ready con React 19 y TypeScript 5.', icon:'⚛️', cat:'frontend', students:2340, rating:4.9, price:'$49' },
+    { title:'Node.js & Express API', desc:'Backend profesional con autenticación, base de datos y deploy.', icon:'🟢', cat:'backend', students:1890, rating:4.8, price:'$39' },
+    { title:'Python para Data Science', desc:'Análisis de datos, ML y visualización con Python y Jupyter.', icon:'🐍', cat:'data', students:3120, rating:4.7, price:'$59' },
+    { title:'Flutter Mobile Development', desc:'Apps nativas para iOS y Android con un solo código base.', icon:'📱', cat:'mobile', students:1560, rating:4.8, price:'$45' },
+    { title:'DevOps & Cloud', desc:'Docker, Kubernetes, CI/CD y despliegue en la nube.', icon:'☁️', cat:'devops', students:980, rating:4.6, price:'$55' },
+    { title:'UI/UX Design con Figma', desc:'Diseño de interfaces y prototipos interactivos profesionales.', icon:'🎨', cat:'design', students:2780, rating:4.9, price:'$35' },
+  ];
+  const filtered = cat === 'all' ? courses : courses.filter(c => c.cat === cat);
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#f59e0b'}}>🎓 Mi Academia</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Cursos','Planes','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Inscríbete</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'70vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(245,158,11,0.08) 0%,transparent 60%)'}}>
+      <span style={{background:'#d9770622',color:'#f59e0b',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid #d9770644'}}>🎓 +10,000 estudiantes activos</span>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#d97706,#f59e0b,#fbbf24)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Aprende las habilidades del futuro</h1>
+      <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Cursos prácticos de desarrollo web, mobile, data science y más. Aprende a tu ritmo con proyectos reales.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Explorar Cursos →</button>
+    </section>
+
+    <section id="cursos" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'1.5rem'}}>Catálogo de Cursos</h2>
+      <div style={{display:'flex',justifyContent:'center',gap:'0.5rem',marginBottom:'2.5rem',flexWrap:'wrap'}}>
+        {[['all','Todos'],['frontend','Frontend'],['backend','Backend'],['data','Data'],['mobile','Mobile'],['devops','DevOps'],['design','Diseño']].map(([k,l])=><button key={k} onClick={()=>setCat(k)} style={{padding:'0.5rem 1rem',borderRadius:99,border:'none',background:cat===k?'linear-gradient(135deg,#d97706,#f59e0b)':'#12121a',color:cat===k?'#fff':'#94a3b8',fontSize:'0.85rem',fontWeight:500}}>{l}</button>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {filtered.map((c,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#d97706'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#1e1e2e'}}>
+          <div style={{fontSize:'2.5rem',marginBottom:'1rem'}}>{c.icon}</div>
+          <h3 style={{fontSize:'1.15rem',fontWeight:600,marginBottom:'0.5rem'}}>{c.title}</h3>
+          <p style={{color:'#94a3b8',fontSize:'0.9rem',marginBottom:'1rem'}}>{c.desc}</p>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{display:'flex',gap:'1rem',fontSize:'0.8rem',color:'#64748b'}}><span>⭐ {c.rating}</span><span>👥 {c.students}</span></div>
+            <div style={{color:'#f59e0b',fontWeight:700,fontSize:'1.2rem'}}>{c.price}</div>
+          </div>
+          <button style={{width:'100%',marginTop:'1rem',padding:'0.7rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Inscribirme</button>
+        </div>)}
+      </div>
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Mi Academia. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Academia"),
+  },
+  {
+    id: "realestate",
+    name: "Inmobiliaria",
+    keywords: ["inmobiliaria", "bienes raíces", "propiedad", "casa", "departamento", "apartamento", "renta", "alquiler", "venta de casas", "real estate", "propiedades"],
+    description: "Sitio inmobiliario con React y TypeScript",
+    planSteps: [
+      "Crear navegación inmobiliaria",
+      "Diseñar hero con búsqueda de propiedades",
+      "Crear grid de propiedades con filtros",
+      "Agregar contacto y CTA",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [filter, setFilter] = useState('all');
+  const properties = [
+    { title:'Casa Moderna', location:'Col. Del Valle', price:'$3,200,000', beds:3, baths:2, area:'180m²', icon:'🏠', type:'venta' },
+    { title:'Departamento Loft', location:'Polanco', price:'$18,500/mes', beds:1, baths:1, area:'85m²', icon:'🏢', type:'renta' },
+    { title:'Residencia Premium', location:'Santa Fe', price:'$8,500,000', beds:5, baths:4, area:'420m²', icon:'🏡', type:'venta' },
+    { title:'Oficina Ejecutiva', location:'Reforma', price:'$45,000/mes', beds:0, baths:2, area:'200m²', icon:'🏗️', type:'renta' },
+    { title:'Penthouse Vista Mar', location:'Cancún', price:'$12,000,000', beds:4, baths:3, area:'350m²', icon:'🌊', type:'venta' },
+    { title:'Studio Céntrico', location:'Roma Norte', price:'$12,000/mes', beds:1, baths:1, area:'45m²', icon:'🏙️', type:'renta' },
+  ];
+  const filtered = filter === 'all' ? properties : properties.filter(p => p.type === filter);
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#f43f5e'}}>🏠 Mi Inmobiliaria</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Propiedades','Nosotros','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#e11d48,#f43f5e)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Publicar</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'70vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(244,63,94,0.08) 0%,transparent 60%)'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#e11d48,#f43f5e)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Encuentra tu hogar ideal</h1>
+      <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Las mejores propiedades en venta y renta. Tu próximo hogar te está esperando.</p>
+      <div style={{display:'flex',gap:'0.75rem',background:'#12121a',border:'1px solid #1e1e2e',borderRadius:12,padding:'0.75rem',maxWidth:600,width:'100%'}}>
+        <input style={{flex:1,background:'transparent',border:'none',color:'#e2e8f0',outline:'none',padding:'0.5rem',fontSize:'0.95rem'}} placeholder="Buscar por ubicación..." />
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#e11d48,#f43f5e)',color:'#fff',border:'none',borderRadius:8,fontWeight:600}}>Buscar</button>
+      </div>
+    </section>
+
+    <section id="propiedades" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',maxWidth:1100,margin:'0 auto 2rem',flexWrap:'wrap',gap:'1rem'}}>
+        <h2 style={{fontSize:'2rem',fontWeight:700}}>Propiedades</h2>
+        <div style={{display:'flex',gap:'0.5rem'}}>
+          {[['all','Todas'],['venta','Venta'],['renta','Renta']].map(([k,l])=><button key={k} onClick={()=>setFilter(k)} style={{padding:'0.5rem 1.2rem',borderRadius:99,border:'none',background:filter===k?'linear-gradient(135deg,#e11d48,#f43f5e)':'#12121a',color:filter===k?'#fff':'#94a3b8',fontSize:'0.85rem',fontWeight:500}}>{l}</button>)}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {filtered.map((p,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,overflow:'hidden',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#e11d48'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#1e1e2e'}}>
+          <div style={{height:180,background:'linear-gradient(135deg,#1a1a2e,#16213e)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem',position:'relative'}}>
+            {p.icon}
+            <span style={{position:'absolute',top:12,right:12,background:p.type==='venta'?'#e11d48':'#0284c7',color:'#fff',padding:'0.2rem 0.8rem',borderRadius:99,fontSize:'0.75rem',fontWeight:600,textTransform:'uppercase'}}>{p.type}</span>
+          </div>
+          <div style={{padding:'1.5rem'}}>
+            <h3 style={{fontWeight:600,marginBottom:'0.25rem'}}>{p.title}</h3>
+            <p style={{color:'#94a3b8',fontSize:'0.9rem',marginBottom:'0.75rem'}}>📍 {p.location}</p>
+            <div style={{display:'flex',gap:'1rem',marginBottom:'1rem',fontSize:'0.85rem',color:'#64748b'}}>
+              {p.beds > 0 && <span>🛏️ {p.beds}</span>}<span>🚿 {p.baths}</span><span>📐 {p.area}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{color:'#f43f5e',fontSize:'1.2rem',fontWeight:700}}>{p.price}</div>
+              <button style={{padding:'0.5rem 1rem',background:'linear-gradient(135deg,#e11d48,#f43f5e)',color:'#fff',border:'none',borderRadius:8,fontWeight:600,fontSize:'0.85rem'}}>Ver más</button>
+            </div>
+          </div>
+        </div>)}
+      </div>
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Mi Inmobiliaria. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Inmobiliaria"),
+  },
+  {
+    id: "event",
+    name: "Evento / Conferencia",
+    keywords: ["evento", "conferencia", "congreso", "summit", "meetup", "webinar", "taller", "workshop", "hackathon", "fiesta", "boda"],
+    description: "Página de evento con React y TypeScript",
+    planSteps: [
+      "Crear hero con countdown del evento",
+      "Diseñar agenda con horarios",
+      "Crear sección de speakers",
+      "Agregar registro al evento",
+    ],
+    html: reactWrap(`
+const { useState, useEffect } = React;
+
+function Countdown({ targetDate }) {
+  const [time, setTime] = useState({ days:0, hours:0, minutes:0, seconds:0 });
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const diff = new Date(targetDate) - new Date();
+      if (diff <= 0) { clearInterval(timer); return; }
+      setTime({
+        days: Math.floor(diff / (1000*60*60*24)),
+        hours: Math.floor((diff / (1000*60*60)) % 24),
+        minutes: Math.floor((diff / (1000*60)) % 60),
+        seconds: Math.floor((diff / 1000) % 60),
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+  const boxStyle = {background:'#12121a',border:'1px solid #1e1e2e',borderRadius:12,padding:'1.5rem 1rem',textAlign:'center',minWidth:80};
+  return <div style={{display:'flex',gap:'1rem',justifyContent:'center'}}>
+    {Object.entries(time).map(([k,v])=><div key={k} style={boxStyle}><div style={{fontSize:'2rem',fontWeight:800,color:'#f59e0b'}}>{String(v).padStart(2,'0')}</div><div style={{color:'#64748b',fontSize:'0.75rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>{k}</div></div>)}
+  </div>;
+}
+
+function App() {
+  const [registered, setRegistered] = useState(false);
+  const speakers = [
+    { name:'Sarah Johnson', role:'CEO, TechCorp', topic:'El futuro de la IA', icon:'👩‍💼' },
+    { name:'Miguel Ángel', role:'CTO, DataFlow', topic:'Arquitectura cloud', icon:'👨‍💻' },
+    { name:'Laura Chen', role:'VP Eng, StartupX', topic:'Scaling teams', icon:'👩‍🔬' },
+  ];
+  const agenda = [
+    { time:'09:00', title:'Registro y Networking', speaker:'—' },
+    { time:'10:00', title:'Keynote: El futuro de la IA', speaker:'Sarah Johnson' },
+    { time:'11:30', title:'Arquitectura cloud a escala', speaker:'Miguel Ángel' },
+    { time:'13:00', title:'Almuerzo', speaker:'—' },
+    { time:'14:30', title:'Scaling engineering teams', speaker:'Laura Chen' },
+    { time:'16:00', title:'Panel de discusión', speaker:'Todos' },
+    { time:'17:30', title:'Networking y cierre', speaker:'—' },
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#f59e0b'}}>🎤 Tech Summit 2026</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Agenda','Speakers','Registro'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Registrarse</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(245,158,11,0.08) 0%,transparent 60%)'}}>
+      <span style={{background:'#d9770622',color:'#f59e0b',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem'}}>📅 15 de Julio, 2026 · Ciudad de México</span>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Tech Summit 2026</h1>
+      <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'3rem'}}>La conferencia de tecnología más importante del año. Speakers internacionales, workshops y networking.</p>
+      <Countdown targetDate="2026-07-15T09:00:00" />
+    </section>
+
+    <section id="agenda" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Agenda</h2>
+      <div style={{maxWidth:700,margin:'0 auto'}}>
+        {agenda.map((a,i)=><div key={i} style={{display:'flex',gap:'2rem',padding:'1rem 0',borderBottom:'1px solid #1e1e2e',alignItems:'center'}}>
+          <div style={{color:'#f59e0b',fontWeight:700,minWidth:60,fontSize:'1.1rem'}}>{a.time}</div>
+          <div><div style={{fontWeight:600}}>{a.title}</div><div style={{color:'#64748b',fontSize:'0.85rem'}}>{a.speaker}</div></div>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="speakers" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Speakers</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {speakers.map((s,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',textAlign:'center'}}>
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.25rem'}}>{s.name}</h3>
+          <div style={{color:'#f59e0b',fontSize:'0.9rem',marginBottom:'0.5rem'}}>{s.role}</div>
+          <p style={{color:'#94a3b8',fontSize:'0.9rem'}}>"{s.topic}"</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="registro" style={{padding:'5rem 2rem',background:'#0e0e16',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem'}}>Regístrate Ahora</h2>
+      {registered ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Registro confirmado! Te enviaremos los detalles por email.</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setRegistered(true)}}>
+        <input style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Nombre completo" required />
+        <input type="email" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="tu@email.com" required />
+        <input style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Empresa" />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Confirmar Registro — Gratis</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Tech Summit. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Tech Summit 2026"),
+  },
+  {
+    id: "saas",
+    name: "SaaS / Producto",
+    keywords: ["saas", "producto", "software", "plataforma", "herramienta", "tool", "app web", "aplicación", "servicio"],
+    description: "Landing SaaS con React y TypeScript",
+    planSteps: [
+      "Crear navegación SaaS profesional",
+      "Diseñar hero con demo/mockup del producto",
+      "Crear sección de features y pricing",
+      "Agregar FAQ y CTA final",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [billing, setBilling] = useState('monthly');
+  const [openFaq, setOpenFaq] = useState(-1);
+  const features = [
+    { icon:'⚡', title:'Velocidad', desc:'Despliega en segundos, no minutos. Infraestructura optimizada globalmente.' },
+    { icon:'🔄', title:'Automatización', desc:'Workflows automáticos que ahorran horas de trabajo repetitivo.' },
+    { icon:'📊', title:'Analytics', desc:'Dashboards en tiempo real con métricas que importan.' },
+    { icon:'🔐', title:'Seguridad', desc:'SOC2 compliant. Encriptación end-to-end por defecto.' },
+    { icon:'🌍', title:'Escalable', desc:'De 0 a millones de usuarios sin cambiar una línea de código.' },
+    { icon:'🔌', title:'Integraciones', desc:'Conecta con +100 herramientas que ya usas (Slack, GitHub, etc).' },
+  ];
+  const plans = [
+    { name:'Starter', price:billing==='monthly'?0:0, desc:'Para proyectos personales', features:['1 proyecto','1K requests/mes','Comunidad'], cta:'Empezar Gratis' },
+    { name:'Pro', price:billing==='monthly'?29:24, desc:'Para equipos en crecimiento', features:['Proyectos ilimitados','100K requests/mes','Soporte prioritario','Analytics avanzados','Custom domain'], cta:'Comenzar Prueba', featured:true },
+    { name:'Enterprise', price:billing==='monthly'?99:84, desc:'Para grandes organizaciones', features:['Todo en Pro','Requests ilimitados','SLA 99.99%','Soporte dedicado','On-premise option','SSO/SAML'], cta:'Contactar Ventas' },
+  ];
+  const faqs = [
+    { q:'¿Puedo cambiar de plan después?', a:'Sí, puedes cambiar de plan en cualquier momento. Los cambios se aplican inmediatamente y se prorratea el cobro.' },
+    { q:'¿Ofrecen prueba gratuita?', a:'Sí, todos los planes de pago incluyen 14 días de prueba gratuita sin tarjeta de crédito.' },
+    { q:'¿Cómo funciona el soporte?', a:'Starter tiene acceso a la comunidad. Pro incluye soporte por email con respuesta en 24h. Enterprise tiene soporte dedicado 24/7.' },
+    { q:'¿Puedo cancelar cuando quiera?', a:'Absolutamente. Sin contratos de permanencia. Cancela cuando quieras sin penalizaciones.' },
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#a78bfa'}}>⚡ ProductoAI</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Features','Pricing','FAQ'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.5rem 1rem',background:'transparent',border:'1px solid #2d2d3f',color:'#e2e8f0',borderRadius:8,fontSize:'0.85rem',marginRight:'0.5rem'}}>Login</button>
+        <button style={{padding:'0.5rem 1rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:8,fontSize:'0.85rem',fontWeight:600}}>Sign Up Free</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.1) 0%,transparent 60%)'}}>
+      <span style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid #7c3aed44'}}>🎉 Lanzamiento v2.0 — Nuevas features</span>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#a78bfa,#818cf8,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',maxWidth:800}}>La plataforma que tu equipo necesita</h1>
+      <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Automatiza workflows, monitorea métricas y escala tu producto. Todo en una sola plataforma.</p>
+      <div style={{display:'flex',gap:'1rem'}}>
+        <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,boxShadow:'0 4px 15px rgba(124,58,237,0.3)'}}>Empezar Gratis →</button>
+        <button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #2d2d3f',color:'#e2e8f0',borderRadius:10,fontWeight:600}}>Ver Demo</button>
+      </div>
+    </section>
+
+    <section id="features" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Todo lo que necesitas</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {features.map((f,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem'}}><div style={{fontSize:'2rem',marginBottom:'1rem'}}>{f.icon}</div><h3 style={{fontWeight:600,marginBottom:'0.5rem'}}>{f.title}</h3><p style={{color:'#94a3b8',fontSize:'0.95rem'}}>{f.desc}</p></div>)}
+      </div>
+    </section>
+
+    <section id="pricing" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem'}}>Precios simples y transparentes</h2>
+      <p style={{textAlign:'center',color:'#94a3b8',marginBottom:'2rem'}}>Sin costos ocultos. Cancela cuando quieras.</p>
+      <div style={{display:'flex',justifyContent:'center',gap:'0.25rem',marginBottom:'3rem',background:'#12121a',borderRadius:99,padding:'0.25rem',width:'fit-content',margin:'0 auto 3rem'}}>
+        {['monthly','yearly'].map(b=><button key={b} onClick={()=>setBilling(b)} style={{padding:'0.5rem 1.5rem',borderRadius:99,border:'none',background:billing===b?'linear-gradient(135deg,#7c3aed,#6366f1)':'transparent',color:billing===b?'#fff':'#94a3b8',fontSize:'0.85rem',fontWeight:500}}>{b==='monthly'?'Mensual':'Anual (-20%)'}</button>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {plans.map((p,i)=><div key={i} style={{background:'#12121a',border:p.featured?'2px solid #7c3aed':'1px solid #1e1e2e',borderRadius:16,padding:'2rem',position:'relative'}}>
+          {p.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',padding:'0.2rem 1rem',borderRadius:99,fontSize:'0.7rem',fontWeight:700}}>POPULAR</div>}
+          <h3 style={{fontSize:'1.2rem',marginBottom:'0.25rem'}}>{p.name}</h3>
+          <p style={{color:'#64748b',fontSize:'0.85rem',marginBottom:'1rem'}}>{p.desc}</p>
+          <div style={{fontSize:'2.5rem',fontWeight:800,marginBottom:'1rem'}}>{p.price===0?'Gratis':\`$\${p.price}\`}{p.price>0 && <span style={{fontSize:'1rem',color:'#64748b',fontWeight:400}}>/mes</span>}</div>
+          <ul style={{listStyle:'none',marginBottom:'1.5rem'}}>{p.features.map((f,j)=><li key={j} style={{padding:'0.35rem 0',color:'#94a3b8',fontSize:'0.9rem'}}>✓ {f}</li>)}</ul>
+          <button style={{width:'100%',padding:'0.75rem',background:p.featured?'linear-gradient(135deg,#7c3aed,#6366f1)':'transparent',border:p.featured?'none':'1px solid #2d2d3f',color:'#fff',borderRadius:10,fontWeight:600}}>{p.cta}</button>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="faq" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Preguntas Frecuentes</h2>
+      <div style={{maxWidth:700,margin:'0 auto'}}>
+        {faqs.map((f,i)=><div key={i} style={{borderBottom:'1px solid #1e1e2e'}}>
+          <button onClick={()=>setOpenFaq(openFaq===i?-1:i)} style={{width:'100%',padding:'1.25rem 0',background:'none',border:'none',color:'#e2e8f0',fontSize:'1rem',fontWeight:600,textAlign:'left',display:'flex',justifyContent:'space-between',cursor:'pointer'}}>
+            {f.q}<span style={{color:'#a78bfa'}}>{openFaq===i?'−':'+'}</span>
+          </button>
+          {openFaq===i && <p style={{color:'#94a3b8',paddingBottom:'1.25rem',fontSize:'0.95rem'}}>{f.a}</p>}
+        </div>)}
+      </div>
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 ProductoAI. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "ProductoAI"),
   },
 ];
 
-export function findTemplate(input: string): Template | null {
-  const lower = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  let best: Template | null = null;
+export function findTemplate(message: string): Template | null {
+  const lower = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  let bestMatch: Template | null = null;
   let bestScore = 0;
 
   for (const template of templates) {
     let score = 0;
-    for (const kw of template.keywords) {
-      const kwNorm = kw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      if (lower.includes(kwNorm)) score += 2;
+    for (const keyword of template.keywords) {
+      const normalizedKeyword = keyword.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (lower.includes(normalizedKeyword)) {
+        score += normalizedKeyword.length;
+      }
     }
     if (score > bestScore) {
       bestScore = score;
-      best = template;
+      bestMatch = template;
     }
   }
 
-  return bestScore > 0 ? best : null;
+  return bestScore > 0 ? bestMatch : null;
 }
 
 export function getDefaultHtml(): string {
   return `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preview</title>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOKU AI Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0f;color:#64748b;font-family:'Segoe UI',sans-serif}
-.empty{text-align:center}
-.empty h2{color:#94a3b8;margin-bottom:0.5rem}
-</style></head>
-<body><div class="empty"><h2>👋 Bienvenido a DOKU AI</h2><p>Describe lo que quieres crear para ver el preview aquí</p></div></body></html>`;
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0f;color:#e2e8f0}
+.container{text-align:center;padding:2rem}
+h1{font-size:2rem;margin-bottom:1rem;font-weight:700;background:linear-gradient(135deg,#a78bfa,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+p{color:#64748b;max-width:400px;line-height:1.6}
+.dot{display:inline-block;width:8px;height:8px;background:#7c3aed;border-radius:50%;margin:0 3px;animation:pulse 1.5s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:0.2s}
+.dot:nth-child(3){animation-delay:0.4s}
+@keyframes pulse{0%,80%,100%{transform:scale(0.8);opacity:0.5}40%{transform:scale(1.2);opacity:1}}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>DOKU AI</h1>
+<p>Describe el sitio que quieres crear y lo generaré al instante usando React y TypeScript.</p>
+<div style="margin-top:1.5rem"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+</div>
+</body>
+</html>`;
 }

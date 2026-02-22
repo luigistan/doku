@@ -22,9 +22,12 @@ export function useBuilderState() {
   const pendingResult = useRef<BuilderResponse | null>(null);
 
   const executeFromResult = useCallback((result: BuilderResponse) => {
-    // Animate plan steps then show preview
+    const planMsgId = (Date.now() + 10).toString();
+    const successMsgId = (Date.now() + 20).toString();
+    let successAdded = false;
+
     const planMsg: Message = {
-      id: (Date.now() + 10).toString(),
+      id: planMsgId,
       role: "system",
       content: `⚙️ **Ejecutando plan...**`,
       timestamp: new Date(),
@@ -36,12 +39,13 @@ export function useBuilderState() {
     };
     setMessages((prev) => [...prev, planMsg]);
 
-    if (result.plan) {
+    if (result.plan && result.plan.length > 0) {
+      const totalSteps = result.plan.length;
       result.plan.forEach((_, i) => {
         setTimeout(() => {
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === planMsg.id && msg.plan
+              msg.id === planMsgId && msg.plan
                 ? {
                     ...msg,
                     plan: msg.plan.map((step, j) => ({
@@ -52,13 +56,14 @@ export function useBuilderState() {
                 : msg
             )
           );
-          if (i === (result.plan?.length ?? 0) - 1) {
+          if (i === totalSteps - 1 && !successAdded) {
+            successAdded = true;
             setTimeout(() => {
               setPreview((p) => ({ ...p, html: result.html, status: "ready" }));
               setMessages((prev) => [
                 ...prev,
                 {
-                  id: (Date.now() + 20).toString(),
+                  id: successMsgId,
                   role: "system",
                   content: `✅ **${result.entities.businessName}** generado exitosamente con ${result.entities.sections.length} secciones. ¡Revisa el preview!`,
                   timestamp: new Date(),
