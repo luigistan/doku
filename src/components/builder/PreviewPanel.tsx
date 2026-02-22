@@ -1,4 +1,3 @@
-import { useRef, useEffect } from "react";
 import { PreviewState, ViewportSize } from "@/types/builder";
 import { Monitor, Tablet, Smartphone, RotateCcw, Globe, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,19 +22,6 @@ const statusConfig = {
 };
 
 export function PreviewPanel({ preview, onViewportChange, onRefresh }: PreviewPanelProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  useEffect(() => {
-    if (iframeRef.current) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(preview.html);
-        doc.close();
-      }
-    }
-  }, [preview.html]);
-
   const StatusIcon = statusConfig[preview.status].icon;
 
   return (
@@ -89,17 +75,18 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh }: PreviewPa
         </div>
       </div>
 
-      {/* Preview iframe */}
+      {/* Preview iframe - using srcdoc for reliable rendering */}
       <div className="flex flex-1 items-start justify-center overflow-auto bg-surface-2 p-4">
         <div
           className="h-full overflow-hidden rounded-lg border border-border bg-background shadow-2xl transition-all duration-300"
           style={{ width: viewportWidths[preview.viewport], maxWidth: "100%" }}
         >
           <iframe
-            ref={iframeRef}
+            key={preview.html.length + preview.status}
+            srcDoc={preview.html}
             className="h-full w-full border-0"
             title="Preview"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
           />
         </div>
       </div>

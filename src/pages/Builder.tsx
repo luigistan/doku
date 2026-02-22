@@ -134,12 +134,8 @@ const Builder = () => {
             preview={preview}
             onViewportChange={(viewport) => setPreview((p) => ({ ...p, viewport }))}
             onRefresh={() => {
-              const iframe = document.querySelector("iframe");
-              if (iframe?.contentDocument) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(preview.html);
-                iframe.contentDocument.close();
-              }
+              setPreview((p) => ({ ...p, html: p.html + " " }));
+              setTimeout(() => setPreview((p) => ({ ...p, html: p.html.trim() })), 50);
             }}
           />
         </ResizablePanel>
