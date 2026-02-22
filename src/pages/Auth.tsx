@@ -48,7 +48,7 @@ const Auth = () => {
         </Link>
 
         <div className="flex items-center gap-3 mb-8">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brain text-brain-foreground font-bold">D</div>
+          <img src="/doku-logo.png" alt="DOKU AI" className="h-9 w-9 rounded-lg" />
           <span className="text-xl font-bold">DOKU AI</span>
         </div>
 

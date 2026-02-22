@@ -79,7 +79,7 @@ const Dashboard = () => {
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brain text-brain-foreground text-sm font-bold">D</div>
+          <img src="/doku-logo.png" alt="DOKU AI" className="h-8 w-8 rounded-lg" />
           <span className="text-lg font-bold">DOKU AI</span>
         </div>
         <div className="flex items-center gap-4">
