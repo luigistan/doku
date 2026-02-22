@@ -1,148 +1,182 @@
 
 
-# Motor de IA Propio "BuilderAI Engine" - Open Source
+# DOKU AI - Renombrar + Sistema de Conocimiento + Persistencia de Proyectos
 
-## Que se construye
-Un motor inteligente propio que corre en Supabase Edge Functions (Deno), capaz de:
-- Entender lo que el usuario quiere crear analizando su texto
-- Extraer entidades (colores, nombre del negocio, secciones deseadas)
-- Componer sitios web dinamicamente combinando bloques
-- Mejorar con el tiempo guardando patrones en Supabase (auto-aprendizaje basado en datos)
-- Todo 100% gratuito, sin APIs externas, open source
+## Resumen
 
-## Arquitectura
+Se renombrara el sistema completo de "Web Builder Studio / BuilderAI Engine" a **DOKU AI**, se le inyectara conocimiento profundo sobre programacion y diseno web, se implementara autenticacion de usuarios con Supabase, persistencia de proyectos (crear, guardar, listar, cargar) y funcionalidades adicionales para hacerlo autosuficiente.
+
+---
+
+## Fase 1: Renombrar a DOKU AI
+
+### Archivos a modificar:
+- **`src/components/builder/Header.tsx`**: Cambiar "W" por "D", "Web Builder Studio" por "DOKU AI"
+- **`src/hooks/useBuilderState.ts`**: Cambiar mensaje de bienvenida de "BuilderAI Engine" a "DOKU AI"
+- **`src/components/builder/PreviewPanel.tsx`**: Cambiar URL simulada de "preview.webbuilder.studio" a "preview.doku.ai"
+- **`supabase/functions/builder-ai/index.ts`**: Cambiar la referencia en el footer de "BuilderAI Engine" a "DOKU AI"
+- **`index.html`**: Cambiar title y meta tags a "DOKU AI"
+- **`README.md`**: Renombrar toda la documentacion a DOKU AI
+
+---
+
+## Fase 2: Ensenarle a Programar y Disenar
+
+Expandir el edge function `builder-ai` con un **sistema de conocimiento** integrado que le permita generar sitios de mayor calidad:
+
+### Conocimiento de Diseno (inyectado en el Template Composer)
+- **Tipografia**: Usar Google Fonts (Inter, Poppins, Playfair Display). Jerarquia h1 > h2 > h3 con escalas armoniosas
+- **Espaciado**: Sistema de 8px grid. Padding/margin consistente
+- **Color**: Teoria del color aplicada. Paletas con contraste WCAG AA. Colores primario, secundario, acento
+- **Layout**: Principios de diseno responsive. Mobile-first. Max-width containers. CSS Grid + Flexbox
+- **Componentes**: Sombras suaves, border-radius consistente, transiciones/animaciones sutiles (hover, scroll)
+- **Imagenes**: Usar Unsplash via URL directa (source.unsplash.com) para fotos reales en lugar de emojis
+
+### Conocimiento de Programacion (bloques HTML mejorados)
+- **HTML semantico**: Usar `<header>`, `<main>`, `<section>`, `<article>`, `<footer>` correctamente
+- **CSS moderno**: Variables CSS custom properties, clamp() para responsive, aspect-ratio, scroll-behavior smooth
+- **JavaScript basico**: Animaciones con IntersectionObserver, menu hamburguesa funcional, smooth scroll, dark/light toggle
+- **Accesibilidad**: aria-labels, focus states, skip-to-content link, alt text
+- **SEO**: Meta description, Open Graph tags, estructura de headings correcta
+
+### Implementacion tecnica
+Se mejoraran todos los bloques HTML en el edge function para que generen codigo de mayor calidad:
+- Google Fonts embebido via `<link>`
+- Imagenes reales de Unsplash basadas en la industria
+- CSS variables para colores (facil de cambiar)
+- JavaScript para interactividad (menu mobile, scroll animations, form validation)
+- Meta tags de SEO y Open Graph
+
+---
+
+## Fase 3: Persistencia de Proyectos con Supabase
+
+### Tablas de base de datos (migracion SQL)
 
 ```text
-Usuario escribe: "Quiero una landing para mi cafeteria El Buen Cafe con menu y contacto"
-                                    |
-                          [Edge Function: builder-ai]
-                                    |
-                    +---------------+----------------+
-                    |               |                |
-             1. Tokenizer    2. Intent        3. Entity
-             (normaliza      Classifier       Extractor
-              texto)         (que tipo de     (nombre, color,
-                              sitio quiere)    secciones)
-                    |               |                |
-                    +-------+-------+----------------+
-                            |
-                   4. Template Composer
-                   (combina bloques HTML segun
-                    las entidades extraidas)
-                            |
-                   5. HTML Personalizado
-                   "El Buen Cafe" con menu
-                    y seccion de contacto
-                            |
-                      [Preview Panel]
+profiles
+  - id (uuid, PK, FK -> auth.users)
+  - email (text)
+  - display_name (text)
+  - avatar_url (text)
+  - created_at (timestamptz)
+
+projects
+  - id (uuid, PK)
+  - user_id (uuid, FK -> auth.users)
+  - name (text)
+  - description (text)
+  - html (text) -- el codigo generado
+  - intent (text) -- tipo de sitio
+  - entities (jsonb) -- entidades extraidas
+  - thumbnail_url (text)
+  - is_public (boolean, default false)
+  - created_at (timestamptz)
+  - updated_at (timestamptz)
+
+project_versions
+  - id (uuid, PK)
+  - project_id (uuid, FK -> projects)
+  - html (text)
+  - message (text) -- que cambio se hizo
+  - version_number (int)
+  - created_at (timestamptz)
+
+chat_messages
+  - id (uuid, PK)
+  - project_id (uuid, FK -> projects)
+  - role (text) -- 'user' o 'system'
+  - content (text)
+  - plan (jsonb, nullable)
+  - created_at (timestamptz)
 ```
 
-## Cambios por archivo
+### RLS Policies
+- Usuarios solo pueden ver/editar sus propios proyectos
+- Proyectos marcados como `is_public` pueden ser vistos por todos (solo lectura)
+- Chat messages ligados al proyecto del usuario
 
-### 1. Edge Function: `supabase/functions/builder-ai/index.ts`
-Motor principal con 4 modulos:
+### Trigger
+- Auto-crear perfil en `profiles` al registrarse
 
-- **Tokenizer**: Normaliza el texto (quita acentos, minusculas, separa palabras)
-- **IntentClassifier**: Clasifica la intencion usando puntaje ponderado con sinonimos expandidos (landing, portfolio, blog, dashboard, tienda, restaurante, gimnasio, etc.)
-- **EntityExtractor**: Extrae del texto:
-  - Nombre del negocio (busca patrones como "llamado X", "se llama X", "para mi X")
-  - Secciones deseadas (menu, contacto, galeria, precios, testimonios, etc.)
-  - Esquema de color (si menciona colores)
-  - Industria/nicho
-- **TemplateComposer**: Genera HTML dinamico combinando bloques segun las entidades. No es un template fijo - compone secciones individuales (hero, navbar, features, pricing, gallery, contact, footer) segun lo que el usuario pidio
+---
 
-### 2. Bloques HTML reutilizables: `supabase/functions/builder-ai/blocks.ts`
-Libreria de secciones HTML independientes que se combinan:
-- `navbar(config)` - Barra de navegacion con nombre y links
-- `hero(config)` - Seccion principal con titulo y CTA
-- `features(config)` - Grid de caracteristicas
-- `pricing(config)` - Tabla de precios
-- `gallery(config)` - Galeria de imagenes/proyectos
-- `contact(config)` - Formulario de contacto
-- `menu(config)` - Menu de restaurante/cafeteria
-- `testimonials(config)` - Testimonios
-- `footer(config)` - Footer con info
+## Fase 4: Autenticacion
 
-Cada bloque acepta parametros (nombre, colores, textos) para personalizar el output.
+### Nuevas paginas y componentes
+- **`/auth`**: Pagina de login/registro con email y password
+- **`AuthProvider`**: Context provider con estado de sesion
+- **`ProtectedRoute`**: Wrapper que redirige a `/auth` si no esta logueado
+- Actualizar `App.tsx` con rutas protegidas
 
-### 3. Diccionario de NLP: `supabase/functions/builder-ai/nlp.ts`
-- Mapa de sinonimos en espanol e ingles
-- Patrones regex para extraccion de entidades
-- Stopwords para filtrar
-- Mapa de industrias con contenido predeterminado (cafeteria -> items de cafe, gimnasio -> planes de entrenamiento, etc.)
+---
 
-### 4. Actualizar `src/services/builderService.ts` (nuevo)
-- Servicio frontend que llama al edge function
-- Envia el mensaje del usuario y el modo (brain/execute)
-- Recibe el HTML generado y el plan de pasos
+## Fase 5: Dashboard de Proyectos
 
-### 5. Actualizar `src/hooks/useBuilderState.ts`
-- Reemplazar `findTemplate()` por llamada al edge function `builder-ai`
-- En modo Brain: el edge function devuelve primero un plan (JSON) con las entidades detectadas y secciones a generar, luego el HTML
-- En modo Execute: devuelve HTML directamente
-- Mantener templates locales como fallback si el edge function falla
+### Nueva pagina: `/dashboard`
+- Lista de proyectos del usuario en cards
+- Boton "Nuevo Proyecto" que abre el builder
+- Cada card muestra: nombre, tipo de sitio, fecha, preview thumbnail
+- Acciones: abrir, duplicar, eliminar, compartir (toggle is_public)
 
-### 6. Actualizar `src/lib/templates.ts`
-- Mantener como fallback offline
-- Agregar mas templates: restaurante, gimnasio, agencia, SaaS
+### Flujo actualizado
+1. Usuario se registra/logea -> llega al Dashboard
+2. Crea un nuevo proyecto -> se abre el Builder (pagina actual)
+3. Al generar un sitio, se guarda automaticamente en Supabase
+4. Cada mensaje del chat se guarda en `chat_messages`
+5. Al hacer cambios, se crea una version en `project_versions`
+6. Puede volver al Dashboard y ver/cargar todos sus proyectos
 
-### 7. Preparacion Open Source
-- Actualizar `README.md` con documentacion del proyecto, como contribuir, y arquitectura
-- El repo de GitHub se puede hacer publico desde la configuracion de GitHub
+---
+
+## Fase 6: Funcionalidades Autosuficientes Adicionales
+
+### 1. Exportar HTML
+- Boton "Descargar" en el PreviewPanel
+- Genera un archivo .html descargable con todo el codigo
+
+### 2. Compartir con Link Publico
+- Toggle "Hacer publico" en el proyecto
+- Ruta `/preview/:projectId` que renderiza el HTML sin necesidad de login
+
+### 3. Historial de Versiones
+- Panel lateral en el Builder para ver versiones anteriores
+- Restaurar cualquier version con un clic
+
+### 4. Editar CSS en Vivo
+- Panel de "Estilos rapidos" para cambiar colores, fuentes, espaciado sin escribir
+- Se aplican los cambios al HTML en tiempo real
+
+### 5. Templates Premade
+- Galeria de templates que el usuario puede elegir como punto de partida
+- Se muestran como cards con preview antes de seleccionar
+
+---
 
 ## Seccion Tecnica
 
-### Formato de respuesta del Edge Function
+### Archivos nuevos a crear
+- `src/contexts/AuthContext.tsx` - Provider de autenticacion
+- `src/pages/Auth.tsx` - Pagina de login/registro
+- `src/pages/Dashboard.tsx` - Lista de proyectos
+- `src/pages/PublicPreview.tsx` - Vista publica de un proyecto
+- `src/components/builder/ProjectSidebar.tsx` - Panel lateral de versiones
+- `src/components/builder/ExportButton.tsx` - Boton de exportar HTML
+- `src/services/projectService.ts` - CRUD de proyectos con Supabase
 
-```text
-POST /builder-ai
-Body: { "message": "...", "mode": "brain" | "execute" }
+### Archivos a modificar
+- `src/App.tsx` - Agregar rutas y AuthProvider
+- `src/pages/Index.tsx` - Conectar con proyecto activo de Supabase
+- `src/hooks/useBuilderState.ts` - Auto-guardar en Supabase
+- `src/components/builder/Header.tsx` - Renombrar + agregar nombre de proyecto y boton de usuario
+- `src/components/builder/PreviewPanel.tsx` - Agregar boton exportar y compartir
 
-Respuesta modo Brain:
-{
-  "intent": "restaurant",
-  "confidence": 0.85,
-  "entities": {
-    "businessName": "El Buen Cafe",
-    "sections": ["navbar", "hero", "menu", "contact", "footer"],
-    "colorScheme": "warm",
-    "industry": "cafeteria"
-  },
-  "plan": [
-    "Crear navbar con 'El Buen Cafe'",
-    "Disenar hero con tema de cafeteria",
-    "Generar menu con items de cafe",
-    "Agregar formulario de contacto",
-    "Crear footer con horarios"
-  ],
-  "html": "<full generated html>"
-}
-
-Respuesta modo Execute:
-{
-  "intent": "restaurant",
-  "html": "<full generated html>"
-}
-```
-
-### Como funciona el "auto-aprendizaje"
-No es machine learning real, sino un sistema de retroalimentacion:
-1. Se guarda en Supabase cada interaccion (mensaje del usuario, intent detectado, entidades)
-2. Con el tiempo se puede analizar que patrones de texto llevan a que templates
-3. Se puede expandir el diccionario de sinonimos basado en los mensajes reales
-4. Esto se implementara en una fase posterior con tablas en Supabase
-
-### Industrias soportadas inicialmente
-- General (landing page generica)
-- Restaurante/Cafeteria (con menu de comidas)
-- Fitness/Gimnasio (con planes y horarios)
-- Portfolio/Freelancer (con proyectos)
-- Blog/Contenido (con articulos)
-- E-commerce/Tienda (con productos)
-- Dashboard/Admin (con metricas)
-- Agencia/Servicios (con servicios ofrecidos)
-
-### Dependencias
-- Ninguna nueva - todo se construye con Deno nativo en el edge function
-- El frontend solo necesita `fetch` para llamar al edge function
+### Orden de implementacion recomendado
+1. Renombrar a DOKU AI (rapido, todos los archivos)
+2. Mejorar bloques HTML con conocimiento de diseno/programacion
+3. Crear tablas en Supabase (migracion)
+4. Implementar autenticacion
+5. Dashboard de proyectos
+6. Auto-guardado y versiones
+7. Exportar y compartir
 
