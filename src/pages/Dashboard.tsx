@@ -63,7 +63,9 @@ const Dashboard = () => {
       await updateProject(id, { is_public: !isPublic });
       setProjects(prev => prev.map(p => p.id === id ? { ...p, is_public: !isPublic } : p));
       if (!isPublic) {
-        const url = `${window.location.origin}/preview/${id}`;
+        const project = projects.find(p => p.id === id);
+        const slug = project?.slug;
+        const url = slug ? `${window.location.origin}/p/${slug}` : `${window.location.origin}/preview/${id}`;
         navigator.clipboard.writeText(url).catch(() => {});
         toast({ title: "Proyecto público", description: `Link copiado: ${url}` });
       } else {
