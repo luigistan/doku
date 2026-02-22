@@ -9,7 +9,7 @@ export function useBuilderState() {
     {
       id: "welcome",
       role: "system",
-      content: "¡Hola! 👋 Soy **BuilderAI Engine**, tu motor de IA propio para crear sitios web.\n\nDescríbeme qué quieres crear y lo generaré al instante. Puedo entender:\n• Tipo de sitio (landing, restaurante, portfolio, blog, tienda, gym, agencia...)\n• Nombre del negocio\n• Secciones específicas (menú, contacto, galería, precios...)\n• Colores preferidos\n\n**Ejemplo:** \"Quiero una landing para mi cafetería El Buen Café con menú y contacto\"",
+      content: "¡Hola! 👋 Soy **DOKU AI**, tu motor de inteligencia artificial para crear sitios web profesionales.\n\nDescríbeme qué quieres crear y lo generaré al instante. Puedo entender:\n• Tipo de sitio (landing, restaurante, portfolio, blog, tienda, gym, agencia...)\n• Nombre del negocio\n• Secciones específicas (menú, contacto, galería, precios...)\n• Colores preferidos\n\n**Ejemplo:** \"Quiero una landing para mi cafetería El Buen Café con menú y contacto\"",
       timestamp: new Date(),
     },
   ]);
