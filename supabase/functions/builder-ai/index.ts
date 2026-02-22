@@ -67,6 +67,22 @@ const intentMap: Record<string, { keywords: string[]; label: string }> = {
     keywords: ["agencia", "agency", "servicios", "consultoria", "marketing", "digital", "estudio", "studio", "creativa", "diseno"],
     label: "Agencia / Servicios",
   },
+  clinic: {
+    keywords: ["clinica", "medico", "doctor", "hospital", "salud", "dental", "dentista", "medicina", "consultorio", "pediatra", "dermatologo", "clinic", "health"],
+    label: "Clínica / Salud",
+  },
+  realestate: {
+    keywords: ["inmobiliaria", "real estate", "propiedades", "bienes raices", "apartamentos", "casas", "alquiler", "venta inmueble", "inmuebles"],
+    label: "Inmobiliaria",
+  },
+  education: {
+    keywords: ["escuela", "academia", "cursos", "educacion", "universidad", "colegio", "formacion", "capacitacion", "clases", "tutoria", "school", "education"],
+    label: "Educación / Academia",
+  },
+  veterinary: {
+    keywords: ["veterinaria", "mascotas", "pet", "animales", "perros", "gatos", "vet", "clinica veterinaria", "peluqueria canina"],
+    label: "Veterinaria",
+  },
 };
 
 function classifyIntent(tokens: string[]): IntentMatch {
@@ -125,6 +141,10 @@ const sectionKeywords: Record<string, string[]> = {
   about: ["nosotros", "about", "quienes somos", "historia", "equipo", "team"],
   blog: ["blog", "articulos", "noticias", "posts"],
   footer: ["footer", "pie", "informacion"],
+  faq: ["faq", "preguntas", "frecuentes", "dudas", "preguntas frecuentes"],
+  cta: ["cta", "llamada", "accion", "banner", "promocion"],
+  team: ["equipo", "team", "miembros", "staff", "profesionales"],
+  stats: ["estadisticas", "numeros", "cifras", "logros", "stats"],
 };
 
 function extractEntities(text: string, tokens: string[], intent: string): Entities {
@@ -162,6 +182,10 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     fitness: ["pricing", "features", "contact"],
     agency: ["features", "about", "contact", "testimonials"],
     landing: ["features", "contact"],
+    clinic: ["features", "team", "contact", "faq"],
+    realestate: ["features", "gallery", "contact"],
+    education: ["features", "pricing", "testimonials", "contact"],
+    veterinary: ["features", "team", "contact", "faq"],
   };
   for (const s of (intentDefaults[intent] || [])) {
     sections.add(s);
@@ -194,7 +218,8 @@ function getDefaultName(intent: string): string {
   const defaults: Record<string, string> = {
     landing: "Mi Empresa", restaurant: "Mi Restaurante", portfolio: "Mi Portfolio",
     blog: "Mi Blog", dashboard: "Dashboard", ecommerce: "Mi Tienda",
-    fitness: "Mi Gym", agency: "Mi Agencia",
+    fitness: "Mi Gym", agency: "Mi Agencia", clinic: "Mi Clínica",
+    realestate: "Mi Inmobiliaria", education: "Mi Academia", veterinary: "Mi Veterinaria",
   };
   return defaults[intent] || "Mi Sitio";
 }
@@ -315,6 +340,10 @@ function getUnsplashImage(intent: string, section: string, idx: number): string 
     blog: { hero: "writing-desk", gallery: "laptop-coffee", about: "journalist", default: "blog" },
     landing: { hero: "technology-startup", gallery: "modern-workspace", about: "business-team", default: "technology" },
     dashboard: { hero: "data-analytics", gallery: "computer-screen", about: "office-team", default: "dashboard" },
+    clinic: { hero: "modern-office", gallery: "team-meeting", about: "creative-team", default: "technology" },
+    realestate: { hero: "modern-office", gallery: "modern-workspace", about: "business-team", default: "technology" },
+    education: { hero: "creative-workspace", gallery: "laptop-coffee", about: "team-meeting", default: "technology" },
+    veterinary: { hero: "creative-workspace", gallery: "design-project", about: "creative-team", default: "technology" },
   };
   const q = queries[intent]?.[section] || queries[intent]?.default || "website";
   return `https://images.unsplash.com/photo-${getImageId(q, idx)}?auto=format&fit=crop&w=800&q=80`;
@@ -695,32 +724,126 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 </section>`);
   }
 
+  // ===== FAQ =====
+  if (sections.includes("faq")) {
+    const faqs = getFAQs(intent);
+    const faqHtml = faqs.map((f, i) => `
+      <details class="card fade-up" style="cursor:pointer;transition-delay:${i * 0.08}s">
+        <summary style="font-weight:600;font-size:1rem;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem">
+          ${f.q}
+          <span style="color:var(--primary-light);font-size:1.2rem;transition:transform var(--transition)">+</span>
+        </summary>
+        <p style="color:var(--text-muted);margin-top:var(--space-sm);line-height:1.7;font-size:0.95rem">${f.a}</p>
+      </details>`).join("");
+    parts.push(`
+<section id="faq" class="section" aria-labelledby="faq-heading">
+  <div class="container" style="max-width:750px">
+    <div class="section-header fade-up">
+      <h2 id="faq-heading">Preguntas Frecuentes</h2>
+      <p>Respuestas a las dudas más comunes</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-sm)">${faqHtml}</div>
+  </div>
+</section>`);
+  }
+
+  // ===== TEAM =====
+  if (sections.includes("team")) {
+    const members = getTeamMembers(intent);
+    const membersHtml = members.map((m, i) => `
+      <div class="card fade-up" style="text-align:center;transition-delay:${i * 0.1}s">
+        <div style="width:80px;height:80px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-sm);font-size:2rem;color:#fff">${m.avatar}</div>
+        <h3 style="margin-bottom:4px">${m.name}</h3>
+        <p style="color:var(--primary-light);font-size:0.85rem;font-weight:500;margin-bottom:var(--space-xs)">${m.role}</p>
+        <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.6">${m.bio}</p>
+      </div>`).join("");
+    parts.push(`
+<section id="team" class="section section-alt" aria-labelledby="team-heading">
+  <div class="container">
+    <div class="section-header fade-up">
+      <h2 id="team-heading">Nuestro Equipo</h2>
+      <p>Profesionales comprometidos con la excelencia</p>
+    </div>
+    <div class="grid-3">${membersHtml}</div>
+  </div>
+</section>`);
+  }
+
+  // ===== STATS =====
+  if (sections.includes("stats")) {
+    const stats = getStatsData(intent);
+    const statsHtml = stats.map((s, i) => `
+      <div class="fade-up" style="text-align:center;padding:var(--space-lg);transition-delay:${i * 0.1}s">
+        <div class="counter gradient-text" data-target="${s.num}" style="font-size:3rem;font-weight:800;font-family:var(--font-display)">${s.value}</div>
+        <p style="color:var(--text-muted);font-size:0.95rem;margin-top:var(--space-xs)">${s.label}</p>
+      </div>`).join("");
+    parts.push(`
+<section id="stats" class="section" aria-labelledby="stats-heading" style="background:var(--bg-card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md)" class="grid-stats">${statsHtml}</div>
+  </div>
+</section>
+<style>@media(max-width:768px){.grid-stats{grid-template-columns:repeat(2,1fr)!important}}</style>`);
+  }
+
+  // ===== CTA Banner =====
+  if (sections.includes("cta")) {
+    parts.push(`
+<section id="cta" class="section" aria-labelledby="cta-heading">
+  <div class="container" style="max-width:800px;text-align:center">
+    <div class="card fade-up" style="background:var(--gradient);border:none;padding:var(--space-xl)">
+      <h2 id="cta-heading" style="color:#fff;margin-bottom:var(--space-sm)">¿Listo para comenzar?</h2>
+      <p style="color:rgba(255,255,255,0.85);margin-bottom:var(--space-lg);font-size:1.05rem;max-width:500px;margin-left:auto;margin-right:auto">${getCTAText(intent)}</p>
+      <div style="display:flex;gap:var(--space-sm);justify-content:center;flex-wrap:wrap">
+        <button class="btn" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,0.3);box-shadow:none">${getHeroCTA(intent)}</button>
+      </div>
+    </div>
+  </div>
+</section>`);
+  }
+
   // ===== FOOTER =====
   if (sections.includes("footer")) {
+    const footerLinks = sections.filter(s => !["navbar", "footer", "cta", "stats"].includes(s)).slice(0, 5);
     parts.push(`
 <footer role="contentinfo" style="border-top:1px solid var(--border);padding:var(--space-xl) var(--space-lg) var(--space-lg);background:var(--bg-card)">
   <div class="container">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-md)">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-xl);margin-bottom:var(--space-lg)" class="grid-footer">
       <div>
-        <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:0.3rem" class="gradient-text">${name}</div>
-        <p style="color:var(--text-muted);font-size:0.85rem">© ${new Date().getFullYear()} ${name}. Todos los derechos reservados.</p>
+        <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:var(--space-sm)" class="gradient-text">${name}</div>
+        <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;max-width:320px">${getMetaDescription(intent, name)}</p>
       </div>
-      <div style="display:flex;gap:var(--space-md)">
-        ${["Privacidad", "Términos", "Contacto"].map(l => `<a href="#" style="color:var(--text-muted);font-size:0.85rem;transition:color var(--transition)" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='var(--text-muted)'">${l}</a>`).join("")}
+      <div>
+        <h4 style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:var(--space-sm)">Navegación</h4>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          ${footerLinks.map(s => `<a href="#${s}" style="color:var(--text-muted);font-size:0.88rem;transition:color var(--transition)" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='var(--text-muted)'">${sectionLabel(s)}</a>`).join("")}
+        </div>
+      </div>
+      <div>
+        <h4 style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:var(--space-sm)">Legal</h4>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          ${["Privacidad", "Términos", "Cookies"].map(l => `<a href="#" style="color:var(--text-muted);font-size:0.88rem;transition:color var(--transition)" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='var(--text-muted)'">${l}</a>`).join("")}
+        </div>
       </div>
     </div>
-    <div style="text-align:center;margin-top:var(--space-lg);padding-top:var(--space-md);border-top:1px solid var(--border)">
+    <div style="border-top:1px solid var(--border);padding-top:var(--space-md);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm)">
+      <p style="color:var(--text-muted);font-size:0.78rem">© ${new Date().getFullYear()} ${name}. Todos los derechos reservados.</p>
       <p style="color:var(--text-muted);font-size:0.78rem">Hecho con ❤️ por <span class="gradient-text" style="font-weight:600">DOKU AI</span></p>
     </div>
   </div>
-</footer>`);
+</footer>
+<style>@media(max-width:768px){.grid-footer{grid-template-columns:1fr!important}}</style>`);
   }
 
-  // ===== JavaScript: IntersectionObserver animations + mobile menu =====
+  // ===== Back to top button =====
+  parts.push(`
+<button id="back-to-top" aria-label="Volver arriba" style="position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;border-radius:50%;background:var(--gradient);color:#fff;border:none;cursor:pointer;font-size:1.2rem;display:none;align-items:center;justify-content:center;box-shadow:var(--shadow-md);transition:opacity var(--transition),transform var(--transition);z-index:100" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>`);
+
+  // ===== JavaScript: Enhanced =====
   parts.push(`
 <script>
-// Scroll animations with IntersectionObserver
 document.addEventListener('DOMContentLoaded',()=>{
+  // Scroll animations with IntersectionObserver
   const observer=new IntersectionObserver((entries)=>{
     entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
   },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
@@ -742,6 +865,58 @@ document.addEventListener('DOMContentLoaded',()=>{
       const expanded=menuBtn.getAttribute('aria-expanded')==='true';
       menuBtn.setAttribute('aria-expanded',String(!expanded));
     });
+  }
+
+  // Back to top button
+  const btt=document.getElementById('back-to-top');
+  if(btt){
+    window.addEventListener('scroll',()=>{
+      if(window.scrollY>400){btt.style.display='flex';btt.style.opacity='1'}
+      else{btt.style.opacity='0';setTimeout(()=>{if(window.scrollY<=400)btt.style.display='none'},300)}
+    });
+  }
+
+  // Counter animation for stats
+  const counters=document.querySelectorAll('.counter');
+  if(counters.length){
+    const countObserver=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          const el=e.target;
+          const target=el.textContent.replace(/[^0-9]/g,'');
+          const suffix=el.textContent.replace(/[0-9,.]/g,'');
+          const num=parseInt(target)||0;
+          if(num===0)return;
+          let current=0;
+          const step=Math.ceil(num/40);
+          const timer=setInterval(()=>{
+            current+=step;
+            if(current>=num){current=num;clearInterval(timer)}
+            el.textContent=current.toLocaleString()+suffix;
+          },30);
+          countObserver.unobserve(el);
+        }
+      });
+    },{threshold:0.5});
+    counters.forEach(c=>countObserver.observe(c));
+  }
+
+  // FAQ accordion toggle
+  document.querySelectorAll('details').forEach(d=>{
+    d.addEventListener('toggle',()=>{
+      const icon=d.querySelector('summary span:last-child');
+      if(icon)icon.textContent=d.open?'−':'+';
+    });
+  });
+
+  // Navbar scroll effect
+  const nav=document.querySelector('nav');
+  if(nav){
+    window.addEventListener('scroll',()=>{
+      if(window.scrollY>80){nav.style.background='var(--bg-card)';nav.style.borderBottom='1px solid var(--border)';nav.style.backdropFilter='blur(12px)'}
+      else{nav.style.background='transparent';nav.style.borderBottom='none';nav.style.backdropFilter='none'}
+    });
+    nav.style.position='sticky';nav.style.top='0';nav.style.zIndex='50';nav.style.transition='all var(--transition)';
   }
 });
 </script>
@@ -771,6 +946,10 @@ function getMetaDescription(intent: string, name: string): string {
     ecommerce: `${name} — Tu tienda online con los mejores productos.`,
     fitness: `${name} — Transforma tu cuerpo con entrenamientos profesionales.`,
     agency: `${name} — Agencia digital creativa. Estrategia, diseño y desarrollo.`,
+    clinic: `${name} — Atención médica de calidad con tecnología avanzada.`,
+    realestate: `${name} — Encuentra la propiedad perfecta con asesoría profesional.`,
+    education: `${name} — Cursos y formación profesional de alto nivel.`,
+    veterinary: `${name} — Cuidado veterinario integral para tu mascota.`,
   };
   return map[intent] || `${name} — Sitio web profesional.`;
 }
@@ -779,6 +958,8 @@ function getNavCTA(intent: string): string {
   const map: Record<string, string> = {
     landing: "Empezar", restaurant: "Reservar", portfolio: "Contratar",
     ecommerce: "Comprar", fitness: "Inscribirme", agency: "Contactar",
+    clinic: "Agendar Cita", realestate: "Ver Propiedades",
+    education: "Inscribirme", veterinary: "Agendar Cita",
     default: "Contactar",
   };
   return map[intent] || map.default;
@@ -790,6 +971,8 @@ function getHeroBadge(intent: string): string {
     portfolio: "✦ DISEÑO & DESARROLLO", blog: "✦ CONTENIDO ORIGINAL",
     dashboard: "✦ ANALYTICS EN TIEMPO REAL", ecommerce: "✦ TIENDA ONLINE",
     fitness: "✦ TRANSFORMA TU VIDA", agency: "✦ CREATIVIDAD DIGITAL",
+    clinic: "✦ SALUD & BIENESTAR", realestate: "✦ TU HOGAR IDEAL",
+    education: "✦ APRENDE SIN LÍMITES", veterinary: "✦ CUIDAMOS A TU MASCOTA",
   };
   return map[intent] || "✦ BIENVENIDO";
 }
@@ -804,6 +987,10 @@ function getHeroSubtitle(intent: string, name: string): string {
     ecommerce: "Descubre nuestra colección curada con productos exclusivos, envío rápido y la mejor experiencia de compra online.",
     fitness: `Transforma tu cuerpo y mente en ${name}. Entrenamientos personalizados, equipamiento premium y una comunidad que te impulsa.`,
     agency: `En ${name} convertimos ideas en experiencias digitales memorables. Estrategia, creatividad y resultados medibles.`,
+    clinic: `En ${name} tu salud está en las mejores manos. Tecnología avanzada, profesionales certificados y atención humana de calidad.`,
+    realestate: `${name} te ayuda a encontrar la propiedad perfecta. Asesoría personalizada, amplio catálogo y acompañamiento integral.`,
+    education: `En ${name} creemos que aprender transforma vidas. Cursos diseñados por expertos, metodología práctica y resultados comprobados.`,
+    veterinary: `En ${name} cuidamos a tu mejor amigo como si fuera nuestro. Veterinarios especializados, equipamiento moderno y mucho amor.`,
   };
   return map[intent] || map.landing;
 }
@@ -840,6 +1027,10 @@ function getFeaturesSubtitle(intent: string): string {
 }
 
 function getFeatures(intent: string): { icon: string; title: string; desc: string }[] {
+  // Check new industries first
+  const newFeats = getNewFeatures(intent);
+  if (newFeats) return newFeats;
+  
   const map: Record<string, { icon: string; title: string; desc: string }[]> = {
     landing: [
       { icon: "⚡", title: "Alto Rendimiento", desc: "Arquitectura optimizada para cargas rápidas y una experiencia de usuario fluida en cualquier dispositivo." },
@@ -950,6 +1141,117 @@ function getBlogPosts(): { tag: string; title: string; desc: string }[] {
   ];
 }
 
+// ==================== NEW SECTION HELPERS ====================
+function getFAQs(intent: string): { q: string; a: string }[] {
+  const map: Record<string, { q: string; a: string }[]> = {
+    clinic: [
+      { q: "¿Necesito cita previa?", a: "Sí, recomendamos agendar tu cita previamente para garantizar una atención personalizada y sin esperas." },
+      { q: "¿Aceptan seguros médicos?", a: "Trabajamos con las principales aseguradoras del país. Consulta con nosotros tu póliza específica." },
+      { q: "¿Qué especialidades tienen?", a: "Contamos con medicina general, pediatría, dermatología, cardiología y más de 15 especialidades." },
+      { q: "¿Tienen servicio de emergencias?", a: "Sí, contamos con atención de urgencias las 24 horas del día, los 7 días de la semana." },
+    ],
+    veterinary: [
+      { q: "¿Atienden emergencias 24h?", a: "Sí, tenemos servicio de emergencias veterinarias disponible las 24 horas." },
+      { q: "¿Qué animales atienden?", a: "Atendemos perros, gatos, aves, conejos y animales exóticos con veterinarios especializados." },
+      { q: "¿Ofrecen plan de vacunación?", a: "Sí, tenemos planes de vacunación completos adaptados a la edad y raza de tu mascota." },
+      { q: "¿Tienen servicio de peluquería?", a: "Contamos con servicio de grooming profesional que incluye baño, corte y tratamientos especiales." },
+    ],
+    default: [
+      { q: "¿Cómo puedo empezar?", a: "Es muy sencillo. Contáctanos a través del formulario o llámanos y te guiaremos en todo el proceso." },
+      { q: "¿Cuáles son los horarios?", a: "Nuestro horario de atención es de lunes a viernes de 9:00 a 18:00 y sábados de 9:00 a 14:00." },
+      { q: "¿Ofrecen garantía?", a: "Sí, todos nuestros servicios incluyen garantía de satisfacción. Tu confianza es nuestra prioridad." },
+      { q: "¿Cómo puedo pagar?", a: "Aceptamos efectivo, tarjetas de crédito/débito, transferencias bancarias y pagos digitales." },
+    ],
+  };
+  return map[intent] || map.default;
+}
+
+function getTeamMembers(intent: string): { name: string; role: string; bio: string; avatar: string }[] {
+  const map: Record<string, { name: string; role: string; bio: string; avatar: string }[]> = {
+    clinic: [
+      { name: "Dra. Laura Martínez", role: "Directora Médica", bio: "15 años de experiencia en medicina interna. Especialista certificada.", avatar: "👩‍⚕️" },
+      { name: "Dr. Roberto Sánchez", role: "Cardiólogo", bio: "Fellow del American College of Cardiology con formación internacional.", avatar: "👨‍⚕️" },
+      { name: "Dra. Patricia Vega", role: "Pediatra", bio: "Dedicada al cuidado integral de la salud infantil desde hace 12 años.", avatar: "👩‍⚕️" },
+    ],
+    veterinary: [
+      { name: "Dra. Sofía Ruiz", role: "Directora Veterinaria", bio: "Especialista en medicina interna de pequeñas especies con 10 años de experiencia.", avatar: "👩‍⚕️" },
+      { name: "Dr. Miguel Torres", role: "Cirujano Veterinario", bio: "Cirujano especializado en ortopedia y tejidos blandos.", avatar: "👨‍⚕️" },
+      { name: "María López", role: "Groomer Profesional", bio: "Certificada en estilismo canino y felino con técnicas internacionales.", avatar: "💇" },
+    ],
+    default: [
+      { name: "Ana García", role: "CEO & Fundadora", bio: "Visionaria con 15+ años de experiencia liderando equipos de alto rendimiento.", avatar: "👩‍💼" },
+      { name: "Carlos López", role: "Director Técnico", bio: "Ingeniero de software con pasión por la innovación y la arquitectura escalable.", avatar: "👨‍💻" },
+      { name: "María Rodríguez", role: "Directora Creativa", bio: "Diseñadora premiada internacionalmente con enfoque en experiencia de usuario.", avatar: "🎨" },
+    ],
+  };
+  return map[intent] || map.default;
+}
+
+function getStatsData(intent: string): { value: string; num: number; label: string }[] {
+  const map: Record<string, { value: string; num: number; label: string }[]> = {
+    clinic: [
+      { value: "15,000+", num: 15000, label: "Pacientes atendidos" },
+      { value: "20+", num: 20, label: "Especialidades" },
+      { value: "99%", num: 99, label: "Satisfacción" },
+      { value: "8+", num: 8, label: "Años de experiencia" },
+    ],
+    fitness: [
+      { value: "2,500+", num: 2500, label: "Miembros activos" },
+      { value: "30+", num: 30, label: "Clases semanales" },
+      { value: "15", num: 15, label: "Entrenadores" },
+      { value: "24/7", num: 247, label: "Acceso" },
+    ],
+    default: [
+      { value: "500+", num: 500, label: "Clientes satisfechos" },
+      { value: "1,200+", num: 1200, label: "Proyectos completados" },
+      { value: "98%", num: 98, label: "Tasa de éxito" },
+      { value: "10+", num: 10, label: "Años de experiencia" },
+    ],
+  };
+  return map[intent] || map.default;
+}
+
+function getCTAText(intent: string): string {
+  const map: Record<string, string> = {
+    restaurant: "Reserva tu mesa hoy y vive una experiencia gastronómica inolvidable.",
+    fitness: "Únete a nuestra comunidad y comienza tu transformación hoy mismo.",
+    clinic: "Agenda tu cita ahora y recibe atención médica de primer nivel.",
+    ecommerce: "Aprovecha nuestras ofertas exclusivas antes de que se agoten.",
+    agency: "Hablemos de cómo podemos llevar tu marca al siguiente nivel.",
+    education: "Inscríbete hoy y da el primer paso hacia tu futuro profesional.",
+    veterinary: "Agenda una consulta y dale a tu mascota la mejor atención.",
+    default: "Da el primer paso hoy. Estamos listos para ayudarte a alcanzar tus metas.",
+  };
+  return map[intent] || map.default;
+}
+
+// Add features for new industries
+function getNewFeatures(intent: string): { icon: string; title: string; desc: string }[] | null {
+  const map: Record<string, { icon: string; title: string; desc: string }[]> = {
+    clinic: [
+      { icon: "🏥", title: "Instalaciones Modernas", desc: "Equipamiento médico de última generación para diagnósticos precisos y tratamientos efectivos." },
+      { icon: "👨‍⚕️", title: "Médicos Certificados", desc: "Profesionales con certificaciones internacionales y actualización continua." },
+      { icon: "📋", title: "Historia Clínica Digital", desc: "Accede a tu expediente médico desde cualquier dispositivo de forma segura." },
+    ],
+    realestate: [
+      { icon: "🏠", title: "Amplio Catálogo", desc: "Miles de propiedades verificadas entre apartamentos, casas, oficinas y terrenos." },
+      { icon: "📊", title: "Asesoría Personalizada", desc: "Agentes inmobiliarios certificados que te guían en todo el proceso de compra o renta." },
+      { icon: "🔑", title: "Proceso Simplificado", desc: "Trámites digitalizados, financiamiento asesorado y cierre de operación transparente." },
+    ],
+    education: [
+      { icon: "📚", title: "Cursos de Calidad", desc: "Contenido diseñado por expertos con metodología práctica y aplicable al mundo real." },
+      { icon: "🎓", title: "Certificaciones Válidas", desc: "Obtén diplomas y certificados reconocidos por la industria al completar cada programa." },
+      { icon: "💻", title: "Aprendizaje Flexible", desc: "Estudia a tu ritmo con acceso 24/7 desde cualquier dispositivo y soporte personalizado." },
+    ],
+    veterinary: [
+      { icon: "🐾", title: "Atención Integral", desc: "Consultas, vacunación, cirugías, laboratorio y medicina preventiva en un solo lugar." },
+      { icon: "🏥", title: "Equipamiento Moderno", desc: "Rayos X digital, ecografía, laboratorio clínico y quirófano completamente equipado." },
+      { icon: "❤️", title: "Trato con Amor", desc: "Cada mascota recibe atención con cariño, paciencia y el máximo profesionalismo." },
+    ],
+  };
+  return map[intent] || null;
+}
+
 // ==================== PLAN GENERATOR ====================
 function generatePlan(intent: string, entities: Entities): string[] {
   const steps: string[] = [];
@@ -964,10 +1266,15 @@ function generatePlan(intent: string, entities: Entities): string[] {
   if (entities.sections.includes("pricing")) steps.push("Crear tabla de precios con plan destacado");
   if (entities.sections.includes("testimonials")) steps.push("Agregar testimonios con ratings");
   if (entities.sections.includes("blog")) steps.push("Diseñar sección de artículos del blog");
+  if (entities.sections.includes("faq")) steps.push("Agregar sección de preguntas frecuentes interactiva");
+  if (entities.sections.includes("team")) steps.push("Crear sección del equipo profesional");
+  if (entities.sections.includes("stats")) steps.push("Agregar contador animado de estadísticas");
+  if (entities.sections.includes("cta")) steps.push("Diseñar banner de llamada a la acción");
   if (entities.sections.includes("contact")) steps.push("Agregar formulario de contacto con validación");
-  if (entities.sections.includes("footer")) steps.push(`Crear footer profesional con links`);
+  if (entities.sections.includes("footer")) steps.push(`Crear footer profesional con navegación y links legales`);
   steps.push(`Aplicar paleta de colores: ${entities.colorScheme}`);
   steps.push("Inyectar animaciones de scroll con IntersectionObserver");
+  steps.push("Agregar navbar sticky, back-to-top y contadores animados");
   steps.push("Optimizar SEO con meta tags y estructura semántica");
 
   return steps;

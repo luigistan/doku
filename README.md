@@ -76,8 +76,8 @@ Usuario: "Quiero una landing para mi cafetería El Buen Café con menú y contac
 ## Desarrollo Local
 
 ```sh
-git clone https://github.com/TU_USUARIO/doku-ai.git
-cd doku-ai
+git clone https://github.com/luigistan/doku.git
+cd doku
 npm install
 npm run dev
 ```

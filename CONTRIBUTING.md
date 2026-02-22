@@ -54,8 +54,8 @@ Este proyecto sigue un código de conducta inclusivo. Al participar, te pedimos 
 
 ```bash
 # 1. Fork y clona el repo
-git clone https://github.com/TU_USUARIO/doku-ai.git
-cd doku-ai
+git clone https://github.com/luigistan/doku.git
+cd doku
 
 # 2. Instala dependencias
 npm install

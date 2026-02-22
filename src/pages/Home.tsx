@@ -12,7 +12,7 @@ const Home = () => {
           <span className="rounded-md bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">OPEN SOURCE</span>
         </div>
         <div className="flex items-center gap-4">
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
+          <a href="https://github.com/luigistan/doku" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
             <Github className="h-5 w-5" />
           </a>
           <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Iniciar Sesión</Link>
@@ -43,7 +43,7 @@ const Home = () => {
           <Link to="/auth" className="inline-flex items-center gap-2 rounded-lg bg-brain px-6 py-3 text-sm font-semibold text-brain-foreground hover:opacity-90 transition-opacity glow-brain">
             Empezar Gratis <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-surface-2 transition-colors">
+          <a href="https://github.com/luigistan/doku" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-surface-2 transition-colors">
             <Github className="h-4 w-4" /> Ver en GitHub
           </a>
         </div>
@@ -140,7 +140,7 @@ const Home = () => {
             <span className="font-semibold text-foreground">DOKU AI</span> — Open Source Web Builder
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
+            <a href="https://github.com/luigistan/doku" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
             <span>MIT License</span>
           </div>
         </div>
