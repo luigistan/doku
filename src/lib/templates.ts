@@ -1185,6 +1185,261 @@ function App() {
 }
 `, "ProductoAI"),
   },
+  {
+    id: "notfound",
+    name: "Página 404",
+    keywords: ["404", "error", "not found", "no encontrado", "pagina no encontrada", "perdido"],
+    description: "Página 404 creativa con React y TypeScript",
+    planSteps: [
+      "Crear componente 404 con animación",
+      "Agregar ilustración y mensaje amigable",
+      "Incluir botón de regreso al inicio",
+    ],
+    html: reactWrap(`
+const { useState, useEffect } = React;
+
+// TypeScript interfaces
+// interface AnimState { x: number; y: number; }
+
+function App() {
+  const [pos, setPos] = useState({ x: 50, y: 50 });
+  const [found, setFound] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPos({ x: 20 + Math.random() * 60, y: 20 + Math.random() * 60 });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'radial-gradient(ellipse at 50% 50%,rgba(124,58,237,0.08) 0%,#0a0a0f 70%)',padding:'2rem',textAlign:'center',position:'relative',overflow:'hidden'}}>
+    {/* Floating orbs */}
+    <div style={{position:'absolute',width:200,height:200,borderRadius:'50%',background:'rgba(124,58,237,0.06)',filter:'blur(40px)',left:\`\${pos.x}%\`,top:\`\${pos.y}%\`,transition:'all 2s ease-in-out',transform:'translate(-50%,-50%)'}} />
+    <div style={{position:'absolute',width:150,height:150,borderRadius:'50%',background:'rgba(99,102,241,0.05)',filter:'blur(30px)',right:\`\${100-pos.x}%\`,bottom:\`\${100-pos.y}%\`,transition:'all 2.5s ease-in-out',transform:'translate(50%,50%)'}} />
+
+    <div style={{fontSize:'8rem',fontWeight:900,background:'linear-gradient(135deg,#a78bfa,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',lineHeight:1,marginBottom:'1rem'}}>404</div>
+    <h1 style={{fontSize:'1.8rem',fontWeight:700,marginBottom:'0.75rem',color:'#e2e8f0'}}>Página no encontrada</h1>
+    <p style={{color:'#94a3b8',maxWidth:450,marginBottom:'2rem',fontSize:'1.05rem'}}>Parece que te has perdido en el espacio digital. La página que buscas no existe o fue movida.</p>
+    
+    <div style={{display:'flex',gap:'1rem',flexWrap:'wrap',justifyContent:'center'}}>
+      <button onClick={()=>window.location.href='/'} style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem',boxShadow:'0 4px 15px rgba(124,58,237,0.3)',cursor:'pointer'}}>← Volver al Inicio</button>
+      <button onClick={()=>setFound(!found)} style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #2d2d3f',color:'#e2e8f0',borderRadius:10,fontWeight:600,fontSize:'0.95rem',cursor:'pointer'}}>{found ? '🎉 ¡Encontrado!' : '🔍 Buscar'}</button>
+    </div>
+
+    {found && <p style={{marginTop:'2rem',color:'#34d399',fontSize:'1rem'}}>Solo bromeaba... esta página realmente no existe 😄</p>}
+
+    <div style={{marginTop:'4rem',color:'#64748b',fontSize:'0.8rem'}}>
+      <p>Código de error: 404 · Creado con DOKU AI</p>
+    </div>
+  </div>;
+}
+`, "404 - Página no encontrada"),
+  },
+  {
+    id: "pricing",
+    name: "Página de Precios",
+    keywords: ["precios", "pricing", "planes", "tarifas", "suscripcion", "membresía", "paquetes", "costos"],
+    description: "Página de precios con React y TypeScript",
+    planSteps: [
+      "Crear toggle mensual/anual con React.useState",
+      "Diseñar cards de planes con features",
+      "Agregar sección de FAQ con accordion",
+      "Incluir CTA y garantía de satisfacción",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+// TypeScript interfaces for type safety
+// interface Plan { name: string; price: number; desc: string; features: string[]; cta: string; featured?: boolean; }
+// interface FAQ { q: string; a: string; }
+
+function App() {
+  const [billing, setBilling] = useState('monthly');
+  const [openFaq, setOpenFaq] = useState(-1);
+
+  const plans = [
+    { name:'Básico', price:billing==='monthly'?0:0, desc:'Para empezar', features:['1 proyecto','500 visitas/mes','Soporte por email','Templates básicos'], cta:'Empezar Gratis' },
+    { name:'Profesional', price:billing==='monthly'?29:23, desc:'Para negocios', features:['10 proyectos','50K visitas/mes','Soporte prioritario','Todos los templates','Dominio personalizado','Analytics avanzados'], cta:'Probar 14 días gratis', featured:true },
+    { name:'Empresa', price:billing==='monthly'?79:63, desc:'Para equipos grandes', features:['Proyectos ilimitados','Visitas ilimitadas','Soporte dedicado 24/7','API access','White-label','SSO/SAML','SLA 99.99%'], cta:'Contactar Ventas' },
+  ];
+
+  const faqs = [
+    { q:'¿Puedo cambiar de plan?', a:'Sí, puedes actualizar o degradar tu plan en cualquier momento. Los cambios se aplican inmediatamente.' },
+    { q:'¿Hay período de prueba?', a:'Sí, el plan Profesional incluye 14 días de prueba gratuita sin necesidad de tarjeta de crédito.' },
+    { q:'¿Qué métodos de pago aceptan?', a:'Aceptamos todas las tarjetas principales (Visa, Mastercard, Amex) y PayPal. Facturación disponible para empresas.' },
+    { q:'¿Puedo cancelar cuando quiera?', a:'Absolutamente. Sin contratos ni penalizaciones. Cancela con un clic desde tu panel.' },
+    { q:'¿Ofrecen descuento para startups?', a:'Sí, tenemos un programa para startups con hasta 50% de descuento. Contáctanos para más información.' },
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,background:'linear-gradient(135deg,#a78bfa,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>💎 Mi Producto</div>
+      <button style={{padding:'0.5rem 1.25rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:8,fontSize:'0.85rem',fontWeight:600}}>Empezar</button>
+    </nav>
+
+    <section style={{padding:'5rem 2rem',textAlign:'center',background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.1) 0%,transparent 60%)'}}>
+      <span style={{background:'#7c3aed22',color:'#a78bfa',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',border:'1px solid #7c3aed44'}}>💰 Precios transparentes</span>
+      <h1 style={{fontSize:'clamp(2rem,4vw,3rem)',fontWeight:800,marginTop:'1.5rem',marginBottom:'1rem',color:'#e2e8f0'}}>Encuentra el plan perfecto</h1>
+      <p style={{color:'#94a3b8',maxWidth:500,margin:'0 auto 2rem'}}>Sin costos ocultos. Sin sorpresas. Cancela cuando quieras.</p>
+
+      <div style={{display:'inline-flex',gap:'0.25rem',background:'#12121a',borderRadius:99,padding:'0.25rem',marginBottom:'3rem'}}>
+        {['monthly','yearly'].map(b=><button key={b} onClick={()=>setBilling(b)} style={{padding:'0.5rem 1.5rem',borderRadius:99,border:'none',background:billing===b?'linear-gradient(135deg,#7c3aed,#6366f1)':'transparent',color:billing===b?'#fff':'#94a3b8',fontSize:'0.85rem',fontWeight:500,cursor:'pointer'}}>{b==='monthly'?'Mensual':'Anual (-20%)'}</button>)}
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {plans.map((p,i)=><div key={i} style={{background:'#12121a',border:p.featured?'2px solid #7c3aed':'1px solid #1e1e2e',borderRadius:16,padding:'2rem',position:'relative',textAlign:'left'}}>
+          {p.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',padding:'0.2rem 1rem',borderRadius:99,fontSize:'0.7rem',fontWeight:700}}>MÁS POPULAR</div>}
+          <h3 style={{fontSize:'1.2rem',fontWeight:700,marginBottom:'0.25rem'}}>{p.name}</h3>
+          <p style={{color:'#64748b',fontSize:'0.85rem',marginBottom:'1.5rem'}}>{p.desc}</p>
+          <div style={{marginBottom:'1.5rem'}}><span style={{fontSize:'2.5rem',fontWeight:800}}>{p.price===0?'Gratis':\`$\${p.price}\`}</span>{p.price>0 && <span style={{color:'#64748b'}}>/mes</span>}</div>
+          <ul style={{listStyle:'none',marginBottom:'1.5rem'}}>{p.features.map((f,j)=><li key={j} style={{padding:'0.4rem 0',color:'#94a3b8',fontSize:'0.9rem'}}>✓ {f}</li>)}</ul>
+          <button style={{width:'100%',padding:'0.75rem',background:p.featured?'linear-gradient(135deg,#7c3aed,#6366f1)':'transparent',border:p.featured?'none':'1px solid #2d2d3f',color:'#fff',borderRadius:10,fontWeight:600,cursor:'pointer'}}>{p.cta}</button>
+        </div>)}
+      </div>
+    </section>
+
+    <section style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Preguntas Frecuentes</h2>
+      <div style={{maxWidth:700,margin:'0 auto'}}>
+        {faqs.map((f,i)=><div key={i} style={{borderBottom:'1px solid #1e1e2e'}}>
+          <button onClick={()=>setOpenFaq(openFaq===i?-1:i)} style={{width:'100%',padding:'1.25rem 0',background:'none',border:'none',color:'#e2e8f0',fontSize:'1rem',fontWeight:600,textAlign:'left',display:'flex',justifyContent:'space-between',cursor:'pointer'}}>
+            {f.q}<span style={{color:'#a78bfa'}}>{openFaq===i?'−':'+'}</span>
+          </button>
+          {openFaq===i && <p style={{color:'#94a3b8',paddingBottom:'1.25rem',fontSize:'0.95rem'}}>{f.a}</p>}
+        </div>)}
+      </div>
+    </section>
+
+    <section style={{padding:'4rem 2rem',textAlign:'center'}}>
+      <div style={{background:'linear-gradient(135deg,rgba(124,58,237,0.1),rgba(99,102,241,0.1))',border:'1px solid #7c3aed33',borderRadius:20,padding:'3rem',maxWidth:600,margin:'0 auto'}}>
+        <div style={{fontSize:'2rem',marginBottom:'1rem'}}>🛡️</div>
+        <h3 style={{fontSize:'1.3rem',fontWeight:700,marginBottom:'0.5rem'}}>Garantía de 30 días</h3>
+        <p style={{color:'#94a3b8'}}>Si no estás satisfecho, te devolvemos el 100% de tu dinero. Sin preguntas.</p>
+      </div>
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Mi Producto. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Precios - Mi Producto"),
+  },
+  {
+    id: "veterinary",
+    name: "Veterinaria",
+    keywords: ["veterinaria", "mascotas", "pet", "animales", "perros", "gatos", "vet", "clinica veterinaria", "peluqueria canina", "guarderia", "pets"],
+    description: "Sitio web para veterinaria con React y TypeScript",
+    planSteps: [
+      "Crear navegación con nombre de la clínica",
+      "Diseñar hero con servicios para mascotas",
+      "Agregar grid de servicios veterinarios",
+      "Crear sección de equipo médico",
+      "Incluir formulario de citas y emergencias",
+    ],
+    html: reactWrap(`
+const { useState, useEffect, useRef } = React;
+
+// TypeScript interfaces
+// interface Service { icon: string; title: string; desc: string; }
+// interface TeamMember { icon: string; name: string; role: string; spec: string; }
+
+function useOnScreen(ref) {
+  const [v, setV] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setV(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return v;
+}
+
+function App() {
+  const [booked, setBooked] = useState(false);
+  const ref = useRef(null);
+  const visible = useOnScreen(ref);
+
+  const services = [
+    { icon:'🩺', title:'Consulta General', desc:'Chequeos completos de salud, vacunación y desparasitación para tu mascota.' },
+    { icon:'🦷', title:'Odontología', desc:'Limpieza dental, extracciones y tratamiento de enfermedades bucales.' },
+    { icon:'✂️', title:'Cirugía', desc:'Esterilización, cirugía de tejidos blandos y traumatología.' },
+    { icon:'🐾', title:'Peluquería', desc:'Baño, corte de pelo, limpieza de oídos y corte de uñas.' },
+    { icon:'🏥', title:'Emergencias 24/7', desc:'Atención de urgencias las 24 horas, los 365 días del año.' },
+    { icon:'💉', title:'Laboratorio', desc:'Análisis de sangre, orina y diagnóstico por imagen (rayos X, ecografía).' },
+  ];
+
+  const team = [
+    { icon:'👩‍⚕️', name:'Dra. María García', role:'Directora Médica', spec:'Medicina interna y cirugía' },
+    { icon:'👨‍⚕️', name:'Dr. Carlos López', role:'Veterinario', spec:'Dermatología y alergias' },
+    { icon:'👩‍⚕️', name:'Dra. Ana Martínez', role:'Veterinaria', spec:'Odontología y pediatría' },
+  ];
+
+  const inputStyle = {background:'#0f1820',border:'1px solid #152535',borderRadius:10,padding:'0.85rem 1rem',color:'#cffafe',outline:'none',width:'100%'};
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(6,10,15,0.95)',borderBottom:'1px solid #152535',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#67e8f9'}}>🐾 Mi Veterinaria</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Equipo','Citas'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#60a5b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Emergencias ☎️</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.1) 0%,transparent 60%)'}}>
+      <span style={{background:'#06b6d422',color:'#67e8f9',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid #06b6d444'}}>🐕 Cuidado profesional para tu mascota</span>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#67e8f9,#06b6d4)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',maxWidth:700}}>Tu mascota merece lo mejor</h1>
+      <p style={{fontSize:'1.15rem',color:'#60a5b8',maxWidth:550,marginBottom:'2rem'}}>Equipo veterinario certificado con más de 15 años de experiencia. Atención con amor y tecnología de punta.</p>
+      <div style={{display:'flex',gap:'1rem'}}>
+        <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,boxShadow:'0 4px 15px rgba(6,182,212,0.3)'}}>Agendar Cita →</button>
+        <button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #152535',color:'#cffafe',borderRadius:10,fontWeight:600}}>Nuestros Servicios</button>
+      </div>
+    </section>
+
+    <section ref={ref} id="servicios" style={{padding:'5rem 2rem',background:'#0a1018'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#cffafe'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#0f1820',border:'1px solid #152535',borderRadius:16,padding:'2rem',opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transition:\`all 0.5s ease \${i*100}ms\`}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem',color:'#cffafe'}}>{s.title}</h3>
+          <p style={{color:'#60a5b8',fontSize:'0.95rem'}}>{s.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="equipo" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#cffafe'}}>Nuestro Equipo</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1000,margin:'0 auto'}}>
+        {team.map((t,i)=><div key={i} style={{background:'#0f1820',border:'1px solid #152535',borderRadius:16,padding:'2rem',textAlign:'center'}}>
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>{t.icon}</div>
+          <h3 style={{fontWeight:600,color:'#cffafe'}}>{t.name}</h3>
+          <p style={{color:'#06b6d4',fontSize:'0.85rem',marginBottom:'0.5rem'}}>{t.role}</p>
+          <p style={{color:'#60a5b8',fontSize:'0.85rem'}}>{t.spec}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="citas" style={{padding:'5rem 2rem',background:'#0a1018',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#cffafe'}}>Agenda tu Cita</h2>
+      {booked ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Cita agendada exitosamente! Te contactaremos pronto.</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setBooked(true)}}>
+        <input style={inputStyle} placeholder="Tu nombre" required />
+        <input style={inputStyle} placeholder="Nombre de tu mascota" required />
+        <select style={{...inputStyle,appearance:'auto'}}><option>🐕 Perro</option><option>🐈 Gato</option><option>🐦 Ave</option><option>🐹 Otro</option></select>
+        <input style={inputStyle} type="tel" placeholder="Teléfono" required />
+        <input style={inputStyle} type="date" required />
+        <textarea style={{...inputStyle,resize:'vertical',minHeight:80}} placeholder="¿Motivo de la consulta?" />
+        <button type="submit" style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Agendar Cita</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #152535',padding:'2rem',textAlign:'center',color:'#60a5b8',fontSize:'0.85rem'}}>
+      <div style={{display:'flex',justifyContent:'center',gap:'2rem',flexWrap:'wrap',marginBottom:'1rem'}}>
+        <span>📍 Av. Mascotas 789</span><span>📞 +1 234 567 890</span><span>🚨 Emergencias 24/7</span>
+      </div>
+      <p>© 2026 Mi Veterinaria. Creado con DOKU AI.</p>
+    </footer>
+  </>;
+}
+`, "Mi Veterinaria"),
+  },
 ];
 
 export function findTemplate(message: string): Template | null {
