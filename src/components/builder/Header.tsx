@@ -44,9 +44,7 @@ export function Header({ projectName, projectId, onOpenSettings, onOpenCode }: H
         <button onClick={() => navigate("/dashboard")} className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brain text-brain-foreground text-sm font-bold">
-          D
-        </div>
+        <img src="/doku-logo.png" alt="DOKU AI" className="h-7 w-7 rounded-lg" />
         <span className="text-sm font-semibold text-foreground">{projectName || "DOKU AI"}</span>
         <span className="rounded-md bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
           BETA
