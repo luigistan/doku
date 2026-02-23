@@ -1,113 +1,90 @@
 
 
-## Plan: Arreglar las llamadas silenciosas a Ollama y agregar diagnostico
+## Plan: Arreglar preview, agregar templates en chat, y limpiar toda referencia al Gateway
 
-### Problema real
+### 1. Arreglar duplicacion del preview al hacer click en menus
 
-Ollama esta corriendo en Render (`https://ollama-doku.onrender.com`), los secrets estan bien (`LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`), y el codigo YA tiene la logica para usar Ollama. Pero las llamadas fallan sin dejar rastro porque:
+**Causa:** El iframe tiene `sandbox="allow-scripts allow-same-origin"`. Con `allow-same-origin`, los links `href="#menu"` pueden causar que el iframe cargue la app padre dentro de si mismo, duplicando la interfaz.
 
-- Linea 1983: `if (!response.ok) return null;` -- no loggea el error HTTP
-- Linea 2007: `console.warn("LLM short call failed:", err);` -- solo captura excepciones, no errores HTTP
-- No hay health check antes de intentar 4 llamadas paralelas
-- Render tiene cold starts de 30-60 segundos, y el timeout de `callLLMShort` es 30s para prompts cortos
+**Solucion:** Quitar `allow-same-origin` del sandbox en `PreviewPanel.tsx` (linea 126).
 
-### Cambios en `supabase/functions/builder-ai/index.ts`
+**Archivo:** `src/components/builder/PreviewPanel.tsx`
 
-#### 1. Agregar logging detallado en `callLLM` (linea 1878)
+---
 
-Al inicio de la funcion, loggear que provider se esta usando:
+### 2. Corregir defaults del modelo: eliminar "tinyllama" y "gateway"
 
+El codigo tiene 3 lugares donde el default es `"gateway"` o `"tinyllama"` en vez de `"ollama"` y `"llama3.1:8b"`:
+
+| Linea | Codigo actual | Correccion |
+|-------|--------------|------------|
+| 1879 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
+| 1881 | `Deno.env.get("LLM_MODEL") \|\| "tinyllama"` | `\|\| "llama3.1:8b"` |
+| 1960 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
+| 2028 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
+
+Esto asegura que si los secrets no estan configurados, SIEMPRE se use Ollama como default.
+
+**Archivo:** `supabase/functions/builder-ai/index.ts`
+
+---
+
+### 3. Selector de templates en el chat
+
+Crear un componente `TemplateSelector` que muestre tarjetas clickeables con los templates disponibles. Se muestra debajo del mensaje de bienvenida cuando el usuario no ha enviado mensajes aun.
+
+Templates a mostrar (12 tarjetas con icono y nombre):
+
+| Icono | Template | Prompt |
+|-------|----------|--------|
+| Rocket | Landing Page | "Crea una landing page profesional" |
+| UtensilsCrossed | Restaurante | "Crea un sitio para restaurante" |
+| Briefcase | Portfolio | "Crea un portfolio profesional" |
+| ShoppingCart | E-Commerce | "Crea una tienda online" |
+| FileText | Blog | "Crea un blog" |
+| LayoutDashboard | Dashboard | "Crea un dashboard administrativo" |
+| Dumbbell | Gimnasio | "Crea un sitio para gimnasio" |
+| Stethoscope | Clinica | "Crea un sitio para clinica medica" |
+| Building | Inmobiliaria | "Crea un sitio de bienes raices" |
+| Laptop | SaaS | "Crea una landing para producto SaaS" |
+| GraduationCap | Educacion | "Crea un sitio de cursos online" |
+| PawPrint | Veterinaria | "Crea un sitio para veterinaria" |
+
+Al hacer click, se envia el prompt automaticamente como si el usuario lo escribiera.
+
+**Archivos:**
+- Nuevo: `src/components/builder/TemplateSelector.tsx`
+- Modificar: `src/components/builder/ChatPanel.tsx`
+
+---
+
+### 4. Persistencia: toast al recuperar progreso
+
+Cuando el usuario vuelve a un proyecto que tiene HTML guardado, mostrar un toast informativo: "Progreso recuperado. Tu sitio esta listo en el preview."
+
+**Archivo:** `src/pages/Builder.tsx`
+
+---
+
+### 5. Confirmacion de Ollama
+
+Los logs muestran que Ollama SI funciona:
 ```
-console.log(`[LLM] callLLM -> provider: ${provider}, url: ${baseUrl}, model: ${model}`);
-```
-
-En el error de Ollama (linea 1895-1897), ya tiene logging -- OK.
-
-#### 2. Arreglar `callLLMShort` (linea 1958) - el problema principal
-
-Este es el que hace las 4 llamadas de enrichment. Cambios:
-
-- Agregar log al inicio: `console.log("[LLM] callLLMShort -> provider: ..., url: ..., model: ...")`
-- Linea 1983: cambiar `if (!response.ok) return null;` a loggear el error HTTP y el body de respuesta
-- Aumentar timeout de 30s a 90s para cold starts de Render
-- Aumentar timeout de 60s a 120s para prompts largos
-
-#### 3. Health check antes del enrichment (linea 2020)
-
-Antes de lanzar las 4 llamadas paralelas en `enrichContentWithLLM`, hacer un ping rapido a Ollama:
-
-```typescript
-// Solo para Ollama: verificar que el servidor responde
-if (provider === "ollama") {
-  const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  try {
-    const health = await fetch(`${baseUrl}/api/tags`, {
-      signal: AbortSignal.timeout(10000)
-    });
-    if (!health.ok) {
-      console.error(`[Ollama] Health check failed: HTTP ${health.status}`);
-      return enriched;
-    }
-    const tags = await health.json();
-    console.log(`[Ollama] Server healthy. Models available:`, JSON.stringify(tags.models?.map(m => m.name) || []));
-  } catch (err) {
-    console.error(`[Ollama] Server unreachable at ${baseUrl}:`, err?.message || err);
-    return enriched;
-  }
-}
-```
-
-Esto nos dira exactamente:
-- Si el servidor responde
-- Que modelos tiene disponibles (si el modelo configurado realmente esta descargado)
-
-#### 4. Loggear el error detallado en callLLMShort linea 1983
-
-Cambiar de:
-```typescript
-if (!response.ok) return null;
-```
-
-A:
-```typescript
-if (!response.ok) {
-  const errBody = await response.text().catch(() => "");
-  console.error(`[Ollama] callLLMShort HTTP ${response.status}: ${errBody.substring(0, 200)}`);
-  return null;
-}
-```
-
-### Resumen de cambios
-
-| Archivo | Que cambia |
-|---------|-----------|
-| `supabase/functions/builder-ai/index.ts` | Agregar console.log al inicio de callLLM y callLLMShort con provider/url/model |
-| `supabase/functions/builder-ai/index.ts` | Loggear errores HTTP detallados en callLLMShort linea 1983 |
-| `supabase/functions/builder-ai/index.ts` | Health check de Ollama antes del enrichment con lista de modelos |
-| `supabase/functions/builder-ai/index.ts` | Aumentar timeouts: 30s->90s y 60s->120s para cold starts de Render |
-
-### Resultado esperado
-
-Despues de este cambio, cuando un usuario pida generar un sitio, los logs mostraran:
-
-```
+[Full LLM] HTML generated successfully (733 chars)
 [LLM] callLLMShort -> provider: ollama, url: https://ollama-doku.onrender.com, model: llama3.1:8b
-[Ollama] Server healthy. Models available: ["llama3.1:8b"]
-[Hybrid] Starting content enrichment...
-[Hybrid] Content enrichment complete: 4/4 sections enriched
 ```
 
-O si falla:
+A veces hace timeout por cold starts de Render, pero cuando el servidor esta caliente, responde correctamente. Con los defaults corregidos (punto 2), NUNCA se usara el gateway.
 
-```
-[Ollama] Server unreachable at https://ollama-doku.onrender.com: Connection timed out
-```
+---
 
-O:
+### Resumen de archivos
 
-```
-[Ollama] callLLMShort HTTP 404: model "llama3.1:8b" not found
-```
-
-Esto nos permite diagnosticar el problema exacto y arreglarlo.
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/builder/PreviewPanel.tsx` | Quitar `allow-same-origin` del sandbox |
+| `supabase/functions/builder-ai/index.ts` | Cambiar defaults de "gateway"/"tinyllama" a "ollama"/"llama3.1:8b" |
+| `src/components/builder/TemplateSelector.tsx` | NUEVO - Grid de templates clickeables |
+| `src/components/builder/ChatPanel.tsx` | Insertar TemplateSelector |
+| `src/pages/Builder.tsx` | Toast al recuperar progreso |
 
