@@ -800,7 +800,111 @@ function applyNegativeLearning(
   }
 }
 
-// ==================== OLLAMA INTENT REFINEMENT (SIGNAL 8) ====================
+// ==================== SMART AI CLASSIFICATION (Lovable AI Gateway) ====================
+interface SmartAIResult {
+  type: "generation" | "conversational" | "page_add" | "modification";
+  intent?: string;
+  businessName?: string;
+  sections?: string[];
+  colorScheme?: string;
+  industry?: string;
+  conversationalResponse?: string;
+  pageType?: string;
+  pageLabel?: string;
+  confidence: number;
+}
+
+async function smartClassify(message: string, conversationHistory?: { role: string; content: string }[], entityMemory?: { intent: string; business_name: string; sections: string[]; color_scheme: string } | null): Promise<SmartAIResult | null> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.warn("[SmartAI] No LOVABLE_API_KEY, skipping smart classification");
+    return null;
+  }
+
+  const validIntents = Object.keys(intentMap).join(", ");
+  const memoryContext = entityMemory
+    ? `\nPROYECTO ACTUAL: Tipo=${entityMemory.intent}, Negocio="${entityMemory.business_name}", Secciones=[${entityMemory.sections?.join(",")}], Colores=${entityMemory.color_scheme}`
+    : "";
+
+  const historyStr = conversationHistory && conversationHistory.length > 0
+    ? `\nHISTORIAL:\n${conversationHistory.map(h => `${h.role}: ${h.content}`).join("\n")}`
+    : "";
+
+  const systemPrompt = `Eres DOKU AI, un asistente experto en crear sistemas web. Analiza el mensaje del usuario y responde SOLO con JSON valido (sin backticks, sin explicaciones).
+
+TIPOS DE RESPUESTA:
+1. "generation" - El usuario quiere crear un sitio/sistema nuevo desde cero
+2. "conversational" - El usuario saluda, pregunta algo, o no está pidiendo generar nada
+3. "page_add" - El usuario quiere AGREGAR una nueva pestaña/página a un proyecto existente (ej: "agrega clientes", "crea un tab de facturas", "pon una pestaña de reportes")
+4. "modification" - El usuario quiere MODIFICAR algo del sitio existente (colores, textos, secciones)
+
+INTENTS VALIDOS para type=generation: ${validIntents}
+
+PAGINAS VALIDAS para type=page_add: login, register, dashboard, clients, products, invoices, orders, settings, profile, reports, users, calendar
+
+REGLAS:
+- Si el usuario dice "hola", "gracias", "como funciona", etc → type=conversational
+- Si el usuario dice "crea un restaurante", "quiero una tienda" → type=generation
+- Si el usuario dice "agrega clientes", "crea un tab de facturas", "pon una pestaña que diga X" → type=page_add
+- Si el usuario dice "cambia el color", "modifica el titulo" → type=modification
+- Para type=conversational, incluye conversationalResponse con respuesta amigable en español
+- Para type=generation, extrae businessName, sections, colorScheme, industry
+- Para type=page_add, incluye pageType y pageLabel
+- Sé muy inteligente detectando la intención aunque el español no sea perfecto
+- Entiende sinónimos: "facturación"="billing", "gimnasio"="fitness", "tienda"="ecommerce"
+${memoryContext}${historyStr}
+
+FORMATO JSON:
+{"type":"...","intent":"...","businessName":"...","sections":["..."],"colorScheme":"...","industry":"...","conversationalResponse":"...","pageType":"...","pageLabel":"...","confidence":0.95}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message },
+        ],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      const status = response.status;
+      const errText = await response.text().catch(() => "");
+      console.error(`[SmartAI] Gateway error ${status}: ${errText.substring(0, 200)}`);
+      if (status === 429) console.warn("[SmartAI] Rate limited");
+      if (status === 402) console.warn("[SmartAI] Payment required");
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    if (!content) return null;
+
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn("[SmartAI] No JSON found in response:", content.substring(0, 200));
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as SmartAIResult;
+    console.log(`[SmartAI] Result: type=${parsed.type}, intent=${parsed.intent}, confidence=${parsed.confidence}, business=${parsed.businessName}`);
+    return parsed;
+  } catch (err) {
+    console.warn("[SmartAI] Classification failed, falling back:", err);
+    return null;
+  }
+}
+
+// ==================== OLLAMA FALLBACK REFINEMENT (SIGNAL 8) ====================
 async function ollamaIntentRefinement(message: string): Promise<{ intent?: string; businessName?: string; sections?: string[]; color?: string } | null> {
   try {
     const validIntents = Object.keys(intentMap).join(", ");
@@ -819,12 +923,12 @@ Mensaje: "${message}"`;
     
     const parsed = JSON.parse(jsonMatch[0]);
     if (parsed.intent && Object.keys(intentMap).includes(parsed.intent)) {
-      console.log(`[Signal 8] Ollama refinement: intent=${parsed.intent}, name=${parsed.businessName}`);
+      console.log(`[Ollama Fallback] refinement: intent=${parsed.intent}, name=${parsed.businessName}`);
       return parsed;
     }
     return null;
   } catch (err) {
-    console.warn("[Signal 8] Ollama refinement failed:", err);
+    console.warn("[Ollama Fallback] refinement failed:", err);
     return null;
   }
 }
@@ -3031,31 +3135,107 @@ serve(async (req) => {
       }
     }
 
-    // 1. Query learning patterns (includes accepted + rejected for negative learning)
+    // ---- SMART AI CLASSIFICATION (Lovable AI Gateway - Primary) ----
+    const smartResult = await smartClassify(message, conversationHistory, entityMemory);
+
+    // If Smart AI detected conversational message, respond immediately
+    if (smartResult && smartResult.type === "conversational") {
+      console.log(`[SmartAI] Conversational response`);
+      return new Response(
+        JSON.stringify({
+          intent: "conversational",
+          confidence: smartResult.confidence,
+          label: "Conversación",
+          entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
+          html: "",
+          conversationalResponse: smartResult.conversationalResponse || "¿En qué puedo ayudarte?",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If Smart AI detected page_add, handle multi-page
+    if (smartResult && smartResult.type === "page_add" && smartResult.pageType && projectId) {
+      console.log(`[SmartAI] Page add detected: ${smartResult.pageType}`);
+      try {
+        const sb = getSupabaseClient();
+        const { data: projectData } = await sb.from("projects").select("html, entities").eq("id", projectId).single();
+        const mem = entityMemory || await loadEntityMemory(projectId);
+        const colorScheme = mem?.color_scheme || smartResult.colorScheme || "purple";
+        const businessName = mem?.business_name || smartResult.businessName || "Mi Proyecto";
+        const c = getColors(colorScheme);
+
+        let existingPages: PageDef[] = [];
+        if (projectData?.html && projectData.html.includes("<!-- PAGE:")) {
+          existingPages = parseExistingPages(projectData.html);
+        } else if (projectData?.html && projectData.html.length > 200) {
+          const bodyMatch = projectData.html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          const bodyContent = bodyMatch ? bodyMatch[1].trim() : projectData.html;
+          existingPages = [{ id: "home", label: "Inicio", content: bodyContent }];
+        }
+
+        const pageType = smartResult.pageType;
+        const pageLabel = smartResult.pageLabel || pageType.charAt(0).toUpperCase() + pageType.slice(1);
+
+        if (existingPages.some(p => p.id === pageType)) {
+          return new Response(
+            JSON.stringify({
+              intent: "conversational", confidence: 1.0, label: "Conversación",
+              entities: { businessName, sections: [], colorScheme, industry: "" },
+              html: "", conversationalResponse: `📌 La pestaña **${pageLabel}** ya existe. ¿Quieres que la modifique?`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const newPageContent = generatePageContent(pageType, c, businessName);
+        const allPages = [...existingPages, { id: pageType, label: pageLabel, content: newPageContent }];
+        const html = composeMultiPageHtml(allPages, c, businessName);
+        const newLogId = await logInteraction(message, "page_add", { pageType, label: pageLabel } as unknown as Record<string, unknown>, 1.0);
+
+        return new Response(
+          JSON.stringify({
+            intent: "page_add", confidence: 1.0, label: `Agregar ${pageLabel}`,
+            entities: { businessName, sections: allPages.map(p => p.label), colorScheme, industry: "" },
+            plan: [`Detectar pestaña: ${pageLabel}`, `Generar contenido de ${pageLabel}`, `Integrar con ${existingPages.length} pestañas existentes`, "Actualizar navegación"],
+            html, logId: newLogId,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (err) {
+        console.error(`[SmartAI PageAdd] Error:`, err);
+      }
+    }
+
+    // 1. Use SmartAI result or fall back to local classification
     const patterns = await queryLearningPatterns();
 
     // 2. Tokenize and classify with enhanced NLP + TF-IDF
     const tokens = tokenize(message);
 
-    // 2.5. Run Ollama intent refinement in parallel with classification prep
-    // Include conversation history for better context
-    const contextualMessage = conversationHistory && conversationHistory.length > 0
-      ? `Contexto previo:\n${conversationHistory.map((h: { role: string; content: string }) => `${h.role}: ${h.content}`).join("\n")}\n\nMensaje actual: ${message}`
-      : message;
-    const ollamaRefinement = await ollamaIntentRefinement(contextualMessage);
-
-    // 3. Check for conversational follow-up
+    // 3. Determine intent - SmartAI result takes priority over local classification
     let intent: string;
     let confidence: number;
     let label: string;
 
-    if (isFollowUp(message) && (previousIntent || entityMemory?.intent) && (previousEntities || entityMemory)) {
+    if (smartResult && smartResult.type === "generation" && smartResult.intent && intentMap[smartResult.intent]) {
+      // SmartAI gave us a generation intent - use it directly (much smarter than local)
+      intent = smartResult.intent;
+      confidence = smartResult.confidence || 0.95;
+      label = intentMap[intent]?.label || smartResult.intent;
+      console.log(`[SmartAI] Using AI classification: ${intent} (${confidence})`);
+    } else if (isFollowUp(message) && (previousIntent || entityMemory?.intent) && (previousEntities || entityMemory)) {
       // Follow-up message: use previous context or entity memory
       intent = previousIntent || entityMemory!.intent;
       confidence = 0.85;
       label = intentMap[intent]?.label || "Sitio Web";
     } else {
-      // New message: full classification with TF-IDF + all signals + Ollama refinement
+      // Fallback: local classification with TF-IDF + Ollama refinement
+      console.log(`[Fallback] SmartAI didn't provide generation intent, using local classification`);
+      const contextualMessage = conversationHistory && conversationHistory.length > 0
+        ? `Contexto previo:\n${conversationHistory.map((h: { role: string; content: string }) => `${h.role}: ${h.content}`).join("\n")}\n\nMensaje actual: ${message}`
+        : message;
+      const ollamaRefinement = await ollamaIntentRefinement(contextualMessage);
       const classification = await classifyIntent(tokens, message, patterns, ollamaRefinement);
       intent = classification.intent;
       confidence = classification.confidence;
@@ -3113,20 +3293,20 @@ serve(async (req) => {
       );
     }
 
-    // 4. Extract entities (merging with previous context, entity memory, and Ollama refinement)
+    // 4. Extract entities (merging SmartAI, previous context, entity memory)
     let entities = extractEntities(message, tokens, intent);
 
-    // Merge Ollama refinement entities
-    if (ollamaRefinement) {
+    // Merge SmartAI entities (high priority - much smarter than local extraction)
+    if (smartResult && smartResult.type === "generation") {
       const defaultName = getDefaultName(intent);
-      if (ollamaRefinement.businessName && entities.businessName === defaultName) {
-        entities.businessName = ollamaRefinement.businessName;
+      if (smartResult.businessName && entities.businessName === defaultName) {
+        entities.businessName = smartResult.businessName;
       }
-      if (ollamaRefinement.sections && ollamaRefinement.sections.length > 0) {
-        entities.sections = [...new Set([...entities.sections, ...ollamaRefinement.sections])];
+      if (smartResult.sections && smartResult.sections.length > 0) {
+        entities.sections = [...new Set([...entities.sections, ...smartResult.sections])];
       }
-      if (ollamaRefinement.color && entities.colorScheme === "default") {
-        entities.colorScheme = colorMap[ollamaRefinement.color.toLowerCase()] || ollamaRefinement.color;
+      if (smartResult.colorScheme && entities.colorScheme === "default") {
+        entities.colorScheme = colorMap[smartResult.colorScheme.toLowerCase()] || smartResult.colorScheme;
       }
     }
 
@@ -3177,20 +3357,56 @@ serve(async (req) => {
       }
     }
 
-    // Step A: Attempt full HTML generation with LLM (60s timeout, 2000 tokens)
+    // Step A: Try Lovable AI Gateway first (fast, intelligent, high quality)
     const systemPrompt = buildSystemPrompt(intent, label, entities, isModificationRequest, previousHtml);
-    const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
-    const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
+    let fullHtmlResult: string | null = null;
+    let extractedHtml: string | null = null;
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
+      try {
+        console.log(`[HTML Gen] Trying Lovable AI Gateway (Gemini Flash)...`);
+        const gatewayResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Genera el HTML completo para: ${entities.businessName} (${label}). Secciones: ${entities.sections.join(", ")}. Colores: ${entities.colorScheme}.` },
+            ],
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (gatewayResp.ok) {
+          const gatewayData = await gatewayResp.json();
+          fullHtmlResult = gatewayData.choices?.[0]?.message?.content?.trim() || null;
+          extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
+          if (extractedHtml) console.log(`[HTML Gen] Gateway generated ${extractedHtml.length} chars`);
+        } else {
+          console.warn(`[HTML Gen] Gateway error ${gatewayResp.status}`);
+        }
+      } catch (err) {
+        console.warn(`[HTML Gen] Gateway failed:`, err);
+      }
+    }
+
+    // Step B: If Gateway didn't produce good HTML, try Ollama
+    if (!extractedHtml || extractedHtml.length < 500) {
+      console.log(`[HTML Gen] Trying Ollama fallback...`);
+      fullHtmlResult = await callLLMShort(systemPrompt, 2000);
+      extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
+    }
 
     if (extractedHtml && extractedHtml.length > 500) {
       // Validate HTML quality before accepting
       const validation = validateHtmlQuality(extractedHtml, entities.businessName);
       if (validation.passed) {
         html = extractedHtml;
-        console.log(`[Full LLM] HTML generated and validated (${extractedHtml.length} chars)${isModificationRequest ? " [MODIFICATION]" : ""}`);
+        console.log(`[HTML Gen] Validated (${extractedHtml.length} chars)${isModificationRequest ? " [MODIFICATION]" : ""}`);
       } else {
-        console.log(`[Full LLM] HTML failed validation (${validation.failCount} issues: ${validation.issues.join(", ")}), falling back`);
-        // Try to fix minor issues
+        console.log(`[HTML Gen] Failed validation (${validation.issues.join(", ")}), attempting fix...`);
         let fixedHtml = extractedHtml;
         if (validation.issues.includes("missing_business_name") && entities.businessName) {
           fixedHtml = fixedHtml.replace(/<title>[^<]*<\/title>/, `<title>${entities.businessName}</title>`);
@@ -3198,21 +3414,19 @@ serve(async (req) => {
         if (validation.issues.includes("has_undefined_null")) {
           fixedHtml = fixedHtml.replace(/\bundefined\b/g, "").replace(/>null</g, "><");
         }
-        // Re-validate
         const reValidation = validateHtmlQuality(fixedHtml, entities.businessName);
         if (reValidation.passed) {
           html = fixedHtml;
-          console.log(`[Full LLM] HTML fixed and validated after cleanup`);
+          console.log(`[HTML Gen] Fixed and validated`);
         } else {
-          // Fallback to hybrid
-          console.log(`[Hybrid] Full LLM still failing, using hybrid`);
+          console.log(`[Hybrid] Using template fallback`);
           const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
           html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent, enriched: enrichedContent });
         }
       }
     } else {
-      // Step B: Fallback to hybrid approach
-      console.log(`[Hybrid] Full LLM generation insufficient, falling back to hybrid approach`);
+      // Step C: Final fallback to hybrid template approach
+      console.log(`[Hybrid] No LLM HTML, using template fallback`);
       const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
       html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent, enriched: enrichedContent });
     }
