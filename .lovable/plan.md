@@ -1,26 +1,60 @@
 
-## Plan: Cambiar de llama3.1:70b a llama3.1:8b
 
-### Contexto
-
-El secret `LLM_MODEL` en Supabase ya deberia tener el valor correcto (`llama3.1:8b`), pero el codigo tiene `llama3.1:70b` como fallback default y parametros optimizados para el 70b. Hay que revertir a valores apropiados para el 8b.
+## Plan: Parametros de produccion para Ollama + llama3.1:8b
 
 ### Cambios en `supabase/functions/builder-ai/index.ts`
 
-| Linea | Antes | Despues |
-|-------|-------|---------|
-| 1952 | Comentario "70b" | Comentario "8b" |
-| 1953 | `maxTokens = 500` | `maxTokens = 300` |
-| 1956 | `"llama3.1:70b"` | `"llama3.1:8b"` |
-| 1972 | Timeouts 120s/45s | Timeouts 60s/30s |
-| 2233 | Comentario "70b, 120s, 4000 tokens" | Comentario "8b, 60s, 2000 tokens" |
-| 2235 | `callLLMShort(systemPrompt, 4000)` | `callLLMShort(systemPrompt, 2000)` |
-| 2238 | Umbral `500` chars | Umbral `200` chars |
+**1. Actualizar opciones del modelo Ollama (lineas 1963-1971)**
 
-### System prompt
+Reemplazar las opciones actuales con los parametros de produccion optimizados:
 
-El prompt enriquecido actual (secciones, SVGs, animaciones, Unsplash) se mantiene -- llama3.1:8b puede seguir instrucciones razonablemente bien. Solo se reducen tokens y timeouts para ser realistas con la velocidad y capacidad del 8b.
+```typescript
+// ANTES
+options: {
+  num_predict: maxTokens,
+  temperature: 0.7,
+}
 
-### Despues
+// DESPUES
+options: {
+  temperature: 0.3,
+  top_p: 0.9,
+  num_ctx: 4096,
+  repeat_penalty: 1.12,
+  num_predict: maxTokens,
+}
+```
 
-Redesplegar la edge function `builder-ai`.
+- `temperature: 0.3` - menos inventos, mas consistente
+- `top_p: 0.9` - muestreo nucleus controlado
+- `num_ctx: 4096` - buen contexto sin saturar RAM
+- `repeat_penalty: 1.12` - evita respuestas repetitivas
+- `num_predict` se mantiene dinamico via `maxTokens`
+
+**2. Actualizar maxTokens default (linea 1953)**
+
+Cambiar de `300` a `512` para alinearse con `num_predict: 512` recomendado:
+
+```typescript
+async function callLLMShort(prompt: string, maxTokens = 512)
+```
+
+**3. Variable de entorno del modelo (linea 1956)**
+
+Cambiar `LLM_MODEL` a `OLLAMA_MODEL` como variable de entorno principal, con fallback:
+
+```typescript
+const model = Deno.env.get("OLLAMA_MODEL") || Deno.env.get("LLM_MODEL") || "llama3.1:8b";
+```
+
+Asi se alinea con la variable `OLLAMA_MODEL` configurada en Render.
+
+### Resumen
+
+| Linea | Cambio |
+|-------|--------|
+| 1953 | maxTokens default: 300 -> 512 |
+| 1956 | Variable de entorno: `OLLAMA_MODEL` con fallback a `LLM_MODEL` |
+| 1963-1971 | Opciones de produccion: temperature 0.3, top_p 0.9, num_ctx 4096, repeat_penalty 1.12 |
+
+Redesplegar edge function `builder-ai` despues de los cambios.
