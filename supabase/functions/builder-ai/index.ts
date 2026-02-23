@@ -2734,6 +2734,12 @@ function isConversational(message: string): string | null {
   if (/(?:como\s+(?:hago|uso|funciona|puedo))/i.test(normalized)) {
     return "📖 **¿Cómo usar DOKU AI?**\n\n1. **Describe** el sitio que quieres (tipo, nombre, secciones)\n2. **Revisa** el análisis y plan de ejecución\n3. **Confirma** o pide ajustes\n4. ¡**Listo**! Tu sitio aparece en el preview\n\n**Ejemplo:** *\"Quiero un restaurante llamado La Casa del Chef con menú, galería y contacto en colores cálidos\"*";
   }
+  if (/(?:que\s+(?:puedes|sabes|haces)|que\s+es\s+doku|para\s+que\s+sirve)/i.test(normalized)) {
+    return "🚀 **DOKU AI** es un generador inteligente de sitios web.\n\nPuedo crear:\n• 🍽️ Restaurantes, cafeterías\n• 🛒 Tiendas online\n• 💼 Portfolios, agencias\n• 🏥 Clínicas, consultorios\n• 💰 Sistemas de facturación\n• 📦 Inventarios, CRM, POS\n• 🏨 Hoteles, inmobiliarias\n• Y mucho más...\n\nSolo dime qué necesitas y lo creo para ti.";
+  }
+  if (/(?:puedes\s+(?:crear|hacer|generar)|eres\s+capaz|que\s+tipo)/i.test(normalized)) {
+    return "💪 ¡Puedo crear prácticamente cualquier tipo de sitio web!\n\nDime el **tipo de negocio**, el **nombre** y las **secciones** que quieres, y DOKU AI lo genera automáticamente.\n\nEjemplo: *\"Sistema de facturación con login para mi empresa TechCo\"*";
+  }
   return "🤔 No estoy seguro de qué necesitas. Soy un generador de sitios web.\n\nPara crear un sitio, descríbeme:\n• **Tipo** (restaurante, tienda, portfolio, blog...)\n• **Nombre** del negocio\n• **Secciones** que quieres (menú, contacto, galería...)\n\n**Ejemplo:** *\"Crea una landing para mi agencia digital TechFlow\"*";
 }
 
@@ -2820,8 +2826,8 @@ serve(async (req) => {
       label = classification.label;
     }
 
-    // ---- CONFIDENCE THRESHOLD: if too low, ask for clarification ----
-    if (confidence < 0.3 && !isFollowUp(message)) {
+    // ---- CONFIDENCE THRESHOLD: ask for clarification if too low ----
+    if (confidence < 0.45 && !isFollowUp(message)) {
       console.log(`[Low Confidence] ${confidence} for intent "${intent}" - asking clarification`);
       return new Response(
         JSON.stringify({
@@ -2831,6 +2837,41 @@ serve(async (req) => {
           entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
           html: "",
           conversationalResponse: `🤔 No estoy seguro de qué tipo de sitio quieres crear (confianza: ${Math.round(confidence * 100)}%).\n\nPuedes ser más específico? Por ejemplo:\n• *\"Crea un restaurante llamado La Casa del Chef\"*\n• *\"Hazme una landing page para mi startup\"*\n• *\"Quiero un portfolio con galería y contacto\"*\n\nMientras más detalles me des, mejor será el resultado.`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- CONFIRMATION ZONE (0.45-0.65): ask user to confirm before executing ----
+    if (confidence >= 0.45 && confidence < 0.65 && !isFollowUp(message)) {
+      // Check for ambiguity: if top 2 intents are very close
+      const allScores = Object.entries(intentMap).map(([k]) => ({ intent: k, score: 0 }));
+      // We already classified above, so use the result but ask confirmation
+      console.log(`[Confirm Zone] confidence=${confidence} for "${intent}" - asking user to confirm`);
+      return new Response(
+        JSON.stringify({
+          intent: "conversational",
+          confidence,
+          label: "Confirmación",
+          entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
+          html: "",
+          conversationalResponse: `🔍 Detecté que posiblemente quieres un **${label}** (confianza: ${Math.round(confidence * 100)}%).\n\n¿Es correcto? Si es así, dime algo como:\n• *\"Sí, quiero un ${label.toLowerCase()}\"*\n• *\"Correcto, se llama [nombre del negocio]\"*\n\nSi no es lo que buscas, descríbeme mejor tu proyecto con más detalles.`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- AMBIGUITY DETECTION: short messages ----
+    if (tokens.length < 3 && confidence < 0.7 && !isFollowUp(message)) {
+      console.log(`[Ambiguous] Only ${tokens.length} tokens with confidence ${confidence} - asking for more details`);
+      return new Response(
+        JSON.stringify({
+          intent: "conversational",
+          confidence,
+          label: "Conversación",
+          entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
+          html: "",
+          conversationalResponse: `📝 Tu mensaje es un poco corto para generar el mejor resultado.\n\nPara crear algo increíble necesito saber:\n• **Tipo de negocio** (restaurante, tienda, agencia...)\n• **Nombre** del negocio\n• **Secciones** deseadas (menú, contacto, galería...)\n• **Colores** preferidos (opcional)\n\n**Ejemplo completo:** *\"Crea un sistema de facturación llamado FacturaPro con login, en colores azules\"*`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
