@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle, Database, Plus, Plug } from "lucide-react";
+import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle, Database, Plus, Plug, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { checkSlugAvailable, enableProjectDb, getAppTables, createAppTable, deleteAppTable, type AppTable } from "@/services/projectService";
 import { ExternalDbForm } from "./ExternalDbForm";
+import { TableDataViewer } from "./TableDataViewer";
 
 interface ProjectSettingsProps {
   open: boolean;
@@ -43,6 +44,7 @@ export function ProjectSettings({
   const [newTableName, setNewTableName] = useState("");
   const [creatingTable, setCreatingTable] = useState(false);
   const [dbTab, setDbTab] = useState<"managed" | "external">("managed");
+  const [expandedTable, setExpandedTable] = useState<string | null>(null);
 
   useEffect(() => {
     setName(projectName);
@@ -116,7 +118,7 @@ export function ProjectSettings({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface-1 shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-surface-1 shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Configuración del proyecto</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground transition-colors">
@@ -271,11 +273,24 @@ export function ProjectSettings({
                         {tables.length > 0 && (
                           <div className="space-y-1">
                             {tables.map(t => (
-                              <div key={t.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                                <span className="text-sm text-foreground font-mono">{t.name}</span>
-                                <button onClick={() => handleDeleteTable(t.id)} className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                              <div key={t.id} className="rounded-lg border border-border bg-background">
+                                <div className="flex items-center justify-between px-3 py-2">
+                                  <button
+                                    onClick={() => setExpandedTable(expandedTable === t.id ? null : t.id)}
+                                    className="flex items-center gap-2 text-sm text-foreground font-mono hover:text-brain transition-colors"
+                                  >
+                                    {expandedTable === t.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                    {t.name}
+                                  </button>
+                                  <button onClick={() => handleDeleteTable(t.id)} className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                {expandedTable === t.id && (
+                                  <div className="border-t border-border px-3 pb-3">
+                                    <TableDataViewer tableId={t.id} tableName={t.name} />
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
