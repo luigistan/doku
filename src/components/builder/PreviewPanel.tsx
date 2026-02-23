@@ -78,13 +78,27 @@ document.addEventListener('click', function(e) {
   // If it's an internal tab/page link, try to trigger onclick
   if (a.onclick) a.onclick(e);
 });
-// Also prevent form submissions from navigating away
+// Handle form submissions: prevent navigation but simulate success
 document.addEventListener('submit', function(e) {
   var form = e.target;
   if (form && form.tagName === 'FORM') {
-    var action = form.getAttribute('action');
-    if (action && !action.startsWith('#') && !action.startsWith('javascript:')) {
-      e.preventDefault();
+    e.preventDefault();
+    // If the form has its own onsubmit handler that returned, skip simulation
+    if (form.dataset.handled) return;
+    // Simulate a success response
+    var btn = form.querySelector('button[type="submit"], button:not([type])');
+    if (btn) {
+      var origText = btn.textContent;
+      btn.textContent = '✓ Enviado correctamente';
+      btn.style.opacity = '0.7';
+      btn.disabled = true;
+      setTimeout(function() {
+        btn.textContent = origText;
+        btn.style.opacity = '1';
+        btn.disabled = false;
+        // Reset form fields
+        form.reset();
+      }, 2500);
     }
   }
 });
