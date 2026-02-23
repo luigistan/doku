@@ -1,10 +1,22 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Message, FeedbackData } from "@/types/builder";
 import { Brain } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { ChatInput } from "./ChatInput";
 import { TemplateSelector } from "./TemplateSelector";
+
+const quickCategories = [
+  { id: "landing", icon: "🚀", label: "Landing Page" },
+  { id: "restaurant", icon: "🍽️", label: "Restaurante" },
+  { id: "ecommerce", icon: "🛒", label: "Tienda Online" },
+  { id: "portfolio", icon: "💼", label: "Portfolio" },
+  { id: "blog", icon: "✍️", label: "Blog" },
+  { id: "dashboard", icon: "📊", label: "Dashboard" },
+  { id: "fitness", icon: "💪", label: "Gimnasio" },
+  { id: "medical", icon: "🏥", label: "Clínica" },
+  { id: "saas", icon: "⚡", label: "SaaS" },
+];
 
 interface ChatPanelProps {
   messages: Message[];
@@ -17,12 +29,15 @@ interface ChatPanelProps {
 
 export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore, onFeedback }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, selectedCategory]);
+
+  const isInitial = messages.length <= 1 && !isTyping;
 
   return (
     <div className="flex h-full flex-col bg-surface-1">
@@ -48,10 +63,43 @@ export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore, on
             onFeedback={msg.showFeedbackOptions ? onFeedback : undefined}
           />
         ))}
-        {/* Show templates when only the welcome message exists */}
-        {messages.length <= 1 && !isTyping && (
-          <TemplateSelector onSelect={onSend} />
+
+        {/* Conversational template flow */}
+        {isInitial && !selectedCategory && (
+          <div className="rounded-xl bg-surface-2 p-4 space-y-3">
+            <p className="text-sm font-medium text-foreground">
+              🎯 ¿Qué quieres desarrollar hoy?
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Selecciona una categoría para ver templates disponibles, o escríbeme directamente lo que necesitas.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className="flex items-center gap-1.5 rounded-lg bg-surface-1 border border-border px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-brain hover:bg-brain/10 hover:text-brain"
+                >
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
+
+        {isInitial && selectedCategory && (
+          <div className="space-y-2">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Volver a categorías
+            </button>
+            <TemplateSelector onSelect={onSend} initialCategory={selectedCategory} />
+          </div>
+        )}
+
         {isTyping && <TypingIndicator />}
       </div>
 
