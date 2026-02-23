@@ -179,7 +179,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
               {Math.round(progress)}%
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Analizando con Ollama...
+              Analizando con DOKU AI...
             </p>
           </div>
         )}
