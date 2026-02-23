@@ -27,6 +27,13 @@ const Builder = () => {
 
   const { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment, submitFeedback } = useBuilderState(projectId);
 
+  // Listen for auto db-enabled event from AI
+  useEffect(() => {
+    const handler = () => setDbEnabled(true);
+    window.addEventListener("doku:db-enabled", handler);
+    return () => window.removeEventListener("doku:db-enabled", handler);
+  }, []);
+
   // Load project data
   useEffect(() => {
     if (!projectId) return;

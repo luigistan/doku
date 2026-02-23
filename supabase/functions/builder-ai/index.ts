@@ -13,6 +13,167 @@ function getSupabaseClient() {
   return createClient(url, key);
 }
 
+// ==================== INTENT DATABASE SCHEMA ====================
+const intentDatabaseSchema: Record<string, { name: string; columns: { name: string; type: string }[] }[]> = {
+  ecommerce: [
+    { name: "products", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "image_url", type: "url" }, { name: "category", type: "text" }, { name: "stock", type: "number" }, { name: "active", type: "boolean" },
+    ]},
+    { name: "orders", columns: [
+      { name: "customer_name", type: "text" }, { name: "customer_email", type: "email" }, { name: "total", type: "number" },
+      { name: "status", type: "select" }, { name: "order_date", type: "date" },
+    ]},
+    { name: "customers", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" }, { name: "address", type: "text" },
+    ]},
+  ],
+  restaurant: [
+    { name: "menu_items", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "category", type: "text" }, { name: "image_url", type: "url" }, { name: "available", type: "boolean" },
+    ]},
+    { name: "reservations", columns: [
+      { name: "customer_name", type: "text" }, { name: "customer_email", type: "email" }, { name: "date", type: "date" },
+      { name: "guests", type: "number" }, { name: "status", type: "select" }, { name: "notes", type: "text" },
+    ]},
+  ],
+  fitness: [
+    { name: "members", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "plan", type: "select" }, { name: "start_date", type: "date" }, { name: "active", type: "boolean" },
+    ]},
+    { name: "classes", columns: [
+      { name: "name", type: "text" }, { name: "instructor", type: "text" }, { name: "schedule", type: "text" },
+      { name: "capacity", type: "number" }, { name: "category", type: "text" },
+    ]},
+  ],
+  clinic: [
+    { name: "patients", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "birth_date", type: "date" }, { name: "notes", type: "text" },
+    ]},
+    { name: "appointments", columns: [
+      { name: "patient_name", type: "text" }, { name: "doctor", type: "text" }, { name: "date", type: "date" },
+      { name: "status", type: "select" }, { name: "notes", type: "text" },
+    ]},
+  ],
+  hotel: [
+    { name: "rooms", columns: [
+      { name: "name", type: "text" }, { name: "type", type: "select" }, { name: "price", type: "number" },
+      { name: "capacity", type: "number" }, { name: "available", type: "boolean" }, { name: "description", type: "text" },
+    ]},
+    { name: "reservations", columns: [
+      { name: "guest_name", type: "text" }, { name: "guest_email", type: "email" }, { name: "room", type: "text" },
+      { name: "check_in", type: "date" }, { name: "check_out", type: "date" }, { name: "status", type: "select" },
+    ]},
+  ],
+  education: [
+    { name: "courses", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "instructor", type: "text" },
+      { name: "price", type: "number" }, { name: "duration", type: "text" }, { name: "level", type: "select" },
+    ]},
+    { name: "students", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "enrolled_date", type: "date" }, { name: "course", type: "text" },
+    ]},
+  ],
+  realestate: [
+    { name: "properties", columns: [
+      { name: "title", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "location", type: "text" }, { name: "type", type: "select" }, { name: "bedrooms", type: "number" }, { name: "image_url", type: "url" },
+    ]},
+    { name: "inquiries", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "property", type: "text" }, { name: "message", type: "text" }, { name: "date", type: "date" },
+    ]},
+  ],
+  salon: [
+    { name: "services", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "duration", type: "text" }, { name: "category", type: "text" },
+    ]},
+    { name: "appointments", columns: [
+      { name: "client_name", type: "text" }, { name: "client_phone", type: "text" }, { name: "service", type: "text" },
+      { name: "date", type: "date" }, { name: "status", type: "select" },
+    ]},
+  ],
+  veterinary: [
+    { name: "patients", columns: [
+      { name: "pet_name", type: "text" }, { name: "species", type: "select" }, { name: "breed", type: "text" },
+      { name: "owner_name", type: "text" }, { name: "owner_phone", type: "text" }, { name: "notes", type: "text" },
+    ]},
+    { name: "appointments", columns: [
+      { name: "pet_name", type: "text" }, { name: "owner_name", type: "text" }, { name: "date", type: "date" },
+      { name: "reason", type: "text" }, { name: "status", type: "select" },
+    ]},
+  ],
+};
+
+// ==================== AUTO CREATE PROJECT TABLES ====================
+async function autoCreateProjectTables(
+  projectId: string,
+  intent: string
+): Promise<string[]> {
+  const schema = intentDatabaseSchema[intent];
+  if (!schema) {
+    console.log(`[AutoDB] No schema defined for intent: ${intent}`);
+    return [];
+  }
+
+  const sb = getSupabaseClient();
+
+  // Check if project already has tables
+  const { data: existingTables } = await sb
+    .from("app_tables")
+    .select("id")
+    .eq("project_id", projectId)
+    .limit(1);
+
+  if (existingTables && existingTables.length > 0) {
+    console.log(`[AutoDB] Project ${projectId} already has tables, skipping auto-creation`);
+    return [];
+  }
+
+  // Enable db_enabled on project
+  await sb.from("projects").update({ db_enabled: true }).eq("id", projectId);
+
+  const createdTableNames: string[] = [];
+
+  for (const tableDef of schema) {
+    // Create table
+    const { data: tableData, error: tableError } = await sb
+      .from("app_tables")
+      .insert({ project_id: projectId, name: tableDef.name })
+      .select("id")
+      .single();
+
+    if (tableError || !tableData) {
+      console.error(`[AutoDB] Error creating table ${tableDef.name}:`, tableError);
+      continue;
+    }
+
+    // Create columns
+    const columnsToInsert = tableDef.columns.map((col, idx) => ({
+      table_id: tableData.id,
+      name: col.name,
+      column_type: col.type,
+      position: idx,
+      is_required: idx === 0, // first column is required
+    }));
+
+    const { error: colError } = await sb.from("app_columns").insert(columnsToInsert);
+    if (colError) {
+      console.error(`[AutoDB] Error creating columns for ${tableDef.name}:`, colError);
+    }
+
+    createdTableNames.push(tableDef.name);
+  }
+
+  console.log(`[AutoDB] Created ${createdTableNames.length} tables for ${intent}: ${createdTableNames.join(", ")}`);
+  return createdTableNames;
+}
+
 // ==================== LEVENSHTEIN DISTANCE ====================
 function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
@@ -2657,7 +2818,17 @@ serve(async (req) => {
       await saveEntityMemory(projectId, intent, entities);
     }
 
-    // 7. Log interaction for learning
+    // 7. Auto-create database tables based on intent
+    let dbTablesCreated: string[] = [];
+    if (projectId && intent !== "conversational") {
+      try {
+        dbTablesCreated = await autoCreateProjectTables(projectId, intent);
+      } catch (err) {
+        console.error("[AutoDB] Failed to auto-create tables (non-blocking):", err);
+      }
+    }
+
+    // 8. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
 
     const response: Record<string, unknown> = {
@@ -2668,6 +2839,10 @@ serve(async (req) => {
       html,
       logId: newLogId,
     };
+
+    if (dbTablesCreated.length > 0) {
+      response.dbTablesCreated = dbTablesCreated;
+    }
 
     if (mode === "brain") {
       response.plan = generatePlan(intent, entities);
