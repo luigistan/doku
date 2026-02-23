@@ -1859,6 +1859,114 @@ function generatePlan(intent: string, entities: Entities): string[] {
   return steps;
 }
 
+// ==================== LLM PROVIDER (Ollama / Gateway / OpenAI) ====================
+async function callLLM(systemPrompt: string, userPrompt: string): Promise<string | null> {
+  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
+  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+
+  try {
+    if (provider === "ollama") {
+      const response = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt: `${systemPrompt}\n\nUsuario: ${userPrompt}`,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!response.ok) {
+        console.error("Ollama error:", response.status, await response.text().catch(() => ""));
+        return null;
+      }
+      const data = await response.json();
+      return data.response || null;
+
+    } else if (provider === "gateway") {
+      const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) {
+        console.error("Gateway error:", response.status, await response.text().catch(() => ""));
+        return null;
+      }
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || null;
+
+    } else if (provider === "openai") {
+      const apiKey = Deno.env.get("LLM_API_KEY") || "";
+      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model || "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || null;
+    }
+
+    return null;
+  } catch (err) {
+    console.error("LLM call failed:", err);
+    return null;
+  }
+}
+
+function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
+  return `Eres un generador de sitios web profesionales.
+Genera HTML completo (desde <!DOCTYPE html> hasta </html>), moderno, responsivo.
+Usa Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+Usa imagenes de https://images.unsplash.com para fondos y fotos relevantes.
+El diseno debe ser oscuro, moderno, profesional.
+
+Tipo de sitio: ${intent} (${label})
+Negocio: ${entities.businessName}
+Secciones requeridas: ${entities.sections.join(", ")}
+Esquema de colores: ${entities.colorScheme}
+
+IMPORTANTE: Responde SOLO con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
+El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
+}
+
+function extractHtmlFromResponse(response: string): string | null {
+  const htmlMatch = response.match(/<!DOCTYPE html>[\s\S]*<\/html>/i);
+  if (htmlMatch) return htmlMatch[0];
+
+  const codeMatch = response.match(/```(?:html)?\s*(<!DOCTYPE html>[\s\S]*<\/html>)\s*```/i);
+  if (codeMatch) return codeMatch[1];
+
+  if (response.trim().startsWith("<")) return response.trim();
+
+  return null;
+}
+
 // ==================== MAIN HANDLER ====================
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -1931,13 +2039,25 @@ serve(async (req) => {
 
     const colors = getColors(entities.colorScheme);
 
-    // 5. Generate React/TypeScript HTML
-    const html = composeReactHtml({
-      name: entities.businessName,
-      colors,
-      sections: entities.sections,
-      intent,
-    });
+    // 5. Generate HTML (LLM first, template fallback)
+    let html: string;
+    const llmProvider = Deno.env.get("LLM_PROVIDER") || "none";
+
+    if (llmProvider !== "none") {
+      const systemPrompt = buildSystemPrompt(intent, label, entities);
+      const llmResponse = await callLLM(systemPrompt, message);
+      const llmHtml = llmResponse ? extractHtmlFromResponse(llmResponse) : null;
+
+      if (llmHtml && llmHtml.length > 200) {
+        console.log(`LLM (${llmProvider}) generated HTML: ${llmHtml.length} chars`);
+        html = llmHtml;
+      } else {
+        console.log(`LLM fallback to templates (response length: ${llmHtml?.length || 0})`);
+        html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
+      }
+    } else {
+      html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
+    }
 
     // 6. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
