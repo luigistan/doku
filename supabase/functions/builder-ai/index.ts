@@ -3376,7 +3376,97 @@ serve(async (req) => {
       }
     }
 
-    // 1. Use SmartAI result or fall back to local classification
+    // If Smart AI detected modification, handle with LLM + existing HTML
+    if (smartResult && smartResult.type === "modification" && projectId) {
+      console.log(`[SmartAI] Modification request detected`);
+      try {
+        const sb = getSupabaseClient();
+        const { data: projectData } = await sb.from("projects").select("html").eq("id", projectId).single();
+        
+        if (projectData?.html && projectData.html.length > 200) {
+          const mem = entityMemory || await loadEntityMemory(projectId);
+          const intent = mem?.intent || previousIntent || "landing";
+          const businessName = mem?.business_name || "Mi Sitio";
+          const colorScheme = mem?.color_scheme || "modern";
+
+          const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+          if (LOVABLE_API_KEY) {
+            const modPrompt = `Eres DOKU AI. El usuario tiene un sitio web ya generado y quiere hacer una MODIFICACIÓN.
+Sitio actual: ${businessName} (tipo: ${intent})
+Solicitud del usuario: "${message}"
+
+REGLAS CRÍTICAS:
+- Modifica SOLO lo que el usuario pide, mantén todo lo demás EXACTAMENTE igual
+- Devuelve el HTML completo modificado (desde <!DOCTYPE html> hasta </html>)
+- NO cambies la estructura general, scripts, ni funcionalidades existentes
+- Si pide cambiar el menú/nav, modifica solo el nav
+- Si pide cambiar colores, actualiza solo los estilos relevantes
+- Mantén todos los scripts, tabs, onclick handlers, etc.
+- NO agregues comentarios ni explicaciones, SOLO el HTML
+
+HTML ACTUAL DEL SITIO:
+${projectData.html.substring(0, 20000)}`;
+
+            try {
+              const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: "google/gemini-3-flash-preview",
+                  messages: [
+                    { role: "system", content: modPrompt },
+                    { role: "user", content: `Modifica el HTML según esta instrucción: ${message}` },
+                  ],
+                  stream: false,
+                }),
+                signal: AbortSignal.timeout(45000),
+              });
+              
+              if (resp.ok) {
+                const data = await resp.json();
+                const content = data.choices?.[0]?.message?.content?.trim();
+                const extractedHtml = content ? extractHtmlFromResponse(content) : null;
+                
+                if (extractedHtml && extractedHtml.length > 500) {
+                  console.log(`[Modification] Success: ${extractedHtml.length} chars`);
+                  const logId = await logInteraction(message, "modification", { modification: message } as unknown as Record<string, unknown>, 0.95);
+                  return new Response(
+                    JSON.stringify({
+                      intent: "modification",
+                      confidence: 0.95,
+                      label: "Modificación",
+                      entities: { businessName, sections: [], colorScheme, industry: intent },
+                      plan: ["Analizar solicitud de cambio", "Modificar HTML existente", "Aplicar cambios"],
+                      html: extractedHtml,
+                      logId,
+                    }),
+                    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                  );
+                }
+              }
+            } catch (err) {
+              console.warn("[Modification] LLM failed:", err);
+            }
+          }
+
+          // Fallback: conversational response
+          return new Response(
+            JSON.stringify({
+              intent: "conversational",
+              confidence: 0.8,
+              label: "Modificación",
+              entities: { businessName, sections: [], colorScheme, industry: intent },
+              html: "",
+              conversationalResponse: `🔧 Entiendo que quieres modificar tu sitio **${businessName}**. Describe el cambio con más detalle y lo aplicaré directamente.\n\nEjemplos:\n• *"Cambia el color principal a azul"*\n• *"Agrega una sección de testimonios"*\n• *"Pon el botón de login en el menú arriba"*`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (err) {
+        console.error("[Modification] Error:", err);
+      }
+    }
+
     const patterns = await queryLearningPatterns();
 
     // 2. Tokenize and classify with enhanced NLP + TF-IDF

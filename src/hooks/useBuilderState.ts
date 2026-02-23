@@ -202,8 +202,8 @@ export function useBuilderState(projectId?: string) {
           return;
         }
 
-        // For page_add intent, execute directly (no confirmation needed)
-        if (result.intent === "page_add") {
+        // For page_add and modification intents, execute directly (no confirmation needed)
+        if (result.intent === "page_add" || result.intent === "modification") {
           pendingResult.current = result;
           executeFromResult(result);
           return;

@@ -59,6 +59,46 @@ function useSimulatedProgress(isLoading: boolean) {
   return progress;
 }
 
+// Inject a script that prevents links from navigating out of the iframe
+function injectNavigationGuard(html: string): string {
+  if (!html || html.length < 50) return html;
+  const guard = `<script>
+document.addEventListener('click', function(e) {
+  var a = e.target.closest ? e.target.closest('a') : null;
+  if (!a) return;
+  var href = a.getAttribute('href');
+  if (!href) return;
+  // Allow hash links, javascript:, and data: protocols
+  if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('data:')) return;
+  // Allow mailto and tel
+  if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
+  // Block all other navigation (external URLs, relative paths that would load parent app)
+  e.preventDefault();
+  e.stopPropagation();
+  // If it's an internal tab/page link, try to trigger onclick
+  if (a.onclick) a.onclick(e);
+});
+// Also prevent form submissions from navigating away
+document.addEventListener('submit', function(e) {
+  var form = e.target;
+  if (form && form.tagName === 'FORM') {
+    var action = form.getAttribute('action');
+    if (action && !action.startsWith('#') && !action.startsWith('javascript:')) {
+      e.preventDefault();
+    }
+  }
+});
+</script>`;
+  // Inject before </head> or at the start of <body>
+  if (html.includes('</head>')) {
+    return html.replace('</head>', guard + '</head>');
+  }
+  if (html.includes('<body')) {
+    return html.replace(/<body([^>]*)>/, '<body$1>' + guard);
+  }
+  return guard + html;
+}
+
 export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug, isPublic, projectId }: PreviewPanelProps) {
   const StatusIcon = statusConfig[preview.status].icon;
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -174,7 +214,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
           <iframe
             ref={iframeRef}
             key={preview.html.length + preview.status}
-            srcDoc={preview.html}
+            srcDoc={injectNavigationGuard(preview.html)}
             className="h-full w-full border-0"
             title="Preview"
             sandbox="allow-scripts allow-same-origin"
