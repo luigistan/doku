@@ -236,16 +236,21 @@ async function autoCreateProjectTables(projectId: string, intent: string): Promi
   }
 
   const sb = getSupabaseClient();
-  const { data: existingTables } = await sb.from("app_tables").select("id").eq("project_id", projectId).limit(1);
-  if (existingTables && existingTables.length > 0) {
-    console.log(`[AutoDB] Project ${projectId} already has tables, skipping`);
-    return [];
-  }
+  
+  // Get existing table names for this project
+  const { data: existingTables } = await sb.from("app_tables").select("id, name").eq("project_id", projectId);
+  const existingNames = new Set((existingTables || []).map((t: { name: string }) => t.name));
 
   await sb.from("projects").update({ db_enabled: true }).eq("id", projectId);
   const createdTableNames: string[] = [];
 
   for (const tableDef of schema) {
+    // Skip tables that already exist
+    if (existingNames.has(tableDef.name)) {
+      console.log(`[AutoDB] Table "${tableDef.name}" already exists, skipping`);
+      continue;
+    }
+
     const { data: tableData, error: tableError } = await sb
       .from("app_tables").insert({ project_id: projectId, name: tableDef.name }).select("id").single();
 
@@ -609,6 +614,27 @@ serve(async (req) => {
     // ---- CALL OLLAMA FOR EVERYTHING ----
     console.log(`[DOKU] Processing message: "${message.substring(0, 80)}..."`);
     
+    // Load existing tables context for the LLM
+    let tableContext = "";
+    if (projectId) {
+      try {
+        const sb = getSupabaseClient();
+        const { data: tables } = await sb.from("app_tables").select("id, name").eq("project_id", projectId);
+        if (tables && tables.length > 0) {
+          const tableDetails: string[] = [];
+          for (const t of tables) {
+            const { data: cols } = await sb.from("app_columns").select("name").eq("table_id", t.id).order("position");
+            const colNames = (cols || []).map((c: { name: string }) => c.name).join(",");
+            tableDetails.push(`${t.name}(${colNames})`);
+          }
+          tableContext = `\n[TABLAS BD EXISTENTES: ${tableDetails.join(", ")}. USA estos nombres exactos en data-doku-table y name de los campos.]`;
+          console.log(`[DOKU] Table context: ${tableContext}`);
+        }
+      } catch (err) {
+        console.warn("[DOKU] Failed to load table context:", err);
+      }
+    }
+
     // Add context to message if we have entity memory
     let enrichedMessage = message;
     if (entityMemory) {
@@ -616,6 +642,10 @@ serve(async (req) => {
     }
     if (previousEntities) {
       enrichedMessage = `[Contexto previo: negocio="${previousEntities.businessName}", industria="${previousEntities.industry}", colores="${previousEntities.colorScheme}"]\n\nMensaje del usuario: ${message}`;
+    }
+    // Append table context so LLM uses correct table names
+    if (tableContext) {
+      enrichedMessage += tableContext;
     }
 
     const ollamaResult = await callOllama(enrichedMessage, ollamaModel, conversationHistory);
