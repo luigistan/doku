@@ -63,45 +63,57 @@ function useSimulatedProgress(isLoading: boolean) {
 function injectNavigationGuard(html: string): string {
   if (!html || html.length < 50) return html;
   const guard = `<script>
-document.addEventListener('click', function(e) {
-  var a = e.target.closest ? e.target.closest('a') : null;
-  if (!a) return;
-  var href = a.getAttribute('href');
-  if (!href) return;
-  // Allow hash links, javascript:, and data: protocols
-  if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('data:')) return;
-  // Allow mailto and tel
-  if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
-  // Block all other navigation (external URLs, relative paths that would load parent app)
-  e.preventDefault();
-  e.stopPropagation();
-  // If it's an internal tab/page link, try to trigger onclick
-  if (a.onclick) a.onclick(e);
-});
-// Handle form submissions: prevent navigation but simulate success
-document.addEventListener('submit', function(e) {
-  var form = e.target;
-  if (form && form.tagName === 'FORM') {
+// Prevent ALL navigation that would load the parent app inside the iframe
+(function() {
+  // Block link clicks
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href');
+    if (!href) return;
+    // Allow only hash links within the page
+    if (href.startsWith('#')) return;
+    // Allow mailto and tel
+    if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    // Block everything else
     e.preventDefault();
-    // If the form has its own onsubmit handler that returned, skip simulation
-    if (form.dataset.handled) return;
-    // Simulate a success response
-    var btn = form.querySelector('button[type="submit"], button:not([type])');
-    if (btn) {
-      var origText = btn.textContent;
-      btn.textContent = '✓ Enviado correctamente';
-      btn.style.opacity = '0.7';
-      btn.disabled = true;
-      setTimeout(function() {
-        btn.textContent = origText;
-        btn.style.opacity = '1';
-        btn.disabled = false;
-        // Reset form fields
-        form.reset();
-      }, 2500);
+    e.stopPropagation();
+  });
+
+  // Handle form submissions: simulate success
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form && form.tagName === 'FORM') {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"], button:not([type])');
+      if (btn) {
+        var origText = btn.textContent;
+        btn.textContent = '✓ Enviado correctamente';
+        btn.style.opacity = '0.7';
+        btn.disabled = true;
+        setTimeout(function() {
+          btn.textContent = origText;
+          btn.style.opacity = '1';
+          btn.disabled = false;
+          form.reset();
+        }, 2500);
+      }
     }
-  }
-});
+  });
+
+  // Block window.location changes
+  var origLocation = Object.getOwnPropertyDescriptor(window, 'location');
+  try {
+    // Intercept any programmatic navigation
+    window.addEventListener('beforeunload', function(e) {
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  } catch(err) {}
+
+  // Override window.open
+  window.open = function() { return null; };
+})();
 </script>`;
   // Inject before </head> or at the start of <body>
   if (html.includes('</head>')) {
