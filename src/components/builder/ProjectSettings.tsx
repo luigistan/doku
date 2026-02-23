@@ -382,8 +382,8 @@ export function ProjectSettings({
                   <div className="flex gap-2">
                     <input
                       value={ollamaModelInput}
-                      onChange={e => setOllamaModelInput(e.target.value)}
-                      placeholder="llama3"
+                      onChange={e => setOllamaModelInput(e.target.value.replace(/:[^\s]*/g, ""))}
+                      placeholder="llama3 (sin tags de versión)"
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
                     />
                     <button
