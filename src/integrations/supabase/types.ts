@@ -186,6 +186,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_entity_memory: {
+        Row: {
+          business_name: string | null
+          color_scheme: string | null
+          created_at: string
+          id: string
+          intent: string
+          project_id: string
+          sections: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string | null
+          color_scheme?: string | null
+          created_at?: string
+          id?: string
+          intent: string
+          project_id: string
+          sections?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string | null
+          color_scheme?: string | null
+          created_at?: string
+          id?: string
+          intent?: string
+          project_id?: string
+          sections?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_entity_memory_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

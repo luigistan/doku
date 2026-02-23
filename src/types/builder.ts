@@ -1,5 +1,10 @@
 export type Mode = "brain" | "execute";
 
+export interface FeedbackData {
+  reason: string;
+  detail?: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "system";
@@ -8,6 +13,7 @@ export interface Message {
   plan?: PlanStep[];
   awaitingConfirmation?: boolean;
   analysisData?: AnalysisData;
+  showFeedbackOptions?: boolean;
 }
 
 export interface AnalysisData {

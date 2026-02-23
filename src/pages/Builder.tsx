@@ -24,7 +24,7 @@ const Builder = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
 
-  const { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment } = useBuilderState();
+  const { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment, submitFeedback } = useBuilderState(projectId);
 
   // Load project data
   useEffect(() => {
@@ -128,6 +128,7 @@ const Builder = () => {
             onSend={handleSend}
             onExecute={confirmExecution}
             onAskMore={requestAdjustment}
+            onFeedback={submitFeedback}
           />
         </ResizablePanel>
         <ResizableHandle withHandle />

@@ -1,15 +1,17 @@
-import { Message } from "@/types/builder";
+import { Message, FeedbackData } from "@/types/builder";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { ConfirmationButtons } from "./ConfirmationButtons";
+import { FeedbackOptions } from "./FeedbackOptions";
 
 interface MessageBubbleProps {
   message: Message;
   onExecute?: () => void;
   onAskMore?: () => void;
+  onFeedback?: (feedback: FeedbackData) => void;
 }
 
-export function MessageBubble({ message, onExecute, onAskMore }: MessageBubbleProps) {
+export function MessageBubble({ message, onExecute, onAskMore, onFeedback }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -58,6 +60,10 @@ export function MessageBubble({ message, onExecute, onAskMore }: MessageBubblePr
 
         {message.awaitingConfirmation && onExecute && onAskMore && (
           <ConfirmationButtons onExecute={onExecute} onAskMore={onAskMore} />
+        )}
+
+        {message.showFeedbackOptions && onFeedback && (
+          <FeedbackOptions onSubmit={onFeedback} />
         )}
 
         <div className={cn("mt-1.5 text-[10px]", isUser ? "text-brain-foreground/60" : "text-muted-foreground")}>
