@@ -17,6 +17,7 @@ export interface BuilderResponse {
   logId?: string;
   conversationalResponse?: string;
   dbTablesCreated?: string[];
+  provider?: "rules" | "ollama";
 }
 
 export async function generateSite(

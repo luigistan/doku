@@ -931,7 +931,187 @@ function applyNegativeLearning(
   }
 }
 
-// (AI providers removed - using local classification only)
+// ==================== OLLAMA CLOUD CLASSIFICATION (Signal 8) ====================
+const OLLAMA_CLASSIFY_PROMPT = `Eres el clasificador de intents de DOKU, un generador de sitios web en español.
+Dado el mensaje del usuario, clasifica en UNO de estos intents:
+- landing: Página de presentación general o corporativa
+- restaurant: Restaurante, cafetería, bar, comida
+- ecommerce: Tienda online, venta de productos
+- portfolio: Portfolio, trabajos, curriculum
+- blog: Blog, artículos, revista
+- fitness: Gimnasio, crossfit, yoga, deporte
+- agency: Agencia de marketing, diseño, publicidad
+- clinic: Clínica, consultorio médico, dental
+- realestate: Inmobiliaria, bienes raíces
+- education: Academia, cursos, escuela
+- veterinary: Veterinaria, mascotas
+- hotel: Hotel, hospedaje, alojamiento
+- lawyer: Abogado, bufete legal
+- accounting: Contador, contabilidad, fiscal
+- photography: Fotografía, estudio fotográfico
+- music: Música, estudio de grabación, DJ
+- salon: Salón de belleza, barbería, spa
+- technology: Software, tech, desarrollo
+- billing: Facturación, cobros, recibos
+- inventory: Inventario, almacén, stock
+- crm: CRM, gestión de clientes
+- pos: Punto de venta, caja registradora
+- booking: Reservas, citas, agenda
+- laundry: Lavandería, tintorería
+- pharmacy: Farmacia, droguería
+- construction: Constructora, arquitectura
+- florist: Floristería, flores
+- mechanic: Taller mecánico, reparación de autos
+- printing: Imprenta, impresión
+
+Responde SOLO con JSON válido, sin texto adicional:
+{"intent":"nombre_del_intent","confidence":0.0-1.0,"entities":{"businessName":"nombre detectado o vacío","sections":[],"colorScheme":"color detectado o vacío","industry":"industria"}}`;
+
+async function classifyWithOllama(message: string): Promise<{ intent: string; confidence: number; label: string } | null> {
+  const apiKey = Deno.env.get("OLLAMA_API_KEY");
+  if (!apiKey) {
+    console.log("[Ollama] No OLLAMA_API_KEY configured, skipping");
+    return null;
+  }
+
+  // Try multiple Ollama API endpoints
+  const endpoints = [
+    { url: "https://api.ollama.com/v1/chat/completions", format: "openai" },
+    { url: "https://ollama.com/api/chat", format: "ollama" },
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`[Ollama] Trying ${endpoint.url} (${endpoint.format} format)`);
+      
+      const body = endpoint.format === "openai" 
+        ? JSON.stringify({
+            model: Deno.env.get("LLM_MODEL") || "llama3",
+            messages: [
+              { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
+              { role: "user", content: message }
+            ],
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+          })
+        : JSON.stringify({
+            model: Deno.env.get("LLM_MODEL") || "llama3",
+            messages: [
+              { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
+              { role: "user", content: message }
+            ],
+            stream: false,
+            format: "json",
+          });
+
+      const response = await fetch(endpoint.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body,
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!response.ok) {
+        console.log(`[Ollama] ${endpoint.url} returned ${response.status}: ${await response.text()}`);
+        continue;
+      }
+
+      const data = await response.json();
+      
+      // Extract content based on format
+      let content: string;
+      if (endpoint.format === "openai") {
+        content = data.choices?.[0]?.message?.content || "";
+      } else {
+        content = data.message?.content || "";
+      }
+
+      if (!content) {
+        console.log("[Ollama] Empty response content");
+        continue;
+      }
+
+      // Parse JSON response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.log("[Ollama] No JSON found in response:", content.substring(0, 200));
+        continue;
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const ollamaIntent = parsed.intent?.toLowerCase?.();
+      
+      if (!ollamaIntent || !intentMap[ollamaIntent]) {
+        console.log(`[Ollama] Unknown intent: ${ollamaIntent}`);
+        continue;
+      }
+
+      const ollamaConfidence = Math.min(Math.max(parseFloat(parsed.confidence) || 0.7, 0.1), 0.99);
+      
+      console.log(`[Ollama] Classified as "${ollamaIntent}" with confidence ${ollamaConfidence}`);
+      
+      return {
+        intent: ollamaIntent,
+        confidence: ollamaConfidence,
+        label: intentMap[ollamaIntent]?.label || "Sitio Web",
+      };
+    } catch (err) {
+      console.warn(`[Ollama] Error with ${endpoint.url}:`, err);
+      continue;
+    }
+  }
+
+  // Also try LLM_BASE_URL if configured (for self-hosted Ollama or other OpenAI-compatible APIs)
+  const llmBaseUrl = Deno.env.get("LLM_BASE_URL");
+  if (llmBaseUrl) {
+    try {
+      console.log(`[Ollama] Trying custom LLM_BASE_URL: ${llmBaseUrl}`);
+      const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: Deno.env.get("LLM_MODEL") || "llama3",
+          messages: [
+            { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
+            { role: "user", content: message }
+          ],
+          temperature: 0.1,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          const ollamaIntent = parsed.intent?.toLowerCase?.();
+          if (ollamaIntent && intentMap[ollamaIntent]) {
+            const ollamaConfidence = Math.min(Math.max(parseFloat(parsed.confidence) || 0.7, 0.1), 0.99);
+            console.log(`[Ollama/Custom] Classified as "${ollamaIntent}" with confidence ${ollamaConfidence}`);
+            return {
+              intent: ollamaIntent,
+              confidence: ollamaConfidence,
+              label: intentMap[ollamaIntent]?.label || "Sitio Web",
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[Ollama/Custom] Error:`, err);
+    }
+  }
+
+  console.log("[Ollama] All endpoints failed, falling back to rules-only");
+  return null;
+}
 
 // ==================== BOOTSTRAPPING CORPUS (500+ synthetic training messages) ====================
 const bootstrapCorpus: { message: string; intent: string }[] = [
@@ -4001,6 +4181,8 @@ serve(async (req) => {
     let confidence: number;
     let label: string;
 
+    let provider: "rules" | "ollama" = "rules";
+
     if (isFollowUp(message) && (previousIntent || entityMemory?.intent) && (previousEntities || entityMemory)) {
       // Follow-up message: use previous context or entity memory
       intent = previousIntent || entityMemory!.intent;
@@ -4013,6 +4195,21 @@ serve(async (req) => {
       intent = classification.intent;
       confidence = classification.confidence;
       label = classification.label;
+
+      // ---- OLLAMA FALLBACK: boost with LLM when rules confidence is low ----
+      if (confidence < 0.6) {
+        console.log(`[Ollama Fallback] Rules confidence ${confidence} < 0.6, trying Ollama...`);
+        const ollamaResult = await classifyWithOllama(message);
+        if (ollamaResult && ollamaResult.confidence > confidence) {
+          console.log(`[Ollama Fallback] Ollama (${ollamaResult.intent}:${ollamaResult.confidence}) beats rules (${intent}:${confidence})`);
+          intent = ollamaResult.intent;
+          confidence = ollamaResult.confidence;
+          label = ollamaResult.label;
+          provider = "ollama";
+        } else {
+          console.log(`[Ollama Fallback] Rules result kept (${intent}:${confidence})`);
+        }
+      }
     }
 
     // ---- CONFIDENCE THRESHOLD: ask for clarification if too low ----
@@ -4125,6 +4322,7 @@ serve(async (req) => {
       entities,
       html,
       logId: newLogId,
+      provider,
     };
 
     if (dbTablesCreated.length > 0) {
