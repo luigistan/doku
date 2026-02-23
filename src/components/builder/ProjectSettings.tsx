@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle } from "lucide-react";
+import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle, Database, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { checkSlugAvailable } from "@/services/projectService";
+import { checkSlugAvailable, enableProjectDb, getAppTables, createAppTable, deleteAppTable, type AppTable } from "@/services/projectService";
 
 interface ProjectSettingsProps {
   open: boolean;
@@ -10,9 +10,11 @@ interface ProjectSettingsProps {
   projectId?: string;
   slug: string | null;
   isPublic: boolean;
+  dbEnabled?: boolean;
   onUpdateName: (name: string) => void;
   onUpdateSlug: (slug: string) => void;
   onTogglePublic: (isPublic: boolean) => void;
+  onDbEnabledChange?: (enabled: boolean) => void;
   onDelete: () => void;
 }
 
@@ -27,14 +29,18 @@ function sanitizeSlug(input: string): string {
 }
 
 export function ProjectSettings({
-  open, onClose, projectName, projectId, slug, isPublic,
-  onUpdateName, onUpdateSlug, onTogglePublic, onDelete,
+  open, onClose, projectName, projectId, slug, isPublic, dbEnabled = false,
+  onUpdateName, onUpdateSlug, onTogglePublic, onDbEnabledChange, onDelete,
 }: ProjectSettingsProps) {
   const [name, setName] = useState(projectName);
   const [slugInput, setSlugInput] = useState(slug || "");
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tables, setTables] = useState<AppTable[]>([]);
+  const [loadingDb, setLoadingDb] = useState(false);
+  const [newTableName, setNewTableName] = useState("");
+  const [creatingTable, setCreatingTable] = useState(false);
 
   useEffect(() => {
     setName(projectName);
@@ -53,7 +59,42 @@ export function ProjectSettings({
     return () => clearTimeout(t);
   }, [slugInput, checkSlug]);
 
+  // Load tables when db is enabled
+  useEffect(() => {
+    if (!open || !dbEnabled || !projectId) return;
+    setLoadingDb(true);
+    getAppTables(projectId).then(setTables).catch(console.error).finally(() => setLoadingDb(false));
+  }, [open, dbEnabled, projectId]);
+
   if (!open) return null;
+
+  const handleEnableDb = async () => {
+    if (!projectId) return;
+    setLoadingDb(true);
+    try {
+      await enableProjectDb(projectId);
+      onDbEnabledChange?.(true);
+    } catch (e) { console.error(e); }
+    finally { setLoadingDb(false); }
+  };
+
+  const handleCreateTable = async () => {
+    if (!projectId || !newTableName.trim()) return;
+    setCreatingTable(true);
+    try {
+      const t = await createAppTable(projectId, newTableName.trim());
+      setTables(prev => [...prev, t]);
+      setNewTableName("");
+    } catch (e) { console.error(e); }
+    finally { setCreatingTable(false); }
+  };
+
+  const handleDeleteTable = async (tableId: string) => {
+    try {
+      await deleteAppTable(tableId);
+      setTables(prev => prev.filter(t => t.id !== tableId));
+    } catch (e) { console.error(e); }
+  };
 
   const publicUrl = slugInput ? `https://www.doku.red/p/${slugInput}` : `https://www.doku.red/preview/${projectId}`;
 
@@ -162,6 +203,67 @@ export function ProjectSettings({
                 <button onClick={handleCopy} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground transition-colors">
                   {copied ? <Check className="h-3.5 w-3.5 text-execute" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* Database */}
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Base de Datos</label>
+            {!dbEnabled ? (
+              <button
+                onClick={handleEnableDb}
+                disabled={loadingDb}
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3 transition-colors hover:bg-surface-2/80"
+              >
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-medium text-foreground">Activar Base de Datos</div>
+                  <div className="text-xs text-muted-foreground">Gestiona datos de tu proyecto con tablas dinámicas</div>
+                </div>
+                {loadingDb && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-lg border border-execute/40 bg-execute/10 px-3 py-2">
+                  <Database className="h-4 w-4 text-execute" />
+                  <span className="text-xs font-medium text-execute">Base de datos activa</span>
+                </div>
+
+                {loadingDb ? (
+                  <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <>
+                    {tables.length > 0 && (
+                      <div className="space-y-1">
+                        {tables.map(t => (
+                          <div key={t.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                            <span className="text-sm text-foreground font-mono">{t.name}</span>
+                            <button onClick={() => handleDeleteTable(t.id)} className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        value={newTableName}
+                        onChange={e => setNewTableName(e.target.value)}
+                        placeholder="Nombre de tabla"
+                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-brain/60"
+                        onKeyDown={e => e.key === "Enter" && handleCreateTable()}
+                      />
+                      <button
+                        onClick={handleCreateTable}
+                        disabled={creatingTable || !newTableName.trim()}
+                        className="rounded-lg bg-brain px-3 py-2 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors disabled:opacity-50"
+                      >
+                        {creatingTable ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

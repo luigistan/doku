@@ -47,6 +47,108 @@ export type Database = {
         }
         Relationships: []
       }
+      app_columns: {
+        Row: {
+          column_type: string
+          created_at: string
+          default_value: string | null
+          id: string
+          is_required: boolean
+          name: string
+          position: number
+          table_id: string
+        }
+        Insert: {
+          column_type?: string
+          created_at?: string
+          default_value?: string | null
+          id?: string
+          is_required?: boolean
+          name: string
+          position?: number
+          table_id: string
+        }
+        Update: {
+          column_type?: string
+          created_at?: string
+          default_value?: string | null
+          id?: string
+          is_required?: boolean
+          name?: string
+          position?: number
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_columns_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "app_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_rows: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_rows_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "app_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_tables: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_tables_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
@@ -144,6 +246,7 @@ export type Database = {
       projects: {
         Row: {
           created_at: string
+          db_enabled: boolean
           description: string | null
           entities: Json | null
           html: string | null
@@ -158,6 +261,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          db_enabled?: boolean
           description?: string | null
           entities?: Json | null
           html?: string | null
@@ -172,6 +276,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          db_enabled?: boolean
           description?: string | null
           entities?: Json | null
           html?: string | null
