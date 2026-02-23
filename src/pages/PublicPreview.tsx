@@ -84,12 +84,90 @@ const PublicPreview = () => {
     );
   }
 
+  // Inject navigation guard for public preview
+  const guardedHtml = (() => {
+    if (!html || html.length < 50) return html;
+    const guard = `<script>
+(function() {
+  function sanitizeLink(a) {
+    var href = a.getAttribute('href');
+    if (!href) return;
+    if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) return;
+    a.setAttribute('data-original-href', href);
+    if (href.startsWith('/') && href.length > 1) {
+      a.setAttribute('href', '#' + href.substring(1).replace(/\\//g, '-'));
+    } else {
+      a.setAttribute('href', '#');
+    }
+  }
+  function sanitizeAll() { document.querySelectorAll('a[href]').forEach(sanitizeLink); }
+  sanitizeAll();
+  var obs = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(n) {
+        if (n.nodeType === 1) {
+          if (n.tagName === 'A') sanitizeLink(n);
+          if (n.querySelectorAll) n.querySelectorAll('a[href]').forEach(sanitizeLink);
+        }
+      });
+      if (m.type === 'attributes' && m.target.tagName === 'A') sanitizeLink(m.target);
+    });
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
+
+  document.addEventListener('click', function(e) {
+    var path = e.composedPath ? e.composedPath() : [];
+    var a = null;
+    for (var i = 0; i < path.length; i++) {
+      if (path[i].tagName === 'A') { a = path[i]; break; }
+    }
+    if (!a) a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href');
+    if (!href) return;
+    if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (href === '#') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      var targetId = href.substring(1);
+      var el = document.getElementById(targetId);
+      if (!el) {
+        var secs = document.querySelectorAll('section, div[id], h1, h2, h3');
+        for (var j = 0; j < secs.length; j++) {
+          var t = (secs[j].id || secs[j].textContent || '').toLowerCase();
+          if (t.indexOf(targetId.toLowerCase()) !== -1) { el = secs[j]; break; }
+        }
+      }
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  window.open = function() { return null; };
+  history.pushState = function() { return undefined; };
+  history.replaceState = function() { return undefined; };
+  var _origHref = window.location.href;
+  setInterval(function() {
+    if (window.location.href !== _origHref) {
+      try { window.location.replace(_origHref); } catch(e) {}
+    }
+  }, 100);
+})();
+</script>`;
+    if (html.includes('</head>')) return html.replace('</head>', guard + '</head>');
+    if (html.includes('<body')) return html.replace(/<body([^>]*)>/, '<body$1>' + guard);
+    return guard + html;
+  })();
+
   return (
     <iframe
-      srcDoc={html}
+      srcDoc={guardedHtml}
       className="h-screen w-screen border-0"
       title="Public Preview"
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms"
     />
   );
 };

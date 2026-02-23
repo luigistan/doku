@@ -69,18 +69,89 @@ function injectNavigationGuard(html: string, projectId?: string): string {
   const guard = `<script>
 // Navigation guard + DOKU CRUD SDK
 (function() {
-  // Block link clicks (allow hash, mailto, tel only)
+  // === 1. Sanitize all links via MutationObserver ===
+  function sanitizeLink(a) {
+    var href = a.getAttribute('href');
+    if (!href) return;
+    if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) return;
+    a.setAttribute('data-original-href', href);
+    // Convert path-like hrefs to hash for smooth scroll
+    if (href.startsWith('/') && href.length > 1) {
+      a.setAttribute('href', '#' + href.substring(1).replace(/\\//g, '-'));
+    } else {
+      a.setAttribute('href', '#');
+    }
+  }
+  function sanitizeAll() {
+    document.querySelectorAll('a[href]').forEach(sanitizeLink);
+  }
+  sanitizeAll();
+  var obs = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(n) {
+        if (n.nodeType === 1) {
+          if (n.tagName === 'A') sanitizeLink(n);
+          if (n.querySelectorAll) n.querySelectorAll('a[href]').forEach(sanitizeLink);
+        }
+      });
+      if (m.type === 'attributes' && m.target.tagName === 'A') sanitizeLink(m.target);
+    });
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
+
+  // === 2. Robust click handler using composedPath ===
   document.addEventListener('click', function(e) {
-    var a = e.target.closest ? e.target.closest('a') : null;
+    var path = e.composedPath ? e.composedPath() : [];
+    var a = null;
+    for (var i = 0; i < path.length; i++) {
+      if (path[i].tagName === 'A') { a = path[i]; break; }
+    }
+    if (!a) {
+      a = e.target.closest ? e.target.closest('a') : null;
+    }
     if (!a) return;
     var href = a.getAttribute('href');
     if (!href) return;
-    if (href.startsWith('#')) return;
     if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
-    if (href.startsWith('javascript:')) return;
+    if (href.startsWith('#')) {
+      // Smooth scroll to section
+      e.preventDefault();
+      e.stopPropagation();
+      if (href === '#') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      var targetId = href.substring(1);
+      var el = document.getElementById(targetId);
+      if (!el) {
+        // Try finding section by text content
+        var secs = document.querySelectorAll('section, div[id], h1, h2, h3');
+        for (var j = 0; j < secs.length; j++) {
+          var t = (secs[j].id || secs[j].textContent || '').toLowerCase();
+          if (t.indexOf(targetId.toLowerCase()) !== -1) { el = secs[j]; break; }
+        }
+      }
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    // Block everything else
     e.preventDefault();
     e.stopPropagation();
   }, true);
+
+  // === 3. Block programmatic navigation ===
+  window.open = function() { return null; };
+  history.pushState = function() { return undefined; };
+  history.replaceState = function() { return undefined; };
+
+  // Block location changes via setInterval fallback
+  var _origHref = window.location.href;
+  setInterval(function() {
+    if (window.location.href !== _origHref) {
+      try { window.location.replace(_origHref); } catch(e) {}
+    }
+  }, 100);
+
+  try {
+    Object.defineProperty(window, '__doku_nav_blocked', { value: true });
+  } catch(err) {}
 
   // ===== DOKU CRUD SDK =====
   var DOKU_PROJECT_ID = ${projectId ? JSON.stringify(projectId) : 'null'};
@@ -101,10 +172,8 @@ function injectNavigationGuard(html: string, projectId?: string): string {
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (!form || form.tagName !== 'FORM') return;
-    // Allow auth forms
     if (form.hasAttribute('data-real-submit')) return;
 
-    // Forms with data-doku-table -> save to database
     if (form.hasAttribute('data-doku-table')) {
       e.preventDefault();
       var tableName = form.getAttribute('data-doku-table');
@@ -142,7 +211,7 @@ function injectNavigationGuard(html: string, projectId?: string): string {
       return;
     }
 
-    // Forms WITHOUT data-doku-table -> simulate success (original behavior)
+    // Forms WITHOUT data-doku-table -> simulate success
     e.preventDefault();
     var btn2 = form.querySelector('button[type="submit"], button:not([type])');
     if (btn2) {
@@ -158,23 +227,6 @@ function injectNavigationGuard(html: string, projectId?: string): string {
       }, 2500);
     }
   });
-
-  // Override window.open
-  window.open = function() { return null; };
-
-  // Override history methods
-  history.pushState = function() { return undefined; };
-  history.replaceState = function() { return undefined; };
-
-  // Block programmatic location changes
-  window.addEventListener('beforeunload', function(e) {
-    e.preventDefault();
-    e.returnValue = '';
-  });
-
-  try {
-    Object.defineProperty(window, '__doku_nav_blocked', { value: true });
-  } catch(err) {}
 })();
 </script>`;
   // Inject before </head> or at the start of <body>
