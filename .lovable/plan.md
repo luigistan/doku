@@ -1,78 +1,62 @@
 
-# Plan: Corregir Endpoints de Ollama API
 
-## Problema
+# Plan: Corregir Ollama API - Eliminar servidor muerto y sanitizar modelo
 
-Los logs muestran que Ollama falla en todos los endpoints:
-- `https://api.ollama.com/v1/chat/completions` -> **401 unauthorized** (dominio incorrecto)
-- `https://ollama.com/api/chat` -> **404 model 'llama3.1:8b' not found** (modelo no existe en la nube)
-- `https://ollama-doku.onrender.com` -> tambien fallo
+## Problemas identificados en los logs
 
-## Causa Raiz
+1. **Modelo `llama3.1:8b` sigue enviandose** desde el localStorage del frontend como `modelOverride`, y los endpoints de Ollama Cloud devuelven `404 model not found`
+2. **`LLM_BASE_URL` apunta a `ollama-doku.onrender.com`** que ya no existe - causa intentos innecesarios que siempre fallan con 404
+3. **No hay sanitizacion del modelo** recibido del frontend
 
-Segun la documentacion oficial de Ollama:
+## Cambios propuestos
 
-1. **El dominio `api.ollama.com` no existe.** El correcto es `ollama.com`
-2. **La ruta OpenAI-compatible es `/v1/chat/completions`** (no bajo `api.ollama.com`)
-3. **La ruta nativa de Ollama es `/api/chat`** (esta correcta pero el modelo `llama3.1:8b` no existe en la nube de Ollama)
+### Archivo: `supabase/functions/builder-ai/index.ts`
 
-### Endpoints correctos segun documentacion oficial:
-- **Nativo Ollama Cloud:** `https://ollama.com/api/chat`
-- **OpenAI-compatible Cloud:** `https://ollama.com/v1/chat/completions`
+#### 1. Sanitizar modelo recibido (linea 998)
 
-## Cambios en `supabase/functions/builder-ai/index.ts`
+Agregar normalizacion del modelo antes de usarlo. Si el modelo tiene un tag de version como `:8b`, `:70b`, etc., quitarlo porque Ollama Cloud no los soporta:
 
-### 1. Corregir array de endpoints (lineas 989-992)
-
-Cambiar de:
-```text
-{ url: "https://api.ollama.com/v1/chat/completions", format: "openai" },
-{ url: "https://ollama.com/api/chat", format: "ollama" },
+```typescript
+let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
+// Ollama Cloud no soporta tags de version como :8b, :70b - usar modelo base
+if (selectedModel.includes(":")) {
+  const baseModel = selectedModel.split(":")[0];
+  console.log(`[Ollama] Normalizing model "${selectedModel}" -> "${baseModel}"`);
+  selectedModel = baseModel;
+}
 ```
 
-A:
-```text
-{ url: "https://ollama.com/v1/chat/completions", format: "openai" },
-{ url: "https://ollama.com/api/chat", format: "ollama" },
-```
+#### 2. Eliminar bloque de `LLM_BASE_URL` (lineas 1079-1153)
 
-### 2. Corregir modelo por defecto (linea 998)
+Eliminar completamente el bloque que intenta conectarse al `LLM_BASE_URL` custom (el servidor de Render que ya no existe). La conexion a Ollama es solo por API Cloud con los endpoints oficiales `ollama.com`.
 
-El modelo por defecto debe ser `llama3` (sin version especifica) ya que `llama3.1:8b` no esta disponible en Ollama Cloud:
+Si en el futuro se necesita un servidor self-hosted, se puede re-agregar. Pero ahora solo genera errores y retrasos.
 
-```text
-const selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
-```
+#### 3. Tambien sanitizar el modelo en el bloque principal (linea 998)
 
-Esto ya esta correcto en el codigo, pero el usuario puede haber configurado `llama3.1:8b` en los secrets `LLM_MODEL` o en el UI de ProjectSettings. Se debe verificar que el default en ProjectSettings tambien sea `llama3`.
+Aplicar la misma normalizacion en la linea donde se define `selectedModel` dentro del loop de endpoints.
 
-### 3. Corregir ruta del LLM_BASE_URL custom (linea 1084)
+### Archivo: `src/components/builder/ProjectSettings.tsx`
 
-Actualmente hace:
-```text
-fetch(`${llmBaseUrl}/chat/completions`, ...)
-```
+Verificar que el modelo por defecto sea `llama3` y agregar una nota indicando que no se deben usar tags de version (`:8b`, `:70b`).
 
-Si `LLM_BASE_URL` es algo como `https://ollama-doku.onrender.com`, la ruta correcta depende del formato:
-- Para OpenAI-compatible: `${llmBaseUrl}/v1/chat/completions`
-- Para nativo Ollama: `${llmBaseUrl}/api/chat`
+### Deploy
 
-Cambiar para intentar ambos formatos con el `LLM_BASE_URL` custom, primero OpenAI-compatible y luego nativo.
+Redesplegar edge function `builder-ai` despues de los cambios.
 
-### 4. Verificar modelo en ProjectSettings
+## Seccion tecnica
 
-En `src/components/builder/ProjectSettings.tsx`, el default del modelo ya es `llama3`. Solo confirmar que no haya referencia a `llama3.1:8b`.
-
-## Resumen de cambios
-
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/builder-ai/index.ts` | Corregir URL de `api.ollama.com` a `ollama.com`, mejorar fallback de LLM_BASE_URL con ambas rutas |
-| Deploy | Redesplegar edge function |
+| Archivo | Lineas | Cambio |
+|---------|--------|--------|
+| `supabase/functions/builder-ai/index.ts` | 998 | Agregar sanitizacion de modelo (quitar `:8b` etc.) |
+| `supabase/functions/builder-ai/index.ts` | 1079-1153 | Eliminar bloque completo de `LLM_BASE_URL` / servidor custom |
+| `src/components/builder/ProjectSettings.tsx` | - | Verificar default `llama3` |
+| Deploy | - | Redesplegar `builder-ai` |
 
 ## Resultado esperado
 
-- El endpoint OpenAI-compatible (`ollama.com/v1/chat/completions`) responde correctamente con el API key
-- Si falla, el nativo (`ollama.com/api/chat`) actua como segundo intento
-- Si ambos fallan, el `LLM_BASE_URL` custom intenta con las rutas correctas
-- El modelo por defecto es `llama3` que si existe en Ollama Cloud
+- Ollama Cloud recibe `llama3` o `llama3.1` (sin `:8b`) y responde correctamente
+- No se intenta conectar al servidor muerto de Render
+- Menos latencia al eliminar intentos fallidos innecesarios
+- Los endpoints correctos `ollama.com/v1/chat/completions` y `ollama.com/api/chat` funcionan con el modelo normalizado
+
