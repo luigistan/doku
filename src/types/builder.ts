@@ -49,6 +49,12 @@ export type ViewportSize = "desktop" | "tablet" | "mobile";
 
 export type AIProvider = "rules" | "ollama";
 
+export interface OllamaConfig {
+  enabled: boolean;
+  model: string;
+  confidenceThreshold: number;
+}
+
 export interface PreviewState {
   html: string;
   status: "idle" | "loading" | "updating" | "ready" | "error";
