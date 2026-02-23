@@ -16,6 +16,7 @@ export interface BuilderResponse {
   html: string;
   logId?: string;
   conversationalResponse?: string;
+  dbTablesCreated?: string[];
 }
 
 export async function generateSite(

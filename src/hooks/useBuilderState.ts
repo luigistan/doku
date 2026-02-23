@@ -202,8 +202,23 @@ export function useBuilderState(projectId?: string) {
         }
 
         pendingResult.current = result;
+
+        // Show DB tables created message if applicable
+        if (result.dbTablesCreated && result.dbTablesCreated.length > 0) {
+          window.dispatchEvent(new CustomEvent("doku:db-enabled"));
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 2).toString(),
+              role: "system",
+              content: `🗄️ **Base de datos configurada automáticamente**\n\nSe crearon ${result.dbTablesCreated!.length} tablas para tu proyecto: **${result.dbTablesCreated!.join(", ")}**\n\nPuedes verlas y editarlas en ⚙️ Configuración > Base de Datos.`,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+
         const analysisMsg: Message = {
-          id: (Date.now() + 1).toString(),
+          id: (Date.now() + 3).toString(),
           role: "system",
           content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Ejecuto o tienes aclaraciones adicionales?`,
           timestamp: new Date(),
