@@ -243,7 +243,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
             srcDoc={injectNavigationGuard(preview.html)}
             className="h-full w-full border-0"
             title="Preview"
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
           />
         </div>
 
