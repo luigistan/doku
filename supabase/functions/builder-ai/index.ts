@@ -37,6 +37,81 @@ function fuzzyMatch(word: string, target: string, maxDist = 2): boolean {
   return levenshtein(word, target) <= maxDist;
 }
 
+// Normalized similarity (0-1, higher = more similar)
+function stringSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+// ==================== VERB-INTENT MAPPING ====================
+// Action verbs strongly indicate what the user wants to DO
+const verbIntentMap: Record<string, string[]> = {
+  // Commerce verbs
+  vender: ["ecommerce"], comprar: ["ecommerce"], comercializar: ["ecommerce"],
+  ofrecer: ["ecommerce", "landing"], promocionar: ["landing", "agency"],
+  // Food verbs
+  cocinar: ["restaurant"], servir: ["restaurant"], reservar: ["restaurant", "hotel"],
+  // Creative verbs
+  mostrar: ["portfolio", "gallery"], exhibir: ["portfolio", "gallery"],
+  fotografiar: ["photography"], capturar: ["photography"],
+  disenar: ["agency", "portfolio"], grabar: ["music"],
+  // Professional verbs
+  defender: ["lawyer"], litigar: ["lawyer"], demandar: ["lawyer"],
+  diagnosticar: ["clinic"], operar: ["clinic"], curar: ["clinic", "veterinary"],
+  contar: ["accounting"], facturar: ["accounting"], auditar: ["accounting"],
+  ensenar: ["education"], capacitar: ["education"], formar: ["education"],
+  entrenar: ["fitness"], ejercitar: ["fitness"],
+  hospedar: ["hotel"], alojar: ["hotel"],
+  cortar: ["salon"], peinar: ["salon"], maquillar: ["salon"],
+  programar: ["technology"], desarrollar: ["technology", "agency"],
+  // Generic intent verbs
+  publicar: ["blog"], escribir: ["blog"],
+  administrar: ["dashboard"], gestionar: ["dashboard"],
+};
+
+// ==================== PHRASE PATTERN MATCHING ====================
+// Common sentence patterns that strongly indicate intent
+const phrasePatterns: { pattern: RegExp; intent: string; boost: number }[] = [
+  // Commerce patterns
+  { pattern: /(?:quiero|necesito|deseo)\s+vender/i, intent: "ecommerce", boost: 5 },
+  { pattern: /tienda\s+(?:de|para|en\s+linea|online|virtual)/i, intent: "ecommerce", boost: 5 },
+  { pattern: /(?:venta|ventas)\s+(?:de|en\s+linea|online)/i, intent: "ecommerce", boost: 4 },
+  { pattern: /(?:carrito|checkout|catalogo)\s+(?:de\s+)?(?:compras|productos)/i, intent: "ecommerce", boost: 5 },
+  // Restaurant patterns
+  { pattern: /(?:menu|carta)\s+(?:de\s+)?(?:comida|platillos|bebidas)/i, intent: "restaurant", boost: 5 },
+  { pattern: /(?:restaurante|cafeteria|cafe|comedor|taqueria|pizzeria)/i, intent: "restaurant", boost: 4 },
+  { pattern: /(?:reserv(?:ar|acion))\s+(?:de\s+)?mesa/i, intent: "restaurant", boost: 5 },
+  // Portfolio patterns
+  { pattern: /(?:mostrar|exhibir)\s+(?:mis|mi)\s+(?:trabajos|proyectos|portfolio|obra)/i, intent: "portfolio", boost: 5 },
+  { pattern: /(?:hoja\s+de\s+vida|curriculum|cv)/i, intent: "portfolio", boost: 4 },
+  // Professional patterns
+  { pattern: /(?:consultorio|clinica|centro)\s+(?:medico|dental|salud)/i, intent: "clinic", boost: 5 },
+  { pattern: /(?:bufete|despacho|firma)\s+(?:legal|juridic|abogad)/i, intent: "lawyer", boost: 5 },
+  { pattern: /(?:despacho|oficina)\s+(?:contable|fiscal|contadur)/i, intent: "accounting", boost: 5 },
+  { pattern: /(?:salon|centro)\s+(?:de\s+)?(?:belleza|estetica)/i, intent: "salon", boost: 5 },
+  { pattern: /(?:peluqueria|barberia|barber\s*shop)/i, intent: "salon", boost: 5 },
+  { pattern: /(?:estudio)\s+(?:de\s+)?(?:fotografia|foto)/i, intent: "photography", boost: 5 },
+  { pattern: /(?:estudio)\s+(?:de\s+)?(?:grabacion|musica)/i, intent: "music", boost: 5 },
+  { pattern: /(?:empresa|startup)\s+(?:de\s+)?(?:tecnologia|software|tech)/i, intent: "technology", boost: 5 },
+  // Education patterns
+  { pattern: /(?:academia|escuela|cursos|instituto)\s+(?:de|para|online)/i, intent: "education", boost: 4 },
+  // Real estate patterns
+  { pattern: /(?:bienes\s+raices|inmobiliaria|inmuebles)/i, intent: "realestate", boost: 5 },
+  { pattern: /(?:venta|renta|alquiler)\s+(?:de\s+)?(?:casas|departamentos|propiedades)/i, intent: "realestate", boost: 5 },
+  // Hotel patterns
+  { pattern: /(?:hotel|hostal|hospedaje|airbnb|resort|posada)/i, intent: "hotel", boost: 4 },
+  // Fitness patterns
+  { pattern: /(?:gimnasio|gym|crossfit|box\s+de\s+crossfit)/i, intent: "fitness", boost: 4 },
+  // Dashboard / Blog / Agency
+  { pattern: /(?:panel|dashboard)\s+(?:de\s+)?(?:control|admin)/i, intent: "dashboard", boost: 5 },
+  { pattern: /(?:blog|revista|magazine)\s+(?:personal|profesional|digital)/i, intent: "blog", boost: 4 },
+  { pattern: /(?:agencia)\s+(?:de\s+)?(?:marketing|digital|publicidad|diseno|creativa)/i, intent: "agency", boost: 5 },
+  // Veterinary
+  { pattern: /(?:veterinaria|clinica\s+veterinaria|pet\s*shop)/i, intent: "veterinary", boost: 5 },
+];
+
 // ==================== TOKENIZER ====================
 function tokenize(text: string): string[] {
   const normalized = text
@@ -197,12 +272,13 @@ function expandSynonyms(tokens: string[]): string[] {
   return tokens.map(t => synonymMap[t] || t);
 }
 
-// ==================== FEW-SHOT LEARNING FROM DB ====================
+// ==================== FEW-SHOT LEARNING FROM DB (Enhanced) ====================
 interface LearningLog {
   user_message: string;
   detected_intent: string;
   detected_entities: Record<string, unknown>;
   confidence: number;
+  created_at: string;
 }
 
 async function queryLearningPatterns(): Promise<LearningLog[]> {
@@ -210,10 +286,10 @@ async function queryLearningPatterns(): Promise<LearningLog[]> {
     const sb = getSupabaseClient();
     const { data, error } = await sb
       .from("ai_learning_logs")
-      .select("user_message, detected_intent, detected_entities, confidence")
+      .select("user_message, detected_intent, detected_entities, confidence, created_at")
       .eq("user_accepted", true)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
     if (error) throw error;
     return (data || []) as LearningLog[];
   } catch {
@@ -221,25 +297,43 @@ async function queryLearningPatterns(): Promise<LearningLog[]> {
   }
 }
 
-function matchFromLearning(tokens: string[], patterns: LearningLog[]): IntentMatch | null {
+// Auto-expand keywords from learning logs - builds dynamic synonym map
+function buildDynamicKeywords(patterns: LearningLog[]): Map<string, Map<string, number>> {
+  // Maps intent -> (token -> frequency)
+  const intentTokenFreq = new Map<string, Map<string, number>>();
+
+  for (const p of patterns) {
+    const tokens = tokenize(p.user_message);
+    if (!intentTokenFreq.has(p.detected_intent)) {
+      intentTokenFreq.set(p.detected_intent, new Map());
+    }
+    const freqMap = intentTokenFreq.get(p.detected_intent)!;
+    for (const t of tokens) {
+      freqMap.set(t, (freqMap.get(t) || 0) + 1);
+    }
+  }
+
+  return intentTokenFreq;
+}
+
+function matchFromLearning(tokens: string[], originalText: string, patterns: LearningLog[]): IntentMatch | null {
   if (patterns.length === 0) return null;
-  const inputStr = tokens.join(" ");
 
   let bestMatch: LearningLog | null = null;
-  let bestSimilarity = 0;
+  let bestScore = 0;
+  const now = Date.now();
 
   for (const pattern of patterns) {
     const patTokens = tokenize(pattern.user_message);
-    const patStr = patTokens.join(" ");
 
-    // Check token overlap (Jaccard similarity)
+    // 1. Token overlap (Jaccard similarity)
     const inputSet = new Set(tokens);
     const patSet = new Set(patTokens);
     const intersection = new Set([...inputSet].filter(x => patSet.has(x)));
     const union = new Set([...inputSet, ...patSet]);
     const jaccard = union.size > 0 ? intersection.size / union.size : 0;
 
-    // Also check fuzzy token matching
+    // 2. Fuzzy token matching
     let fuzzyMatches = 0;
     for (const t of tokens) {
       for (const p of patTokens) {
@@ -251,10 +345,23 @@ function matchFromLearning(tokens: string[], patterns: LearningLog[]): IntentMat
     }
     const fuzzyScore = tokens.length > 0 ? fuzzyMatches / tokens.length : 0;
 
-    const similarity = Math.max(jaccard, fuzzyScore);
+    // 3. Full string similarity
+    const fullSim = stringSimilarity(
+      tokens.join(" "),
+      patTokens.join(" ")
+    );
 
-    if (similarity > bestSimilarity && similarity > 0.5) {
-      bestSimilarity = similarity;
+    // 4. Temporal decay - recent patterns get higher weight
+    const ageMs = now - new Date(pattern.created_at).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    const recencyBoost = Math.max(0.5, 1 - ageDays / 60); // Decay over 60 days, min 0.5
+
+    // Combine signals
+    const rawScore = Math.max(jaccard, fuzzyScore, fullSim * 0.9);
+    const finalScore = rawScore * recencyBoost;
+
+    if (finalScore > bestScore && finalScore > 0.4) {
+      bestScore = finalScore;
       bestMatch = pattern;
     }
   }
@@ -262,41 +369,57 @@ function matchFromLearning(tokens: string[], patterns: LearningLog[]): IntentMat
   if (bestMatch) {
     return {
       intent: bestMatch.detected_intent,
-      confidence: Math.min(bestSimilarity * 1.2, 1),
+      confidence: Math.min(bestScore * 1.15, 0.99),
       label: intentMap[bestMatch.detected_intent]?.label || "Sitio Web",
     };
   }
   return null;
 }
 
-// ==================== ENHANCED CLASSIFIER ====================
-function classifyIntent(tokens: string[], patterns: LearningLog[]): IntentMatch {
-  // 1. Try few-shot learning first
-  const learned = matchFromLearning(tokens, patterns);
-  if (learned && learned.confidence > 0.7) return learned;
+// ==================== ENHANCED CLASSIFIER (Multi-Signal Fusion) ====================
+function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[]): IntentMatch {
+  const scores: Record<string, number> = {};
 
-  // 2. Expand synonyms
+  // Initialize all intents
+  for (const intent of Object.keys(intentMap)) {
+    scores[intent] = 0;
+  }
+
+  // ---- SIGNAL 1: Phrase pattern matching (highest priority) ----
+  const normalizedText = originalText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  for (const { pattern, intent, boost } of phrasePatterns) {
+    if (pattern.test(normalizedText)) {
+      scores[intent] = (scores[intent] || 0) + boost;
+    }
+  }
+
+  // ---- SIGNAL 2: Verb-intent mapping ----
+  for (const token of tokens) {
+    for (const [verb, intents] of Object.entries(verbIntentMap)) {
+      if (fuzzyMatch(token, verb, 1)) {
+        for (const intent of intents) {
+          scores[intent] = (scores[intent] || 0) + 2.5;
+        }
+      }
+    }
+  }
+
+  // ---- SIGNAL 3: Keyword matching (exact + fuzzy) ----
   const expanded = expandSynonyms(tokens);
   const bigrams = getBigrams(expanded);
-  const tokenStr = expanded.join(" ");
-
-  let bestIntent = "landing";
-  let bestScore = 0;
 
   for (const [intent, { keywords, bigrams: intentBigrams }] of Object.entries(intentMap)) {
-    let score = 0;
-
     // Exact keyword match
     for (const kw of keywords) {
-      if (expanded.includes(kw)) score += 3;
-      else if (tokenStr.includes(kw)) score += 2;
+      if (expanded.includes(kw)) scores[intent] += 3;
+      else if (normalizedText.includes(kw) && kw.length > 3) scores[intent] += 2;
     }
 
     // Fuzzy keyword match (Levenshtein)
     for (const token of expanded) {
       for (const kw of keywords) {
         if (token !== kw && fuzzyMatch(token, kw, 2)) {
-          score += 1.5;
+          scores[intent] += 1.5;
           break;
         }
       }
@@ -304,32 +427,69 @@ function classifyIntent(tokens: string[], patterns: LearningLog[]): IntentMatch 
 
     // Bigram match
     for (const bg of intentBigrams || []) {
-      if (bigrams.includes(bg)) score += 4;
-      else if (tokenStr.includes(bg.replace(" ", ""))) score += 2;
+      if (bigrams.includes(bg)) scores[intent] += 4;
+      else if (normalizedText.includes(bg)) scores[intent] += 3;
     }
 
-    // Substring match in original text
+    // Substring match
     for (const kw of keywords) {
-      if (kw.length > 3 && tokenStr.includes(kw.substring(0, kw.length - 1))) {
-        score += 0.5;
+      if (kw.length > 4 && normalizedText.includes(kw.substring(0, kw.length - 1))) {
+        scores[intent] += 0.5;
       }
     }
+  }
 
+  // ---- SIGNAL 4: Dynamic keywords from learning logs ----
+  const dynamicKW = buildDynamicKeywords(patterns);
+  for (const [intent, freqMap] of dynamicKW) {
+    for (const token of expanded) {
+      const freq = freqMap.get(token);
+      if (freq) {
+        // Learned keywords get weight proportional to how often they appeared
+        scores[intent] = (scores[intent] || 0) + Math.min(freq * 0.5, 2);
+      }
+      // Also fuzzy match against learned tokens
+      for (const [learnedToken, f] of freqMap) {
+        if (token !== learnedToken && fuzzyMatch(token, learnedToken, 1)) {
+          scores[intent] = (scores[intent] || 0) + Math.min(f * 0.3, 1);
+        }
+      }
+    }
+  }
+
+  // ---- SIGNAL 5: Few-shot learning from DB ----
+  const learned = matchFromLearning(tokens, originalText, patterns);
+  if (learned && learned.confidence > 0.6) {
+    // Boost the learned intent's score significantly
+    scores[learned.intent] = (scores[learned.intent] || 0) + learned.confidence * 8;
+  }
+
+  // Find best scoring intent
+  let bestIntent = "landing";
+  let bestScore = 0;
+  for (const [intent, score] of Object.entries(scores)) {
     if (score > bestScore) {
       bestScore = score;
       bestIntent = intent;
     }
   }
 
-  // If learned match exists but was below threshold, still prefer it over very low keyword match
-  if (learned && bestScore < 2) return learned;
+  // If learned match has very high confidence and keyword score is low, prefer learned
+  if (learned && learned.confidence > 0.7 && bestScore < 3) {
+    return learned;
+  }
 
-  const maxPossible = 15;
-  const confidence = Math.min(bestScore / maxPossible, 1);
+  // Calibrate confidence based on score distribution
+  const sortedScores = Object.values(scores).sort((a, b) => b - a);
+  const gap = sortedScores.length > 1 ? sortedScores[0] - sortedScores[1] : sortedScores[0];
+  // Confidence is higher when: (a) absolute score is high, (b) gap between top two is large
+  const absConfidence = Math.min(bestScore / 12, 1);
+  const gapConfidence = Math.min(gap / 6, 1);
+  const confidence = Math.round(Math.min((absConfidence * 0.6 + gapConfidence * 0.4) * 1.1, 1) * 100) / 100;
 
   return {
     intent: bestIntent,
-    confidence: Math.round(confidence * 100) / 100,
+    confidence: Math.max(confidence, 0.1),
     label: intentMap[bestIntent]?.label || "Landing Page",
   };
 }
@@ -416,15 +576,27 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
 
   let businessName = "";
   const namePatterns = [
-    /(?:llamad[oa]|se llama|nombre(?:s)?)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,25}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
-    /(?:para|de)\s+(?:mi\s+)?(?:negocio|empresa|tienda|restaurante|cafeter[ií]a|caf[eé]|gym|gimnasio|agencia|estudio|salon|barberia|peluqueria|hotel|bufete|consultorio|clinica|veterinaria|academia)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,25}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
+    // "se llama X", "llamado X"
+    /(?:llamad[oa]|se llama|nombre(?:s)?)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
+    // "para mi restaurante X con..."
+    /(?:para|de)\s+(?:mi\s+)?(?:negocio|empresa|tienda|restaurante|cafeter[ií]a|caf[eé]|gym|gimnasio|agencia|estudio|salon|barberia|peluqueria|hotel|bufete|consultorio|clinica|veterinaria|academia|barveria|restorante)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
+    // Quoted names
     /["']([^"']{2,30})["']/,
+    // "comida mexicana La Tlayuda" — capitalized words after industry keywords
+    /(?:restaurante|cafeteria|tienda|gym|gimnasio|hotel|salon|barberia|peluqueria|agencia|estudio|clinica|veterinaria|academia|bufete|empresa|negocio|barveria|restorante|bar|pizzeria|taqueria|bistro)\s+(?:de\s+)?(?:\w+\s+)?([A-ZÁÉÍÓÚÑÜ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$)/,
+    // Capitalized multi-word names (2+ words starting with uppercase) anywhere in text
+    /\b((?:[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+\s+){1,3}[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+)\b/,
   ];
   for (const pattern of namePatterns) {
     const match = text.match(pattern);
     if (match?.[1]) {
-      businessName = match[1].trim();
-      break;
+      const candidate = match[1].trim();
+      // Validate it's not a common word/verb
+      const commonWords = new Set(["Quiero", "Necesito", "Hazme", "Para", "Como", "Tipo", "Algo", "Crear"]);
+      if (!commonWords.has(candidate) && candidate.length > 2) {
+        businessName = candidate;
+        break;
+      }
     }
   }
 
@@ -1582,7 +1754,7 @@ serve(async (req) => {
 
     // 2. Tokenize and classify with enhanced NLP
     const tokens = tokenize(message);
-    const { intent, confidence, label } = classifyIntent(tokens, patterns);
+    const { intent, confidence, label } = classifyIntent(tokens, message, patterns);
     const entities = extractEntities(message, tokens, intent);
     const colors = getColors(entities.colorScheme);
 
