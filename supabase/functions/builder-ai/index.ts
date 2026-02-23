@@ -1970,6 +1970,7 @@ async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | n
             num_ctx: 4096,
             repeat_penalty: 1.12,
             num_predict: maxTokens,
+            num_thread: 4,
           },
         }),
         signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
