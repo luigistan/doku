@@ -1,85 +1,57 @@
 
+## Plan: Mejoras al Motor AI, Links de Preview y Efecto "DOKU AI"
 
-## Plan: Mejoras de UI en ProjectSettings + Recomendaciones + Sistema de Facturacion
+### 1. Efecto "DOKU AI" rellenandose con el progreso
 
-Este plan cubre 3 areas que mencionaste:
+**Problema actual:** El overlay de carga muestra solo "DOKU" con un gradiente que se rellena segun el porcentaje. El usuario quiere que diga "DOKU AI".
 
----
-
-### 1. Scroll y ancho del popup de Configuracion
-
-**Problema:** El modal de ProjectSettings usa `overflow-y-auto` directamente en el contenedor, lo que no da un scroll suave. Ademas el ancho `max-w-2xl` puede ser insuficiente cuando hay tablas expandidas.
-
-**Cambios en `ProjectSettings.tsx`:**
-- Cambiar `max-w-2xl` a `max-w-3xl` para mas espacio
-- Separar el header (fijo arriba) del contenido scrollable
-- Aplicar `overflow-y-auto` solo al area de contenido, manteniendo el header siempre visible
-- Agregar un borde sutil de sombra al hacer scroll para que se vea profesional
-
-Estructura resultante:
-```text
-+------------------------------------------+
-| Configuracion del proyecto          [X]  |  <-- Header fijo
-+------------------------------------------+
-| [Contenido scrollable]                   |
-|   - Nombre                               |
-|   - URL                                  |
-|   - Dominio                              |
-|   - Visibilidad                          |
-|   - Base de Datos (tabs + tablas)        |
-|   - Eliminar proyecto                    |
-+------------------------------------------+
-```
+**Cambio en `src/components/builder/PreviewPanel.tsx`:**
+- Cambiar el texto de "DOKU" a "DOKU AI" en el overlay de carga (linea 176)
+- Mantener el mismo efecto de gradiente que rellena el texto de izquierda a derecha conforme sube el porcentaje
+- Ajustar el tamano de fuente si es necesario para que "DOKU AI" se vea bien proporcionado
 
 ---
 
-### 2. Que mas mejorar para que el AI entienda mejor al usuario
+### 2. Mejorar la inteligencia del AI para que nunca asuma
 
-Basado en lo que ya tienes implementado (9 signals de clasificacion, TF-IDF, Ollama refinement, learning logs, entity memory), aqui van las mejoras mas impactantes:
+**Problema actual:** El umbral de confianza es 0.3 (muy bajo). Cuando la confianza es entre 0.3 y 0.6, el sistema ejecuta sin preguntar, lo que puede generar sitios incorrectos.
 
-**A. Agregar intent "billing" / "facturacion"** -- No existe como intent independiente. "facturacion" esta como keyword en "accounting" pero un sistema de facturacion es diferente a contabilidad. Se necesita:
-- Nuevo intent `billing` con keywords: facturacion, facturas, invoice, cobro, recibo, pagos, cuentas por cobrar
-- Schema de tablas auto-creadas: `invoices`, `clients`, `invoice_items`
+**Cambios en `supabase/functions/builder-ai/index.ts`:**
 
-**B. Agregar intent "login" / "auth-system"** -- El sistema no entiende cuando el usuario dice "con inicio de sesion" o "con login". Se necesita detectar esto como una entidad adicional, no como un intent separado. Agregar deteccion de:
-- "con login", "con inicio de sesion", "con autenticacion", "con registro de usuarios"
-- Esto se guarda como una entidad `requiresAuth: true` que modifica el HTML generado para incluir un formulario de login
+**A. Subir el umbral de clarificacion**
+- Cambiar el umbral de confianza de 0.3 a 0.45
+- Cuando la confianza esta entre 0.45 y 0.65, en vez de ejecutar directamente, preguntar al usuario para confirmar: "Detecte que quieres un [tipo]. Es correcto? Si no, describeme mejor tu proyecto."
+- Solo ejecutar automaticamente cuando la confianza es mayor a 0.65
 
-**C. Mejorar deteccion de sistemas compuestos** -- Cuando el usuario dice "sistema de facturacion con login", son 2 cosas: intent=billing + requiresAuth=true. El clasificador actual no maneja bien combinaciones.
+**B. Agregar deteccion de mensajes ambiguos**
+- Si el mensaje tiene menos de 3 tokens relevantes (despues de quitar stopwords), pedir mas detalles
+- Si multiples intents tienen scores muy cercanos (diferencia menor a 2 puntos), preguntar al usuario cual prefiere
 
-**D. Agregar mas intents utiles:**
-- `inventory` -- sistema de inventario
-- `crm` -- sistema de clientes
-- `pos` -- punto de venta
-- `booking` -- sistema de reservas generico
+**C. Mejorar las respuestas conversacionales**
+- Agregar mas patrones conversacionales: preguntas sobre el proyecto, sobre el sistema, sobre capacidades
+- Cuando el usuario pregunta algo que no es generacion, responder con informacion util en vez de intentar clasificar
 
-Estas mejoras se implementaran en el edge function `builder-ai`.
+**D. Deteccion de intents compuestos mejorada**
+- Cuando el usuario dice "sistema de X con Y", detectar ambos componentes
+- Por ejemplo: "facturacion con inventario" deberia combinar schemas de ambos intents
 
 ---
 
-### 3. Sistema de facturacion con login y DOKU DB -- Estamos listos?
+### 3. Verificar que los links de preview funcionen
 
-**Lo que ya tienes:**
-- Tablas dinamicas (`app_tables`, `app_columns`, `app_rows`) con RLS
-- Auto-creacion de tablas por intent (ya funciona para ecommerce, restaurant, etc.)
-- Autenticacion con Supabase (login/registro ya existe en `/auth`)
-- Perfiles de usuario
+**Analisis del codigo actual:**
+- La ruta `/preview/:projectId` y `/p/:slug` estan definidas en `App.tsx`
+- `PublicPreview.tsx` consulta la tabla `projects` filtrando por `is_public = true`
+- El iframe usa `sandbox="allow-scripts allow-same-origin"` lo cual es correcto
 
-**Lo que falta para un sistema de facturacion completo:**
-- Intent `billing` con schema de tablas (invoices, clients, invoice_items)
-- El HTML generado debe incluir un formulario de login funcional
-- Las tablas auto-creadas deben tener los campos correctos para facturacion
+**Problema potencial:** Si el proyecto no esta marcado como publico (`is_public = false`), el link no mostrara nada. La URL bar del preview muestra la URL correcta solo cuando `isPublic && projectSlug` existen.
 
-**Plan de implementacion:**
+**Cambios en `src/pages/PublicPreview.tsx`:**
+- Agregar manejo del caso donde el proyecto existe pero no es publico (mostrar mensaje diferente: "Este proyecto es privado")
+- Agregar un boton para volver al inicio
 
-1. Agregar intent `billing` al edge function con:
-   - Keywords: facturacion, facturas, invoice, cobros, recibos, billing
-   - Schema: tablas `clients`, `invoices`, `invoice_items`
-   - Template HTML con dashboard de facturacion
-
-2. Agregar deteccion de `requiresAuth` como entidad booleana
-
-3. Agregar schema de tablas para billing en `intentDatabaseSchema`
+**Cambios en `src/components/builder/PreviewPanel.tsx`:**
+- Hacer que la URL en la barra sea clickeable y abra el preview en nueva pestana (cuando es publico)
 
 ---
 
@@ -87,12 +59,12 @@ Estas mejoras se implementaran en el edge function `builder-ai`.
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/builder/ProjectSettings.tsx` | Header fijo, scroll en contenido, `max-w-3xl` |
-| `supabase/functions/builder-ai/index.ts` | Nuevo intent `billing`, deteccion de auth, schema de tablas |
+| `src/components/builder/PreviewPanel.tsx` | Texto "DOKU AI", URL clickeable |
+| `supabase/functions/builder-ai/index.ts` | Umbral 0.45, zona de confirmacion 0.45-0.65, deteccion de ambiguedad, intents compuestos |
+| `src/pages/PublicPreview.tsx` | Mejor manejo de proyectos privados, boton volver |
 
-### Secuencia
+### Secuencia de implementacion
 
-1. Primero: UI del modal (scroll + ancho) -- cambio rapido
-2. Segundo: Nuevo intent `billing` con schema de tablas y keywords
-3. Tercero: Deteccion de `requiresAuth` como entidad
-
+1. Cambio visual: "DOKU AI" en el loading overlay
+2. Preview links: mejoras en PublicPreview y URL clickeable
+3. AI intelligence: umbral, zona de confirmacion, deteccion de ambiguedad
