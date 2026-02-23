@@ -1974,13 +1974,13 @@ async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | n
           options: {
             temperature: 0.3,
             top_p: 0.9,
-            num_ctx: 4096,
+            num_ctx: 2048,
             repeat_penalty: 1.12,
-            num_predict: maxTokens,
+            num_predict: Math.min(maxTokens, 200),
             num_thread: 4,
           },
         }),
-        signal: AbortSignal.timeout(maxTokens > 500 ? 120000 : 90000),
+        signal: AbortSignal.timeout(150000),
       });
       if (!response.ok) {
         const errBody = await response.text().catch(() => "");
@@ -2049,25 +2049,24 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
     }
   }
 
-  // Run multiple short prompts in parallel - llama3.1:8b understands direct instructions
-  const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
-    // 1. Hero subtitle - direct instruction
-    callLLMShort(
-      `Escribe un subtitulo profesional de 1-2 oraciones para la pagina web de "${businessName}", un negocio de tipo ${intent}. Solo responde con el texto del subtitulo, nada mas.`
-    ),
-    // 2. Feature descriptions - clear format instruction
-    callLLMShort(
-      `Escribe exactamente 3 descripciones cortas (1 oracion cada una) de servicios o caracteristicas para "${businessName}" (${intent}). Separa cada descripcion con el caracter |. Ejemplo de formato: Descripcion uno|Descripcion dos|Descripcion tres. Responde solo con las 3 descripciones separadas por |.`
-    ),
-    // 3. About text - natural paragraph
-    callLLMShort(
-      `Escribe 2-3 oraciones naturales para la seccion "Sobre nosotros" de la pagina web de "${businessName}", un negocio de tipo ${intent}. Responde solo con el texto, sin titulos ni encabezados.`
-    ),
-    // 4. Testimonials - structured format
-    callLLMShort(
-      `Escribe 2 testimonios ficticios de clientes satisfechos de "${businessName}" (${intent}). Usa este formato exacto para cada uno: Nombre - texto del testimonio - cargo/rol. Separa los testimonios con |. Responde solo con los 2 testimonios.`
-    ),
-  ]);
+  // Run prompts sequentially to avoid overloading Ollama on Render
+  console.log(`[Hybrid] Running enrichment prompts sequentially for Ollama...`);
+  
+  const heroResult = await callLLMShort(
+    `Subtitulo corto (1 oracion) para "${businessName}" (${intent}). Solo el texto:`, 80
+  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+
+  const featResult = await callLLMShort(
+    `3 servicios cortos de "${businessName}" (${intent}) separados por |. Solo texto:`, 100
+  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+
+  const aboutResult = await callLLMShort(
+    `2 oraciones para "Sobre nosotros" de "${businessName}" (${intent}). Solo texto:`, 100
+  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+
+  const testimonialsResult = await callLLMShort(
+    `2 testimonios de clientes de "${businessName}" (${intent}). Formato: Nombre - texto - cargo. Separados por |:`, 120
+  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
 
   // Process hero subtitle
   if (heroResult.status === "fulfilled" && heroResult.value) {
