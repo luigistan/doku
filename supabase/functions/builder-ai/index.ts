@@ -705,6 +705,9 @@ const sectionKeywords: Record<string, string[]> = {
   cta: ["cta", "llamada", "accion", "promocion"],
   team: ["equipo", "team", "miembros", "staff", "profesionales"],
   stats: ["estadisticas", "numeros", "cifras", "logros", "stats"],
+  auth: ["registro", "registrar", "registrarse", "signup", "sign up", "crear cuenta", "cuenta nueva"],
+  login: ["login", "iniciar sesion", "inicio sesion", "ingresar", "acceder", "signin", "sign in", "entrar"],
+  "user-panel": ["historial", "consumido", "mis pedidos", "mi cuenta", "perfil", "dashboard usuario", "panel usuario", "lo que ha consumido", "lo que he consumido"],
 };
 
 function extractEntities(text: string, tokens: string[], intent: string): Entities {
@@ -2143,7 +2146,18 @@ CONTENIDO:
 
 SECCIONES REQUERIDAS: ${entities.sections.join(", ")}
 
-IMPORTANTE: Responde UNICAMENTE con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
+${entities.sections.includes("auth") || entities.sections.includes("login") ? `SECCION DE AUTENTICACION:
+- Incluye un formulario de registro (nombre, email, contraseña) con diseño moderno tipo modal o card
+- Incluye un formulario de inicio de sesión (email, contraseña) con opción de alternar entre registro/login
+- Usa tabs o toggle para cambiar entre "Registrarse" e "Iniciar Sesión"
+- Botones estilizados con hover effects
+- Los formularios son visuales/estaticos (no funcionales), pero deben verse profesionales y realistas
+` : ""}${entities.sections.includes("user-panel") ? `PANEL DE USUARIO:
+- Incluye una sección que simule un dashboard/panel de usuario logueado
+- Muestra un historial de consumo/pedidos con tabla o cards (datos de ejemplo realistas)
+- Incluye nombre del usuario, avatar placeholder, y resumen de actividad
+- Diseño tipo dashboard con cards de estadísticas (total gastado, pedidos, favoritos)
+` : ""}IMPORTANTE: Responde UNICAMENTE con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
 El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
 }
 
