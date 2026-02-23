@@ -1,70 +1,125 @@
 
 
-# Plan: Corregir modelo de Ollama Cloud
+# Plan: Hacer que los formularios del preview guarden datos automaticamente en la base de datos
 
-## Problema
+## Problema detectado
 
-`gemma3` es un modelo LOCAL de Ollama, no esta disponible en Ollama Cloud (`ollama.com/api`). Por eso ambos endpoints devuelven 404: `"model 'gemma3' not found"`.
+Cuando un usuario genera un sitio (ej. CRM, restaurante, etc.), el sistema crea correctamente las tablas en la base de datos (`app_tables`, `app_columns`), pero los formularios del HTML generado **no guardan datos** por dos razones:
 
-Segun la documentacion oficial de Ollama, los modelos cloud disponibles son:
-- `gpt-oss:120b` y `gpt-oss:20b` (proposito general)
-- `glm-4.7:cloud` (alto rendimiento)
-- `minimax-m2.1:cloud` (rapido)
+1. El "navigation guard" en `PreviewPanel.tsx` intercepta TODOS los form submit y solo muestra "Enviado correctamente" sin guardar nada
+2. El HTML generado no incluye ningun script para comunicarse con el `crud-api`
+
+## Confirmacion del stack tecnologico
+
+Si, el proyecto esta construido con **TypeScript + React** (Vite + Tailwind CSS + shadcn/ui + Supabase). Los sitios generados se renderizan como HTML puro dentro de un iframe.
 
 ## Solucion
 
-Cambiar el modelo default a `gpt-oss:20b` (modelo cloud real, proposito general, bueno para generar HTML) y actualizar los aliases para que todo apunte a modelos cloud validos.
+Inyectar un "DOKU CRUD SDK" en el HTML del preview que permita a los formularios guardar datos automaticamente en la base de datos del proyecto.
 
-## Cambios
+## Cambios por archivo
 
-### 1. `supabase/functions/builder-ai/index.ts`
+### 1. `src/components/builder/PreviewPanel.tsx`
 
-En la funcion `callOllama` (~linea 378-393):
+Modificar la funcion `injectNavigationGuard` para:
+- Detectar formularios con el atributo `data-doku-table` (ej. `<form data-doku-table="contacts">`)
+- Esos formularios SI se envian al `crud-api` via `fetch`
+- Formularios SIN ese atributo siguen siendo interceptados como antes (comportamiento actual)
+- Inyectar un script SDK que:
+  - Solicita el `projectId` al parent via `postMessage`
+  - Al hacer submit de un form con `data-doku-table`, recoge los campos del formulario, los empaqueta como JSON, y los envia a la edge function `crud-api`
+  - Muestra feedback visual al usuario (exito o error)
 
-- Cambiar default de `"gemma3"` a `"gpt-oss:20b"`
-- Actualizar `modelAliases` para mapear modelos locales a cloud:
-
-```typescript
-let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gpt-oss:20b";
-
-const modelAliases: Record<string, string> = {
-  "llama3": "gpt-oss:20b",
-  "llama3.1": "gpt-oss:20b",
-  "llama3.2": "gpt-oss:20b",
-  "llama3.3": "gpt-oss:20b",
-  "llama2": "gpt-oss:20b",
-  "gemma3": "gpt-oss:20b",
-  "qwen3": "gpt-oss:20b",
-};
+```text
+Flujo:
+[Usuario llena form] -> [submit] -> [SDK detecta data-doku-table]
+  -> [fetch POST /crud-api { action:"create", projectId, tableName, data }]
+  -> [Muestra "Guardado" o "Error"]
 ```
 
-- IMPORTANTE: Eliminar la normalizacion que quita el `:` del modelo (lineas 381-385), porque los modelos cloud usan `:` como parte del nombre (`gpt-oss:20b`, `glm-4.7:cloud`).
+### 2. `supabase/functions/builder-ai/index.ts`
 
-### 2. `src/components/builder/ProjectSettings.tsx`
+Actualizar el `OLLAMA_SYSTEM_PROMPT` para instruir al LLM que:
+- Los formularios de contacto/registro/reservas deben incluir `data-doku-table="nombre_tabla"`
+- Los campos del formulario deben usar `name="nombre_columna"` que coincida con las columnas de la tabla
+- Ejemplo: `<form data-doku-table="contacts"><input name="name"><input name="email">...</form>`
 
-- Actualizar default de `"gemma3"` a `"gpt-oss:20b"` en el estado inicial
-- Actualizar placeholder del input
+Tambien actualizar la funcion `generateFallbackHtml` para incluir el atributo `data-doku-table="contacts"` en el formulario de contacto del fallback.
 
-### 3. `src/services/builderService.ts`
+### 3. `supabase/functions/crud-api/index.ts`
 
-- Actualizar default de `"gemma3"` a `"gpt-oss:20b"`
+No necesita cambios significativos. Ya soporta `action: "create"` con `tableName` y `data`. Solo verificar que `verify_jwt = false` esta configurado (ya lo esta en `config.toml`).
 
-### 4. Deploy
+## Seccion tecnica - Script SDK inyectado
 
-Redesplegar `builder-ai`.
+El SDK se inyectara automaticamente en el HTML del preview:
 
-## Seccion tecnica
+```text
+(function() {
+  var projectId = null;
+  var SUPABASE_URL = "[URL del proyecto]";
+  var SUPABASE_KEY = "[anon key]";
 
-| Archivo | Cambio |
-|---|---|
-| `supabase/functions/builder-ai/index.ts` | Default `gpt-oss:20b`, eliminar normalizacion de `:`, aliases actualizados |
-| `src/components/builder/ProjectSettings.tsx` | Default y placeholder `gpt-oss:20b` |
-| `src/services/builderService.ts` | Default `gpt-oss:20b` |
+  // Solicitar projectId al parent
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'doku:projectId') {
+      projectId = e.data.projectId;
+    }
+  });
+  parent.postMessage({ type: 'doku:requestProjectId' }, '*');
 
-## Modelos cloud alternativos
+  // Interceptar forms con data-doku-table
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (!form.hasAttribute('data-doku-table')) return;
+    e.preventDefault();
 
-Si `gpt-oss:20b` no funciona bien, se puede cambiar a:
-- `gpt-oss:120b` (mas potente, mas lento)
-- `glm-4.7:cloud` (alto rendimiento)
-- `minimax-m2.1:cloud` (rapido)
+    var tableName = form.getAttribute('data-doku-table');
+    var formData = new FormData(form);
+    var data = {};
+    formData.forEach(function(v, k) { data[k] = v; });
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
+
+    fetch(SUPABASE_URL + '/functions/v1/crud-api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({
+        action: 'create',
+        projectId: projectId,
+        tableName: tableName,
+        data: data
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+      if (btn) { btn.textContent = 'Enviado!'; }
+      form.reset();
+      setTimeout(function() {
+        if (btn) { btn.textContent = 'Enviar'; btn.disabled = false; }
+      }, 2500);
+    })
+    .catch(function() {
+      if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
+    });
+  });
+})();
+```
+
+### 4. Variables de entorno
+
+El SDK necesita la URL de Supabase y la anon key. Estas ya estan disponibles como variables de entorno (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`), se pasaran al script desde el componente React.
+
+## Resultado esperado
+
+1. El usuario dice "Crea un CRM para mi empresa"
+2. Ollama genera HTML con formularios que incluyen `data-doku-table="contacts"`
+3. Se crean automaticamente las tablas `contacts` y `deals` en la BD
+4. El usuario llena un formulario en el preview
+5. Los datos se guardan automaticamente en `app_rows` vinculados a la tabla correcta
+6. El usuario puede ver los datos en Configuracion > Base de Datos
 
