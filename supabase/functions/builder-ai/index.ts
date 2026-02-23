@@ -164,6 +164,72 @@ const intentDatabaseSchema: Record<string, { name: string; columns: { name: stri
       { name: "date", type: "date" }, { name: "time", type: "text" }, { name: "status", type: "select" },
     ]},
   ],
+  // === 6 NEW INDUSTRY INTENTS ===
+  laundry: [
+    { name: "orders", columns: [
+      { name: "client_name", type: "text" }, { name: "phone", type: "text" }, { name: "service_type", type: "select" },
+      { name: "items", type: "text" }, { name: "pickup_date", type: "date" }, { name: "delivery_date", type: "date" },
+      { name: "status", type: "select" }, { name: "total", type: "number" },
+    ]},
+    { name: "services", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "duration", type: "text" }, { name: "category", type: "text" },
+    ]},
+  ],
+  pharmacy: [
+    { name: "products", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "category", type: "text" }, { name: "stock", type: "number" }, { name: "requires_prescription", type: "boolean" },
+    ]},
+    { name: "prescriptions", columns: [
+      { name: "patient_name", type: "text" }, { name: "doctor", type: "text" }, { name: "medication", type: "text" },
+      { name: "date", type: "date" }, { name: "status", type: "select" },
+    ]},
+  ],
+  construction: [
+    { name: "projects", columns: [
+      { name: "name", type: "text" }, { name: "client", type: "text" }, { name: "location", type: "text" },
+      { name: "start_date", type: "date" }, { name: "end_date", type: "date" }, { name: "budget", type: "number" },
+      { name: "status", type: "select" },
+    ]},
+    { name: "materials", columns: [
+      { name: "name", type: "text" }, { name: "quantity", type: "number" }, { name: "unit", type: "text" },
+      { name: "cost", type: "number" }, { name: "supplier", type: "text" },
+    ]},
+  ],
+  florist: [
+    { name: "products", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "category", type: "text" }, { name: "image_url", type: "url" }, { name: "available", type: "boolean" },
+    ]},
+    { name: "orders", columns: [
+      { name: "client_name", type: "text" }, { name: "phone", type: "text" }, { name: "arrangement", type: "text" },
+      { name: "delivery_date", type: "date" }, { name: "delivery_address", type: "text" }, { name: "message", type: "text" },
+      { name: "total", type: "number" }, { name: "status", type: "select" },
+    ]},
+  ],
+  mechanic: [
+    { name: "vehicles", columns: [
+      { name: "owner_name", type: "text" }, { name: "phone", type: "text" }, { name: "make", type: "text" },
+      { name: "model", type: "text" }, { name: "year", type: "number" }, { name: "plate", type: "text" },
+    ]},
+    { name: "work_orders", columns: [
+      { name: "vehicle_plate", type: "text" }, { name: "owner_name", type: "text" }, { name: "service", type: "text" },
+      { name: "diagnosis", type: "text" }, { name: "cost", type: "number" }, { name: "status", type: "select" },
+      { name: "date", type: "date" },
+    ]},
+  ],
+  printing: [
+    { name: "orders", columns: [
+      { name: "client_name", type: "text" }, { name: "phone", type: "text" }, { name: "product", type: "text" },
+      { name: "quantity", type: "number" }, { name: "specifications", type: "text" }, { name: "total", type: "number" },
+      { name: "delivery_date", type: "date" }, { name: "status", type: "select" },
+    ]},
+    { name: "services", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "price", type: "number" },
+      { name: "category", type: "text" }, { name: "min_quantity", type: "number" },
+    ]},
+  ],
 };
 
 // ==================== AUTO CREATE PROJECT TABLES ====================
@@ -344,6 +410,23 @@ const phrasePatterns: { pattern: RegExp; intent: string; boost: number }[] = [
   // Booking
   { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:reservas|citas|agenda|turnos)/i, intent: "booking", boost: 5 },
   { pattern: /(?:agendar|reservar)\s+(?:citas|turnos|horarios)/i, intent: "booking", boost: 5 },
+  // === 6 NEW INDUSTRY PHRASE PATTERNS ===
+  { pattern: /(?:lavanderia|tintoreria|lavadero|laundry)/i, intent: "laundry", boost: 5 },
+  { pattern: /(?:servicio|sistema)\s+(?:de\s+)?(?:lavado|lavanderia|tintoreria)/i, intent: "laundry", boost: 6 },
+  { pattern: /(?:lavado\s+(?:en\s+)?seco|ropa\s+sucia|planchado)/i, intent: "laundry", boost: 5 },
+  { pattern: /(?:farmacia|drogueria|botica)/i, intent: "pharmacy", boost: 5 },
+  { pattern: /(?:venta|sistema)\s+(?:de\s+)?(?:medicamentos|farmacia)/i, intent: "pharmacy", boost: 6 },
+  { pattern: /(?:constructora|empresa\s+(?:de\s+)?construccion)/i, intent: "construction", boost: 5 },
+  { pattern: /(?:despacho|oficina|estudio)\s+(?:de\s+)?(?:arquitect|ingeni)/i, intent: "construction", boost: 5 },
+  { pattern: /(?:remodelacion|obra|edificacion)/i, intent: "construction", boost: 4 },
+  { pattern: /(?:floristeria|floreria|tienda\s+(?:de\s+)?flores)/i, intent: "florist", boost: 5 },
+  { pattern: /(?:arreglos?\s+florales?|ramos?\s+(?:de\s+)?(?:flores|novia))/i, intent: "florist", boost: 5 },
+  { pattern: /(?:taller\s+(?:mecanico|automotriz|de\s+autos?))/i, intent: "mechanic", boost: 6 },
+  { pattern: /(?:mecanico|reparacion\s+(?:de\s+)?(?:autos?|carros?|vehiculos?))/i, intent: "mechanic", boost: 5 },
+  { pattern: /(?:servicio\s+automotriz|cambio\s+(?:de\s+)?aceite)/i, intent: "mechanic", boost: 5 },
+  { pattern: /(?:imprenta|impresora|papeleria)/i, intent: "printing", boost: 5 },
+  { pattern: /(?:impresion|copias|serigrafia|rotulacion)/i, intent: "printing", boost: 4 },
+  { pattern: /(?:tarjetas?\s+(?:de\s+)?presentacion|volantes?|lonas?|banners?)/i, intent: "printing", boost: 5 },
 ];
 
 // ==================== TOKENIZER ====================
@@ -505,6 +588,37 @@ const intentMap: Record<string, { keywords: string[]; bigrams: string[]; label: 
     bigrams: ["empresa tecnologia", "desarrollo software", "startup tech"],
     label: "Tecnología / Software",
   },
+  // === 6 NEW INDUSTRY INTENTS ===
+  laundry: {
+    keywords: ["lavanderia", "tintoreria", "lavado", "planchado", "ropa", "limpieza", "lavadero", "laundry", "drycleaning", "lavada"],
+    bigrams: ["lavado seco", "ropa sucia", "servicio lavanderia", "lavado planchado", "tintoreria lavanderia"],
+    label: "Lavandería / Tintorería",
+  },
+  pharmacy: {
+    keywords: ["farmacia", "medicamentos", "recetas", "drogueria", "medicina", "pastillas", "remedios", "pharmacy", "botica", "farmaceutico"],
+    bigrams: ["farmacia online", "venta medicamentos", "recetas medicas", "productos farmaceuticos"],
+    label: "Farmacia / Droguería",
+  },
+  construction: {
+    keywords: ["constructora", "arquitecto", "obra", "remodelacion", "construccion", "edificacion", "contratista", "ingeniero", "planos", "proyecto"],
+    bigrams: ["empresa constructora", "remodelacion casa", "obra civil", "construccion vivienda", "diseno arquitectonico"],
+    label: "Constructora / Arquitectura",
+  },
+  florist: {
+    keywords: ["floristeria", "flores", "arreglos", "ramos", "floreria", "bouquet", "florista", "plantas", "jardin", "decoracion"],
+    bigrams: ["arreglos florales", "envio flores", "ramos novia", "flores evento", "floristeria online"],
+    label: "Floristería",
+  },
+  mechanic: {
+    keywords: ["taller", "mecanico", "reparacion", "auto", "carro", "vehiculo", "motor", "frenos", "afinacion", "transmision", "llantas", "neumaticos"],
+    bigrams: ["taller mecanico", "reparacion auto", "taller automotriz", "servicio automotriz", "cambio aceite"],
+    label: "Taller Mecánico",
+  },
+  printing: {
+    keywords: ["imprenta", "impresion", "papeleria", "copias", "rotulacion", "serigrafia", "offset", "volantes", "tarjetas", "banner", "lonas", "vinil"],
+    bigrams: ["imprenta digital", "impresion offset", "tarjetas presentacion", "lonas publicitarias", "impresion gran formato"],
+    label: "Imprenta / Impresión",
+  },
 };
 
 // ==================== SYNONYM EXPANSION ====================
@@ -525,6 +639,16 @@ const synonymMap: Record<string, string> = {
   "clinica": "clinica", "clínica": "clinica",
   "escuala": "escuela", "acadmia": "academia",
   "inmoviliaria": "inmobiliaria",
+  // New industry synonyms
+  "lavandria": "lavanderia", "labanderia": "lavanderia", "lavandería": "lavanderia",
+  "tintoreria": "tintoreria", "tintorría": "tintoreria",
+  "farmasia": "farmacia", "farmacias": "farmacia", "farmácia": "farmacia",
+  "drogueria": "drogueria", "drogería": "drogueria",
+  "constructra": "constructora", "costruccion": "construccion", "construcción": "construccion",
+  "arquitecto": "arquitecto", "arkitecto": "arquitecto",
+  "floristeria": "floristeria", "florería": "floreria", "floreria": "floreria",
+  "mecanico": "mecanico", "mecánico": "mecanico", "mekanico": "mecanico",
+  "inprenta": "imprenta", "impresion": "impresion", "impresión": "impresion",
 };
 
 function expandSynonyms(tokens: string[]): string[] {
@@ -669,6 +793,13 @@ const semanticVocabulary: Record<string, string[]> = {
   music: ["musico", "banda", "dj", "grabacion", "disquera", "musica", "cantante", "productor", "compositor", "cancion", "album", "concierto", "sonido", "audio", "instrumento"],
   salon: ["salon", "peluqueria", "barberia", "spa", "estetica", "belleza", "cabello", "unas", "maquillaje", "corte", "barber", "nails", "peinado", "tinte", "tratamiento", "facial", "manicure"],
   technology: ["tech", "software", "app", "desarrollo", "programacion", "tecnologia", "sistemas", "informatica", "devops", "cloud", "saas", "plataforma", "codigo", "web", "aplicacion", "inteligencia", "artificial"],
+  // === 6 NEW INDUSTRY SEMANTIC VOCABULARIES ===
+  laundry: ["lavanderia", "tintoreria", "lavado", "planchado", "ropa", "limpieza", "lavadero", "seco", "sucia", "mancha", "detergente", "entrega", "recogida", "servicio", "prenda", "camisa", "pantalon", "traje", "cobija", "cortina", "almohada"],
+  pharmacy: ["farmacia", "medicamentos", "recetas", "drogueria", "medicina", "pastillas", "remedios", "botica", "farmaceutico", "antibiotico", "jarabe", "vitamina", "suplemento", "dosis", "prescripcion", "salud", "cuidado", "bienestar"],
+  construction: ["constructora", "arquitecto", "obra", "remodelacion", "construccion", "edificacion", "contratista", "ingeniero", "planos", "proyecto", "cimiento", "estructura", "concreto", "acero", "vivienda", "edificio", "presupuesto", "material"],
+  florist: ["floristeria", "flores", "arreglos", "ramos", "floreria", "bouquet", "florista", "plantas", "jardin", "decoracion", "rosa", "tulipan", "girasol", "orquidea", "lirio", "petalos", "novia", "evento", "corona", "maceta"],
+  mechanic: ["taller", "mecanico", "reparacion", "auto", "carro", "vehiculo", "motor", "frenos", "afinacion", "transmision", "llantas", "neumaticos", "aceite", "suspension", "escape", "bateria", "alternador", "clutch", "embrague", "diagnostico"],
+  printing: ["imprenta", "impresion", "papeleria", "copias", "rotulacion", "serigrafia", "offset", "volantes", "tarjetas", "banner", "lonas", "vinil", "papel", "tinta", "diseno", "grafico", "cartel", "folleto", "catalogo", "brochure"],
 };
 
 // Pre-compute IDF values
@@ -1070,6 +1201,124 @@ const bootstrapCorpus: { message: string; intent: string }[] = [
   { message: "me gustaria un portfolio", intent: "portfolio" },
   { message: "quisiera una landing", intent: "landing" },
   { message: "necesitaria una pagina para vender", intent: "ecommerce" },
+  // === 6 NEW INDUSTRY BOOTSTRAP CORPUS ===
+  // LAUNDRY (~20 variations)
+  { message: "lavanderia web", intent: "laundry" },
+  { message: "pagina para mi lavanderia", intent: "laundry" },
+  { message: "tintoreria online", intent: "laundry" },
+  { message: "servicio de lavado y planchado", intent: "laundry" },
+  { message: "quiero una pagina de lavanderia", intent: "laundry" },
+  { message: "lavanderia con sistema de entregas", intent: "laundry" },
+  { message: "crea un sitio para mi tintoreria", intent: "laundry" },
+  { message: "lavanderia con precios y servicios", intent: "laundry" },
+  { message: "lavado en seco pagina web", intent: "laundry" },
+  { message: "lavandria con pedidos online", intent: "laundry" },
+  { message: "hazme una lavanderia con recogida a domicilio", intent: "laundry" },
+  { message: "lavadero de ropa con delivery", intent: "laundry" },
+  { message: "sitio para servicio de lavado", intent: "laundry" },
+  { message: "tintoreria con lista de servicios", intent: "laundry" },
+  { message: "quiero un laundry service", intent: "laundry" },
+  // PHARMACY (~18 variations)
+  { message: "farmacia web", intent: "pharmacy" },
+  { message: "pagina para mi farmacia", intent: "pharmacy" },
+  { message: "drogueria online", intent: "pharmacy" },
+  { message: "venta de medicamentos online", intent: "pharmacy" },
+  { message: "quiero una pagina de farmacia", intent: "pharmacy" },
+  { message: "farmacia con catalogo de productos", intent: "pharmacy" },
+  { message: "crea un sitio para mi drogueria", intent: "pharmacy" },
+  { message: "botica con delivery de medicinas", intent: "pharmacy" },
+  { message: "farmacia con recetas medicas", intent: "pharmacy" },
+  { message: "sitio para vender medicamentos", intent: "pharmacy" },
+  { message: "farmasia online con productos", intent: "pharmacy" },
+  { message: "hazme una farmacia con precios", intent: "pharmacy" },
+  { message: "pagina de productos farmaceuticos", intent: "pharmacy" },
+  { message: "tienda de medicinas online", intent: "pharmacy" },
+  // CONSTRUCTION (~18 variations)
+  { message: "constructora web", intent: "construction" },
+  { message: "pagina para mi constructora", intent: "construction" },
+  { message: "empresa de construccion", intent: "construction" },
+  { message: "despacho de arquitectos", intent: "construction" },
+  { message: "quiero una pagina de constructora", intent: "construction" },
+  { message: "crea un sitio para remodelaciones", intent: "construction" },
+  { message: "arquitecto con portafolio de obras", intent: "construction" },
+  { message: "constructora con proyectos", intent: "construction" },
+  { message: "pagina de remodelacion y construccion", intent: "construction" },
+  { message: "empresa de edificacion web", intent: "construction" },
+  { message: "sitio para contratista de obras", intent: "construction" },
+  { message: "hazme una constructora con servicios", intent: "construction" },
+  { message: "ingenieria civil pagina web", intent: "construction" },
+  { message: "construccion y remodelacion sitio", intent: "construction" },
+  // FLORIST (~18 variations)
+  { message: "floristeria web", intent: "florist" },
+  { message: "pagina para mi floristeria", intent: "florist" },
+  { message: "floreria online", intent: "florist" },
+  { message: "tienda de flores", intent: "florist" },
+  { message: "quiero una pagina de floristeria", intent: "florist" },
+  { message: "envio de flores online", intent: "florist" },
+  { message: "arreglos florales pagina", intent: "florist" },
+  { message: "crea un sitio para mi floreria", intent: "florist" },
+  { message: "ramos de flores con envio", intent: "florist" },
+  { message: "floristeria con catalogo y precios", intent: "florist" },
+  { message: "hazme una pagina de flores", intent: "florist" },
+  { message: "tienda online de arreglos florales", intent: "florist" },
+  { message: "bouquets y coronas florales web", intent: "florist" },
+  { message: "sitio para vender flores", intent: "florist" },
+  // MECHANIC (~18 variations)
+  { message: "taller mecanico web", intent: "mechanic" },
+  { message: "pagina para mi taller", intent: "mechanic" },
+  { message: "taller automotriz online", intent: "mechanic" },
+  { message: "reparacion de autos pagina", intent: "mechanic" },
+  { message: "quiero una pagina de taller mecanico", intent: "mechanic" },
+  { message: "servicio automotriz web", intent: "mechanic" },
+  { message: "taller de reparacion de carros", intent: "mechanic" },
+  { message: "crea un sitio para mi taller de autos", intent: "mechanic" },
+  { message: "mecanico con servicios y precios", intent: "mechanic" },
+  { message: "taller con citas y diagnostico", intent: "mechanic" },
+  { message: "hazme un taller mecanico con contacto", intent: "mechanic" },
+  { message: "cambio de aceite y frenos web", intent: "mechanic" },
+  { message: "taller de transmisiones pagina", intent: "mechanic" },
+  { message: "servicio de llantas y afinacion", intent: "mechanic" },
+  // PRINTING (~18 variations)
+  { message: "imprenta web", intent: "printing" },
+  { message: "pagina para mi imprenta", intent: "printing" },
+  { message: "impresion digital online", intent: "printing" },
+  { message: "copias y papeleria web", intent: "printing" },
+  { message: "quiero una pagina de imprenta", intent: "printing" },
+  { message: "rotulacion y serigrafia pagina", intent: "printing" },
+  { message: "tarjetas de presentacion online", intent: "printing" },
+  { message: "crea un sitio para mi imprenta", intent: "printing" },
+  { message: "volantes y lonas publicitarias", intent: "printing" },
+  { message: "imprenta con catalogo de productos", intent: "printing" },
+  { message: "hazme una imprenta con precios", intent: "printing" },
+  { message: "impresion gran formato web", intent: "printing" },
+  { message: "banners y vinil publicitario", intent: "printing" },
+  { message: "sitio para servicios de impresion", intent: "printing" },
+  // Spanglish & short messages for new intents
+  { message: "laundry service", intent: "laundry" },
+  { message: "dry cleaning", intent: "laundry" },
+  { message: "flower shop", intent: "florist" },
+  { message: "auto repair", intent: "mechanic" },
+  { message: "print shop", intent: "printing" },
+  { message: "pharmacy store", intent: "pharmacy" },
+  { message: "construction company", intent: "construction" },
+  // Ambiguous cases (disambiguation training)
+  { message: "salon de belleza con spa", intent: "salon" },
+  { message: "spa con tratamientos faciales", intent: "salon" },
+  { message: "contabilidad y facturacion", intent: "accounting" },
+  { message: "solo facturacion electronica", intent: "billing" },
+  { message: "tienda de mascotas", intent: "veterinary" },
+  { message: "tienda de ropa online", intent: "ecommerce" },
+  // Ultra-short messages
+  { message: "gym", intent: "fitness" },
+  { message: "tienda", intent: "ecommerce" },
+  { message: "doctor", intent: "clinic" },
+  { message: "abogados", intent: "lawyer" },
+  { message: "flores", intent: "florist" },
+  { message: "lavanderia", intent: "laundry" },
+  { message: "farmacia", intent: "pharmacy" },
+  { message: "taller", intent: "mechanic" },
+  { message: "imprenta", intent: "printing" },
+  { message: "constructora", intent: "construction" },
 ];
 
 // ==================== N-GRAM PROBABILISTIC MODEL (Signal 9) ====================
@@ -1841,6 +2090,12 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     crm: ["features", "stats", "contact"],
     pos: ["features", "stats"],
     booking: ["features", "pricing", "contact"],
+    laundry: ["features", "pricing", "contact"],
+    pharmacy: ["features", "pricing", "contact"],
+    construction: ["features", "gallery", "about", "contact"],
+    florist: ["features", "gallery", "pricing", "contact"],
+    mechanic: ["features", "pricing", "contact", "faq"],
+    printing: ["features", "pricing", "gallery", "contact"],
   };
   for (const s of (intentDefaults[intent] || ["features", "contact"])) sections.add(s);
 
@@ -1862,6 +2117,8 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
       accounting: "cool", photography: "dark", music: "purple", salon: "pink",
       technology: "modern", billing: "blue", inventory: "green", crm: "modern",
       pos: "dark", booking: "warm",
+      laundry: "blue", pharmacy: "green", construction: "dark",
+      florist: "pink", mechanic: "warm", printing: "cool",
     };
     colorScheme = intentColors[intent] || "purple";
   }
@@ -1886,6 +2143,8 @@ function getDefaultName(intent: string): string {
     salon: "Mi Salón", technology: "Mi Tech",
     billing: "Mi Facturación", inventory: "Mi Inventario", crm: "Mi CRM",
     pos: "Mi Punto de Venta", booking: "Mis Reservas",
+    laundry: "Mi Lavandería", pharmacy: "Mi Farmacia", construction: "Mi Constructora",
+    florist: "Mi Floristería", mechanic: "Mi Taller", printing: "Mi Imprenta",
   };
   return defaults[intent] || "Mi Sitio";
 }
@@ -3491,6 +3750,27 @@ ${getCrudSdkScript(businessName)}
 </html>`;
 }
 
+// ==================== ANTI-PATTERN GATE ====================
+// Words that should NEVER trigger generation when message consists only of them
+const greetingOnlyTokens = new Set([
+  "hola", "hey", "oye", "buenas", "buenos", "dias", "dia", "tardes", "tarde", "noches", "noche",
+  "saludos", "que", "tal", "onda", "como", "estas", "esta", "estan", "bien", "mal",
+  "adios", "bye", "chao", "nos", "vemos", "hasta", "luego", "pronto",
+  "gracias", "gracia", "thanks", "ok", "vale", "listo", "entendido", "perfecto", "genial", "excelente",
+  "estoy", "todo", "si", "claro", "sip", "sep", "aja", "ajam",
+  "quien", "eres", "puedes", "hacer", "haces", "sabes", "funcionas", "sirves",
+]);
+
+function isGreetingOnly(message: string): boolean {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").trim();
+  const words = normalized.split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return true;
+  if (words.length > 8) return false; // Long messages are likely not just greetings
+  const semanticTokens = words.filter(w => !greetingOnlyTokens.has(w));
+  // If ALL tokens are greeting-only OR less than 2 semantic tokens, it's conversational
+  return semanticTokens.length < 2;
+}
+
 // ==================== CONVERSATIONAL DETECTION ====================
 const conversationalPatterns = [
   /(?:no\s+(?:se\s+)?(?:muestra|carga|ve|aparece|funciona|renderiza))/i,
@@ -3498,11 +3778,18 @@ const conversationalPatterns = [
   /(?:revisa|revisar|checa|checar|verifica|verificar)\s/i,
   /(?:ayuda|help|problema|error|bug|falla)/i,
   /(?:como\s+(?:hago|uso|funciona|puedo))/i,
-  /(?:hola|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?))\s*[!?.]*$/i,
+  // FIXED: Match greetings at START of message, not end
+  /^(?:hola|hey|oye|buenas?|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?)|que\s+tal|que\s+onda|saludos)\b/i,
   /(?:gracias|thanks|ok|vale|listo|entendido)\s*[!?.]*$/i,
   /(?:que\s+(?:es|hace|puedo|significa))/i,
   /(?:no\s+(?:entiendo|se|puedo))/i,
   /(?:screenshot|captura|pantallazo)/i,
+  // NEW: Farewells
+  /^(?:adios|bye|nos\s+vemos|hasta\s+luego|chao|chau)\b/i,
+  // NEW: Identity questions
+  /^(?:quien|que)\s+eres/i,
+  // NEW: Status/emotion responses
+  /^(?:estoy\s+bien|todo\s+bien|genial|perfecto|excelente)\s*[!?.]*$/i,
 ];
 
 const generationKeywords = [
@@ -3511,11 +3798,34 @@ const generationKeywords = [
   "hotel", "abogado", "contador", "fotografo", "musica", "salon", "peluqueria",
   "barberia", "veterinaria", "escuela", "academia", "pagina", "sitio", "web",
   "crea", "crear", "hazme", "genera", "quiero", "necesito", "diseña",
+  // New industries
+  "lavanderia", "tintoreria", "farmacia", "drogueria", "constructora", "arquitecto",
+  "floristeria", "floreria", "flores", "taller", "mecanico", "imprenta", "impresion",
 ];
 
 function isConversational(message: string): string | null {
   const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
+  // ANTI-PATTERN GATE: If message is just greetings/emotions, skip classifier entirely
+  if (isGreetingOnly(message)) {
+    console.log(`[AntiPattern] Message is greeting-only: "${message.substring(0, 50)}"`);
+    // Determine specific response type
+    if (/^(?:adios|bye|nos\s+vemos|hasta\s+luego|chao|chau)/i.test(normalized)) {
+      return "👋 ¡Hasta luego! Fue un placer ayudarte. Cuando necesites crear o modificar un sitio web, aquí estaré. ¡Éxito!";
+    }
+    if (/(?:quien|que)\s+eres/i.test(normalized)) {
+      return "🤖 Soy **DOKU AI**, un motor de inteligencia artificial 100% propio que clasifica tu mensaje y genera sitios web completos con React y base de datos.\n\n**Sin APIs externas.** Todo el procesamiento ocurre en mi motor local con:\n• 11 señales de clasificación\n• Embeddings propios de 32 dimensiones\n• Modelo n-gram probabilístico\n• Cadena de Markov predictiva\n• 30+ industrias soportadas\n\n¿Qué tipo de sitio quieres crear?";
+    }
+    if (/(?:gracias|thanks)/i.test(normalized)) {
+      return "¡De nada! 😊 Si necesitas algo más, solo dime. Puedo:\n\n• 🆕 Crear un nuevo sitio web\n• ✏️ Modificar el sitio actual\n• 📄 Agregar nuevas páginas\n• 🎨 Cambiar colores y estilos\n\n¿En qué más te puedo ayudar?";
+    }
+    if (/^(?:estoy\s+bien|todo\s+bien|genial|perfecto|excelente|ok|vale|listo|entendido|si|claro)/i.test(normalized)) {
+      return "¡Genial! 😄 ¿Listo para crear algo increíble? Dime qué tipo de sitio necesitas:\n\n• 🍽️ Restaurante, cafetería, food truck\n• 🛒 Tienda online, marketplace\n• 💼 Portfolio, agencia, landing\n• 🏥 Clínica, farmacia, veterinaria\n• 💰 Facturación, inventario, CRM, POS\n• 🧺 Lavandería, taller mecánico, imprenta, floristería\n• Y más...";
+    }
+    // Default greeting
+    return "¡Hola! 👋 Soy **DOKU AI**, tu asistente para crear sitios web profesionales.\n\n¿Qué quieres crear hoy? Puedo hacer:\n• 🍽️ Restaurantes, cafeterías\n• 🛒 Tiendas online\n• 💼 Portfolios, agencias\n• 🏥 Clínicas, consultorios, farmacias\n• 💰 Facturación, inventario, CRM\n• 🧺 Lavanderías, talleres, imprentas, floristerías\n• 🏨 Hoteles, inmobiliarias\n• Y mucho más...\n\nSolo descríbeme tu negocio y lo creo al instante.";
+  }
+
   const matchesConversational = conversationalPatterns.some(p => p.test(normalized));
   if (!matchesConversational) return null;
   
@@ -3530,8 +3840,8 @@ function isConversational(message: string): string | null {
   if (/(?:revisa|revisar|checa|checar|verifica|verificar)/i.test(normalized)) {
     return "👀 Estoy aquí para ayudarte. Si algo no se ve bien, dime:\n\n• **Qué esperabas ver** vs qué ves actualmente\n• **Qué cambios** quieres hacer al sitio\n\nPuedo modificar colores, secciones, nombre del negocio, o regenerar el sitio completo. Solo descríbeme qué necesitas.";
   }
-  if (/(?:hola|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?))/i.test(normalized)) {
-    return "¡Hola! 👋 Soy **DOKU AI**, tu asistente para crear sitios web profesionales.\n\nDime qué quieres crear, por ejemplo:\n• *\"Quiero una landing para mi cafetería El Buen Café\"*\n• *\"Crea un portfolio con galería y contacto\"*\n• *\"Hazme una tienda online de ropa\"*";
+  if (/(?:hola|hey|buenas?|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?)|que\s+tal|que\s+onda|saludos)/i.test(normalized)) {
+    return "¡Hola! 👋 Soy **DOKU AI**, tu asistente para crear sitios web profesionales.\n\nDime qué quieres crear, por ejemplo:\n• *\"Quiero una landing para mi cafetería El Buen Café\"*\n• *\"Crea un portfolio con galería y contacto\"*\n• *\"Hazme una tienda online de ropa\"*\n• *\"Lavandería con sistema de entregas\"*";
   }
   if (/(?:gracias|thanks|ok|vale|listo|entendido)/i.test(normalized)) {
     return "¡De nada! 😊 Si necesitas algo más, solo dime. Puedo:\n\n• Crear un nuevo sitio\n• Modificar el sitio actual (colores, secciones, contenido)\n• Cambiar el nombre del negocio\n\n¿En qué más te puedo ayudar?";
@@ -3540,12 +3850,15 @@ function isConversational(message: string): string | null {
     return "📖 **¿Cómo usar DOKU AI?**\n\n1. **Describe** el sitio que quieres (tipo, nombre, secciones)\n2. **Revisa** el análisis y plan de ejecución\n3. **Confirma** o pide ajustes\n4. ¡**Listo**! Tu sitio aparece en el preview\n\n**Ejemplo:** *\"Quiero un restaurante llamado La Casa del Chef con menú, galería y contacto en colores cálidos\"*";
   }
   if (/(?:que\s+(?:puedes|sabes|haces)|que\s+es\s+doku|para\s+que\s+sirve)/i.test(normalized)) {
-    return "🚀 **DOKU AI** es un generador inteligente de sitios web.\n\nPuedo crear:\n• 🍽️ Restaurantes, cafeterías\n• 🛒 Tiendas online\n• 💼 Portfolios, agencias\n• 🏥 Clínicas, consultorios\n• 💰 Sistemas de facturación\n• 📦 Inventarios, CRM, POS\n• 🏨 Hoteles, inmobiliarias\n• Y mucho más...\n\nSolo dime qué necesitas y lo creo para ti.";
+    return "🚀 **DOKU AI** es un generador inteligente de sitios web con motor de IA propio.\n\nPuedo crear:\n• 🍽️ Restaurantes, cafeterías\n• 🛒 Tiendas online\n• 💼 Portfolios, agencias\n• 🏥 Clínicas, farmacias, consultorios\n• 💰 Facturación, inventarios, CRM, POS\n• 🧺 Lavanderías, talleres mecánicos\n• 💐 Floristerías, imprentas\n• 🏨 Hoteles, inmobiliarias\n• 🏗️ Constructoras\n• Y mucho más...\n\nSolo dime qué necesitas y lo creo para ti.";
   }
   if (/(?:puedes\s+(?:crear|hacer|generar)|eres\s+capaz|que\s+tipo)/i.test(normalized)) {
     return "💪 ¡Puedo crear prácticamente cualquier tipo de sitio web!\n\nDime el **tipo de negocio**, el **nombre** y las **secciones** que quieres, y DOKU AI lo genera automáticamente.\n\nEjemplo: *\"Sistema de facturación con login para mi empresa TechCo\"*";
   }
-  return "🤔 No estoy seguro de qué necesitas. Soy un generador de sitios web.\n\nPara crear un sitio, descríbeme:\n• **Tipo** (restaurante, tienda, portfolio, blog...)\n• **Nombre** del negocio\n• **Secciones** que quieres (menú, contacto, galería...)\n\n**Ejemplo:** *\"Crea una landing para mi agencia digital TechFlow\"*";
+  if (/^(?:adios|bye|nos\s+vemos|hasta\s+luego|chao|chau)/i.test(normalized)) {
+    return "👋 ¡Hasta luego! Fue un placer ayudarte. Cuando necesites crear o modificar un sitio web, aquí estaré. ¡Éxito!";
+  }
+  return "🤔 No estoy seguro de qué necesitas. Soy un generador de sitios web.\n\nPara crear un sitio, descríbeme:\n• **Tipo** (restaurante, tienda, portfolio, blog, lavandería, farmacia...)\n• **Nombre** del negocio\n• **Secciones** que quieres (menú, contacto, galería...)\n\n**Ejemplo:** *\"Crea una landing para mi agencia digital TechFlow\"*";
 }
 
 // ==================== MAIN HANDLER ====================
