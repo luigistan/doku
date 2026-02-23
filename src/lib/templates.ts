@@ -1441,6 +1441,798 @@ function App() {
 }
 `, "Mi Veterinaria"),
   },
+  // ==================== BILLING ====================
+  {
+    id: "billing",
+    name: "Facturación",
+    keywords: ["facturación", "facturacion", "facturas", "invoice", "cobros", "recibos", "billing", "cuentas", "cotización", "notas de venta"],
+    description: "Sistema de facturación con React y TypeScript",
+    planSteps: [
+      "Crear sidebar de navegación con secciones de facturación",
+      "Diseñar dashboard con métricas financieras",
+      "Crear tabla de facturas con estados y filtros",
+      "Agregar formulario de nueva factura",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [page, setPage] = useState('dashboard');
+  const navItems = [{id:'dashboard',icon:'📊',label:'Dashboard'},{id:'invoices',icon:'📄',label:'Facturas'},{id:'clients',icon:'👥',label:'Clientes'},{id:'reports',icon:'📈',label:'Reportes'}];
+  const invoices = [
+    {num:'F-001',client:'Ana García',date:'2026-02-15',status:'Pagada',total:'$1,250'},
+    {num:'F-002',client:'Carlos López',date:'2026-02-18',status:'Pendiente',total:'$3,450'},
+    {num:'F-003',client:'María R.',date:'2026-02-20',status:'Vencida',total:'$890'},
+    {num:'F-004',client:'Juan Martínez',date:'2026-02-22',status:'Pagada',total:'$2,100'},
+  ];
+  const statusColor = s => s==='Pagada'?'#34d399':s==='Pendiente'?'#fbbf24':'#f87171';
+
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    <div style={{width:220,background:'#0a0a14',borderRight:'1px solid #1a1a2e',padding:'1.5rem 1rem',display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+      <h2 style={{color:'#818cf8',fontSize:'1.1rem',fontWeight:700,marginBottom:'1.5rem',padding:'0 0.5rem'}}>💰 Mi Facturación</h2>
+      {navItems.map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{background:page===n.id?'#6366f122':'transparent',color:page===n.id?'#818cf8':'#64748b',border:'none',padding:'0.7rem 0.8rem',borderRadius:10,textAlign:'left',fontSize:'0.88rem',transition:'all 0.2s'}}>{n.icon} {n.label}</button>)}
+    </div>
+    <div style={{flex:1,padding:'2rem',overflowY:'auto'}}>
+      {page==='dashboard' && <>
+        <h1 style={{fontSize:'1.75rem',fontWeight:700,marginBottom:'1.5rem'}}>Dashboard</h1>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+          {[{label:'Ingresos Mes',value:'$12,450',change:'+15%',up:true},{label:'Facturas Emitidas',value:'28',change:'+5',up:true},{label:'Por Cobrar',value:'$4,340',change:'-8%',up:false},{label:'Clientes Activos',value:'42',change:'+3',up:true}].map((m,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'1.5rem'}}>
+            <div style={{color:'#64748b',fontSize:'0.8rem',marginBottom:'0.5rem'}}>{m.label}</div>
+            <div style={{fontSize:'1.8rem',fontWeight:700}}>{m.value}</div>
+            <div style={{fontSize:'0.8rem',color:m.up?'#34d399':'#f87171',marginTop:'0.3rem'}}>{m.up?'↑':'↓'} {m.change}</div>
+          </div>)}
+        </div>
+        <div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'1.5rem'}}>
+          <h3 style={{marginBottom:'1rem'}}>Últimas Facturas</h3>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr>{['Nº','Cliente','Fecha','Estado','Total'].map(h=><th key={h} style={{textAlign:'left',padding:'0.7rem 1rem',color:'#64748b',fontSize:'0.78rem',textTransform:'uppercase',borderBottom:'1px solid #1e1e2e'}}>{h}</th>)}</tr></thead>
+            <tbody>{invoices.map((inv,i)=><tr key={i} style={{borderBottom:'1px solid #1e1e2e'}}><td style={{padding:'0.7rem 1rem',fontWeight:600}}>{inv.num}</td><td style={{padding:'0.7rem 1rem'}}>{inv.client}</td><td style={{padding:'0.7rem 1rem',color:'#94a3b8'}}>{inv.date}</td><td style={{padding:'0.7rem 1rem'}}><span style={{padding:'0.2rem 0.6rem',borderRadius:99,fontSize:'0.75rem',fontWeight:600,background:statusColor(inv.status)+'22',color:statusColor(inv.status)}}>{inv.status}</span></td><td style={{padding:'0.7rem 1rem',fontWeight:600,color:'#818cf8'}}>{inv.total}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </>}
+      {page==='invoices' && <>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}><h1 style={{fontSize:'1.75rem',fontWeight:700}}>Facturas</h1><button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#6366f1,#818cf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>+ Nueva Factura</button></div>
+        <div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,overflow:'hidden'}}>
+          <table data-crud-table="invoices" style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr>{['Nº','Cliente','Fecha','Estado','Total'].map(h=><th key={h} style={{textAlign:'left',padding:'0.8rem 1.2rem',color:'#64748b',fontSize:'0.78rem',textTransform:'uppercase',background:'#0a0a14'}}>{h}</th>)}</tr></thead>
+            <tbody>{invoices.map((inv,i)=><tr key={i} style={{borderBottom:'1px solid #1e1e2e'}}><td style={{padding:'0.8rem 1.2rem',fontWeight:600}}>{inv.num}</td><td style={{padding:'0.8rem 1.2rem'}}>{inv.client}</td><td style={{padding:'0.8rem 1.2rem',color:'#94a3b8'}}>{inv.date}</td><td style={{padding:'0.8rem 1.2rem'}}><span style={{padding:'0.2rem 0.6rem',borderRadius:99,fontSize:'0.75rem',fontWeight:600,background:statusColor(inv.status)+'22',color:statusColor(inv.status)}}>{inv.status}</span></td><td style={{padding:'0.8rem 1.2rem',fontWeight:600,color:'#818cf8'}}>{inv.total}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </>}
+      {page==='clients' && <><h1 style={{fontSize:'1.75rem',fontWeight:700,marginBottom:'1.5rem'}}>Clientes</h1><div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'2rem',color:'#64748b'}}>Tabla de clientes conectada a la BD</div></>}
+      {page==='reports' && <><h1 style={{fontSize:'1.75rem',fontWeight:700,marginBottom:'1.5rem'}}>Reportes</h1><div style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'2rem',height:300,display:'flex',alignItems:'center',justifyContent:'center',color:'#64748b'}}>📈 Gráficos de ingresos y gastos</div></>}
+    </div>
+  </div>;
+}
+`, "Mi Facturación"),
+  },
+  // ==================== INVENTORY ====================
+  {
+    id: "inventory",
+    name: "Inventario",
+    keywords: ["inventario", "almacén", "almacen", "bodega", "stock", "existencias", "warehouse", "control de inventario"],
+    description: "Sistema de control de inventario con React y TypeScript",
+    planSteps: [
+      "Crear sidebar de navegación",
+      "Diseñar dashboard con alertas de stock",
+      "Crear tabla de productos con stock actual",
+      "Agregar registro de movimientos",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [page, setPage] = useState('dashboard');
+  const products = [
+    {name:'Laptop Pro 15',sku:'LP-001',cat:'Electrónica',stock:45,min:10,price:'$1,299'},
+    {name:'Mouse Wireless',sku:'MW-023',cat:'Accesorios',stock:8,min:20,price:'$29.99'},
+    {name:'Teclado Mecánico',sku:'TM-045',cat:'Accesorios',stock:120,min:15,price:'$89.99'},
+    {name:'Monitor 27"',sku:'MN-012',cat:'Electrónica',stock:3,min:5,price:'$449'},
+    {name:'Cable USB-C',sku:'CU-089',cat:'Cables',stock:230,min:50,price:'$12.99'},
+  ];
+  const alerts = products.filter(p=>p.stock <= p.min);
+
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    <div style={{width:220,background:'#060f0a',borderRight:'1px solid #153025',padding:'1.5rem 1rem',display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+      <h2 style={{color:'#34d399',fontSize:'1.1rem',fontWeight:700,marginBottom:'1.5rem',padding:'0 0.5rem'}}>📦 Mi Inventario</h2>
+      {[{id:'dashboard',icon:'📊',label:'Dashboard'},{id:'products',icon:'📦',label:'Productos'},{id:'movements',icon:'🔄',label:'Movimientos'},{id:'alerts',icon:'⚠️',label:'Alertas'}].map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{background:page===n.id?'#059669 22':'transparent',color:page===n.id?'#34d399':'#6aab8a',border:'none',padding:'0.7rem 0.8rem',borderRadius:10,textAlign:'left',fontSize:'0.88rem'}}>{n.icon} {n.label}{n.id==='alerts'&&alerts.length>0?<span style={{marginLeft:'0.5rem',background:'#ef444444',color:'#f87171',padding:'0.1rem 0.5rem',borderRadius:99,fontSize:'0.7rem'}}>{alerts.length}</span>:null}</button>)}
+    </div>
+    <div style={{flex:1,padding:'2rem',overflowY:'auto',background:'#060f0a'}}>
+      <h1 style={{fontSize:'1.75rem',fontWeight:700,marginBottom:'1.5rem',color:'#d1fae5'}}>{page==='dashboard'?'Dashboard':page==='products'?'Productos':page==='movements'?'Movimientos':'Alertas de Stock'}</h1>
+      {page==='dashboard' && <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+        {[{label:'Total Productos',value:'5',icon:'📦'},{label:'Stock Total',value:'406',icon:'📊'},{label:'Alertas',value:String(alerts.length),icon:'⚠️'},{label:'Valor Total',value:'$82,400',icon:'💰'}].map((m,i)=><div key={i} style={{background:'#0f1f15',border:'1px solid #153025',borderRadius:14,padding:'1.5rem'}}>
+          <div style={{color:'#6aab8a',fontSize:'0.8rem',marginBottom:'0.5rem'}}>{m.icon} {m.label}</div>
+          <div style={{fontSize:'1.8rem',fontWeight:700,color:'#d1fae5'}}>{m.value}</div>
+        </div>)}
+      </div>}
+      <div style={{background:'#0f1f15',border:'1px solid #153025',borderRadius:14,overflow:'hidden'}}>
+        <table data-crud-table="products" style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr>{['Producto','SKU','Categoría','Stock','Mínimo','Precio'].map(h=><th key={h} style={{textAlign:'left',padding:'0.8rem 1.2rem',color:'#6aab8a',fontSize:'0.78rem',textTransform:'uppercase',background:'#0a1510'}}>{h}</th>)}</tr></thead>
+          <tbody>{products.map((p,i)=><tr key={i} style={{borderBottom:'1px solid #153025'}}><td style={{padding:'0.8rem 1.2rem',fontWeight:500,color:'#d1fae5'}}>{p.name}</td><td style={{padding:'0.8rem 1.2rem',color:'#6aab8a',fontFamily:'monospace'}}>{p.sku}</td><td style={{padding:'0.8rem 1.2rem',color:'#6aab8a'}}>{p.cat}</td><td style={{padding:'0.8rem 1.2rem'}}><span style={{color:p.stock<=p.min?'#f87171':'#34d399',fontWeight:600}}>{p.stock}</span></td><td style={{padding:'0.8rem 1.2rem',color:'#6aab8a'}}>{p.min}</td><td style={{padding:'0.8rem 1.2rem',fontWeight:600,color:'#34d399'}}>{p.price}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>;
+}
+`, "Mi Inventario"),
+  },
+  // ==================== CRM ====================
+  {
+    id: "crm",
+    name: "CRM",
+    keywords: ["crm", "clientes", "prospectos", "leads", "contactos", "pipeline", "seguimiento", "gestión de clientes"],
+    description: "CRM de gestión de clientes con React y TypeScript",
+    planSteps: [
+      "Crear sidebar con secciones CRM",
+      "Diseñar pipeline visual de deals",
+      "Crear tabla de contactos con búsqueda",
+      "Agregar métricas de ventas",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [page, setPage] = useState('pipeline');
+  const stages = [
+    {name:'Prospecto',color:'#60a5fa',deals:[{title:'Proyecto Web',company:'TechCo',value:'$5,000'},{title:'App Móvil',company:'StartApp',value:'$12,000'}]},
+    {name:'Propuesta',color:'#a78bfa',deals:[{title:'E-commerce',company:'ShopMax',value:'$8,500'}]},
+    {name:'Negociación',color:'#fbbf24',deals:[{title:'Dashboard',company:'DataCorp',value:'$15,000'}]},
+    {name:'Cerrado',color:'#34d399',deals:[{title:'Landing Page',company:'BrandX',value:'$3,000'},{title:'Rediseño Web',company:'OldSite',value:'$7,200'}]},
+  ];
+
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    <div style={{width:220,background:'#0a0a14',borderRight:'1px solid #1a1a30',padding:'1.5rem 1rem',display:'flex',flexDirection:'column',gap:'0.3rem'}}>
+      <h2 style={{color:'#a78bfa',fontSize:'1.1rem',fontWeight:700,marginBottom:'1.5rem',padding:'0 0.5rem'}}>🎯 Mi CRM</h2>
+      {[{id:'pipeline',icon:'🔄',label:'Pipeline'},{id:'contacts',icon:'👥',label:'Contactos'},{id:'deals',icon:'💰',label:'Deals'},{id:'reports',icon:'📈',label:'Reportes'}].map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{background:page===n.id?'#7c3aed22':'transparent',color:page===n.id?'#a78bfa':'#64748b',border:'none',padding:'0.7rem 0.8rem',borderRadius:10,textAlign:'left',fontSize:'0.88rem'}}>{n.icon} {n.label}</button>)}
+    </div>
+    <div style={{flex:1,padding:'2rem',overflowY:'auto'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
+        <h1 style={{fontSize:'1.75rem',fontWeight:700}}>Pipeline de Ventas</h1>
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#7c3aed,#a78bfa)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>+ Nuevo Deal</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+        {stages.map((stage,si)=><div key={si}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'1rem'}}><div style={{width:10,height:10,borderRadius:'50%',background:stage.color}}></div><span style={{fontWeight:600,fontSize:'0.9rem'}}>{stage.name}</span><span style={{color:'#64748b',fontSize:'0.8rem'}}>({stage.deals.length})</span></div>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+            {stage.deals.map((d,di)=><div key={di} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:12,padding:'1rem',borderLeft:\`3px solid \${stage.color}\`}}>
+              <h4 style={{fontSize:'0.9rem',fontWeight:600,marginBottom:'0.3rem'}}>{d.title}</h4>
+              <p style={{color:'#64748b',fontSize:'0.8rem'}}>{d.company}</p>
+              <p style={{color:'#a78bfa',fontWeight:700,fontSize:'0.95rem',marginTop:'0.5rem'}}>{d.value}</p>
+            </div>)}
+          </div>
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+`, "Mi CRM"),
+  },
+  // ==================== POS ====================
+  {
+    id: "pos",
+    name: "Punto de Venta",
+    keywords: ["punto de venta", "pos", "caja registradora", "terminal", "ventas", "ticket", "caja"],
+    description: "Punto de venta con React y TypeScript",
+    planSteps: [
+      "Crear layout de POS con catálogo y carrito",
+      "Diseñar grid de productos con categorías",
+      "Implementar carrito funcional con totales",
+      "Agregar área de pago y ticket",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [cart, setCart] = useState([]);
+  const [cat, setCat] = useState('all');
+  const products = [
+    {name:'Café Americano',price:3.50,cat:'bebidas',icon:'☕'},{name:'Cappuccino',price:4.50,cat:'bebidas',icon:'☕'},
+    {name:'Sandwich Club',price:7.90,cat:'comida',icon:'🥪'},{name:'Ensalada César',price:8.50,cat:'comida',icon:'🥗'},
+    {name:'Croissant',price:3.20,cat:'panadería',icon:'🥐'},{name:'Muffin Chocolate',price:3.80,cat:'panadería',icon:'🧁'},
+    {name:'Jugo Natural',price:4.00,cat:'bebidas',icon:'🧃'},{name:'Bagel',price:5.50,cat:'panadería',icon:'🥯'},
+  ];
+  const filtered = cat==='all'?products:products.filter(p=>p.cat===cat);
+  const addToCart = (p) => {const existing = cart.find(c=>c.name===p.name); if(existing){setCart(cart.map(c=>c.name===p.name?{...c,qty:c.qty+1}:c))}else{setCart([...cart,{...p,qty:1}])}};
+  const total = cart.reduce((s,c)=>s+c.price*c.qty,0);
+
+  return <div style={{display:'flex',minHeight:'100vh'}}>
+    <div style={{flex:1,padding:'1.5rem',background:'#0a0a14'}}>
+      <div style={{display:'flex',gap:'0.5rem',marginBottom:'1.5rem'}}>
+        {[['all','Todos'],['bebidas','Bebidas'],['comida','Comida'],['panadería','Panadería']].map(([k,l])=><button key={k} onClick={()=>setCat(k)} style={{padding:'0.5rem 1rem',borderRadius:10,border:'none',background:cat===k?'linear-gradient(135deg,#7c3aed,#6366f1)':'#12121a',color:cat===k?'#fff':'#94a3b8',fontSize:'0.85rem',fontWeight:500}}>{l}</button>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:'1rem'}}>
+        {filtered.map((p,i)=><button key={i} onClick={()=>addToCart(p)} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'1.5rem 1rem',textAlign:'center',cursor:'pointer',transition:'all 0.2s',color:'#e2e8f0'}} onMouseOver={e=>e.currentTarget.style.borderColor='#7c3aed'} onMouseOut={e=>e.currentTarget.style.borderColor='#1e1e2e'}>
+          <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>{p.icon}</div>
+          <div style={{fontSize:'0.85rem',fontWeight:500}}>{p.name}</div>
+          <div style={{color:'#a78bfa',fontWeight:700,marginTop:'0.3rem'}}>${p.price.toFixed(2)}</div>
+        </button>)}
+      </div>
+    </div>
+    <div style={{width:350,background:'#0e0e18',borderLeft:'1px solid #1e1e2e',padding:'1.5rem',display:'flex',flexDirection:'column'}}>
+      <h2 style={{fontSize:'1.2rem',fontWeight:700,marginBottom:'1rem',color:'#a78bfa'}}>🧾 Ticket</h2>
+      <div style={{flex:1,overflowY:'auto'}}>
+        {cart.length===0?<p style={{color:'#64748b',textAlign:'center',marginTop:'2rem'}}>Carrito vacío</p>:
+        cart.map((c,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.6rem 0',borderBottom:'1px solid #1e1e2e'}}>
+          <div><span style={{fontSize:'0.9rem'}}>{c.name}</span><span style={{color:'#64748b',fontSize:'0.8rem',marginLeft:'0.5rem'}}>x{c.qty}</span></div>
+          <span style={{fontWeight:600,color:'#a78bfa'}}>${(c.price*c.qty).toFixed(2)}</span>
+        </div>)}
+      </div>
+      <div style={{borderTop:'2px solid #1e1e2e',paddingTop:'1rem',marginTop:'1rem'}}>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'1.2rem',fontWeight:700,marginBottom:'1rem'}}><span>Total</span><span style={{color:'#a78bfa'}}>${total.toFixed(2)}</span></div>
+        <button onClick={()=>{if(cart.length>0){alert('¡Venta procesada!');setCart([])}}} style={{width:'100%',padding:'0.85rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>💳 Cobrar</button>
+      </div>
+    </div>
+  </div>;
+}
+`, "Mi Punto de Venta"),
+  },
+  // ==================== BOOKING ====================
+  {
+    id: "booking",
+    name: "Reservas / Citas",
+    keywords: ["reservas", "citas", "agenda", "turnos", "booking", "appointments", "agendar", "programar", "calendario"],
+    description: "Sistema de reservas y citas con React y TypeScript",
+    planSteps: [
+      "Crear layout con servicios disponibles",
+      "Diseñar calendario visual de disponibilidad",
+      "Crear formulario de reserva con validación",
+      "Agregar confirmación de cita",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [step, setStep] = useState(1);
+  const [selected, setSelected] = useState(null);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const services = [
+    {name:'Consulta General',duration:'30 min',price:'$50',icon:'📋'},
+    {name:'Evaluación Completa',duration:'60 min',price:'$120',icon:'🔍'},
+    {name:'Sesión de Seguimiento',duration:'45 min',price:'$80',icon:'🔄'},
+    {name:'Consulta Premium',duration:'90 min',price:'$200',icon:'⭐'},
+  ];
+  const times = ['09:00','10:00','11:00','12:00','14:00','15:00','16:00','17:00'];
+
+  return <div style={{minHeight:'100vh',background:'#0f0a05'}}>
+    <nav style={{padding:'1rem 2rem',borderBottom:'1px solid #302010',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#f59e0b'}}>📅 Mis Reservas</div>
+      <div style={{color:'#b8a078',fontSize:'0.9rem'}}>Paso {step} de 3</div>
+    </nav>
+    <div style={{maxWidth:800,margin:'3rem auto',padding:'0 2rem'}}>
+      <div style={{display:'flex',gap:'1rem',marginBottom:'2rem'}}>
+        {[1,2,3].map(s=><div key={s} style={{flex:1,height:4,borderRadius:2,background:s<=step?'linear-gradient(135deg,#d97706,#f59e0b)':'#302010'}}/>)}
+      </div>
+
+      {step===1 && <>
+        <h2 style={{fontSize:'1.8rem',fontWeight:700,marginBottom:'1rem',color:'#fef3c7'}}>Elige un servicio</h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'1rem'}}>
+          {services.map((s,i)=><button key={i} onClick={()=>{setSelected(s);setStep(2)}} style={{background:selected?.name===s.name?'#d9770622':'#1c1610',border:\`1px solid \${selected?.name===s.name?'#d97706':'#302010'}\`,borderRadius:14,padding:'1.5rem',textAlign:'left',cursor:'pointer',color:'#fef3c7',transition:'all 0.2s'}}>
+            <div style={{fontSize:'1.5rem',marginBottom:'0.5rem'}}>{s.icon}</div>
+            <h3 style={{fontWeight:600,marginBottom:'0.3rem'}}>{s.name}</h3>
+            <p style={{color:'#b8a078',fontSize:'0.85rem'}}>{s.duration}</p>
+            <p style={{color:'#f59e0b',fontWeight:700,marginTop:'0.5rem'}}>{s.price}</p>
+          </button>)}
+        </div>
+      </>}
+
+      {step===2 && <>
+        <h2 style={{fontSize:'1.8rem',fontWeight:700,marginBottom:'1rem',color:'#fef3c7'}}>Selecciona fecha y hora</h2>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'2rem'}}>
+          <div><label style={{color:'#b8a078',fontSize:'0.85rem',display:'block',marginBottom:'0.5rem'}}>Fecha</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{width:'100%',padding:'0.8rem',background:'#1c1610',border:'1px solid #302010',borderRadius:10,color:'#fef3c7'}}/></div>
+          <div><label style={{color:'#b8a078',fontSize:'0.85rem',display:'block',marginBottom:'0.5rem'}}>Hora</label>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.5rem'}}>{times.map(t=><button key={t} onClick={()=>setTime(t)} style={{padding:'0.6rem',borderRadius:8,border:'none',background:time===t?'#d97706':'#1c1610',color:time===t?'#fff':'#b8a078',fontSize:'0.85rem',cursor:'pointer'}}>{t}</button>)}</div></div>
+        </div>
+        <div style={{display:'flex',gap:'1rem',marginTop:'2rem'}}>
+          <button onClick={()=>setStep(1)} style={{padding:'0.8rem 1.5rem',background:'transparent',border:'1px solid #302010',borderRadius:10,color:'#b8a078',fontSize:'0.9rem'}}>← Atrás</button>
+          <button onClick={()=>{if(date&&time)setStep(3)}} style={{padding:'0.8rem 1.5rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.9rem'}}>Confirmar →</button>
+        </div>
+      </>}
+
+      {step===3 && <div style={{textAlign:'center',padding:'3rem'}}>
+        <div style={{fontSize:'4rem',marginBottom:'1rem'}}>✅</div>
+        <h2 style={{fontSize:'1.8rem',fontWeight:700,marginBottom:'0.5rem',color:'#fef3c7'}}>¡Reserva Confirmada!</h2>
+        <p style={{color:'#b8a078',marginBottom:'2rem'}}>{selected?.name} · {date} a las {time}</p>
+        <button onClick={()=>{setStep(1);setSelected(null);setDate('');setTime('')}} style={{padding:'0.8rem 2rem',background:'linear-gradient(135deg,#d97706,#f59e0b)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Nueva Reserva</button>
+      </div>}
+    </div>
+  </div>;
+}
+`, "Mis Reservas"),
+  },
+  // ==================== HOTEL ====================
+  {
+    id: "hotel",
+    name: "Hotel / Hospedaje",
+    keywords: ["hotel", "hospedaje", "alojamiento", "airbnb", "hostal", "resort", "posada", "cabaña", "habitaciones"],
+    description: "Página de hotel con React y TypeScript",
+    planSteps: [
+      "Crear navegación elegante con nombre del hotel",
+      "Diseñar hero con imagen de fondo",
+      "Crear sección de habitaciones con precios",
+      "Agregar formulario de reservación",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [booked, setBooked] = useState(false);
+  const rooms = [
+    {name:'Suite Ejecutiva',price:'$180',desc:'Cama king, vista ciudad, minibar, WiFi premium.',icon:'🏨',capacity:'2 adultos'},
+    {name:'Suite Premium',price:'$320',desc:'Sala independiente, jacuzzi, terraza con vista al mar.',icon:'⭐',capacity:'2 adultos + 1 niño'},
+    {name:'Habitación Doble',price:'$120',desc:'Dos camas dobles, baño completo, TV 55".',icon:'🛏️',capacity:'4 adultos'},
+    {name:'Suite Presidencial',price:'$580',desc:'2 habitaciones, sala, comedor, servicio de butler.',icon:'👑',capacity:'4 adultos'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(12,10,6,0.95)',borderBottom:'1px solid #28220e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:700,color:'#ca8a04'}}>🏨 Mi Hotel</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Habitaciones','Amenidades','Reservar'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#b8a060',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#a16207,#ca8a04)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Reservar</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 30%,rgba(161,98,7,0.1) 0%,transparent 60%)'}}>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2.5rem,5vw,4rem)',marginBottom:'1rem',background:'linear-gradient(135deg,#a16207,#ca8a04)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Hospitalidad de Primera Clase</h1>
+      <p style={{fontSize:'1.15rem',color:'#b8a060',maxWidth:600,marginBottom:'2rem'}}>Disfruta de una estancia inolvidable con servicio excepcional, habitaciones de lujo y una ubicación privilegiada.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#a16207,#ca8a04)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Ver Habitaciones →</button>
+    </section>
+
+    <section id="habitaciones" style={{padding:'5rem 2rem'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",textAlign:'center',fontSize:'2rem',marginBottom:'3rem',color:'#fef9c3'}}>Nuestras Habitaciones</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {rooms.map((r,i)=><div key={i} style={{background:'#1a1710',border:'1px solid #28220e',borderRadius:16,overflow:'hidden',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='#a16207'}} onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='#28220e'}}>
+          <div style={{height:140,background:'linear-gradient(135deg,#11100a,#1a1710)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem'}}>{r.icon}</div>
+          <div style={{padding:'1.5rem'}}>
+            <h3 style={{fontWeight:600,marginBottom:'0.3rem',color:'#fef9c3'}}>{r.name}</h3>
+            <p style={{color:'#b8a060',fontSize:'0.85rem',marginBottom:'0.5rem'}}>{r.desc}</p>
+            <p style={{color:'#b8a060',fontSize:'0.8rem',marginBottom:'0.75rem'}}>👥 {r.capacity}</p>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{color:'#ca8a04',fontWeight:700,fontSize:'1.2rem'}}>{r.price}<span style={{fontSize:'0.8rem',fontWeight:400}}>/noche</span></span>
+              <button style={{padding:'0.5rem 1rem',background:'linear-gradient(135deg,#a16207,#ca8a04)',color:'#fff',border:'none',borderRadius:8,fontSize:'0.8rem',fontWeight:600}}>Reservar</button>
+            </div>
+          </div>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="reservar" style={{padding:'5rem 2rem',background:'#11100a',textAlign:'center'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',marginBottom:'2rem',color:'#fef9c3'}}>Reserva tu Estancia</h2>
+      {booked ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Reservación confirmada!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setBooked(true)}}>
+        <input style={{background:'#1a1710',border:'1px solid #28220e',borderRadius:10,padding:'0.85rem 1rem',color:'#fef9c3',outline:'none'}} placeholder="Nombre completo" required />
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+          <input type="date" style={{background:'#1a1710',border:'1px solid #28220e',borderRadius:10,padding:'0.85rem 1rem',color:'#fef9c3',outline:'none'}} required />
+          <input type="date" style={{background:'#1a1710',border:'1px solid #28220e',borderRadius:10,padding:'0.85rem 1rem',color:'#fef9c3',outline:'none'}} required />
+        </div>
+        <select style={{background:'#1a1710',border:'1px solid #28220e',borderRadius:10,padding:'0.85rem 1rem',color:'#fef9c3',appearance:'auto'}}><option>Suite Ejecutiva</option><option>Suite Premium</option><option>Habitación Doble</option><option>Suite Presidencial</option></select>
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#a16207,#ca8a04)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Confirmar Reserva</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #28220e',padding:'2rem',textAlign:'center',color:'#b8a060',fontSize:'0.85rem'}}>© 2026 Mi Hotel. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Hotel"),
+  },
+  // ==================== LAWYER ====================
+  {
+    id: "lawyer",
+    name: "Abogado / Legal",
+    keywords: ["abogado", "legal", "derecho", "bufete", "jurídico", "juridico", "notaría", "leyes", "litigio"],
+    description: "Sitio web para bufete legal con React y TypeScript",
+    planSteps: [
+      "Crear navegación profesional legal",
+      "Diseñar hero con propuesta de valor",
+      "Crear sección de áreas de práctica",
+      "Agregar formulario de consulta",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [sent, setSent] = useState(false);
+  const areas = [
+    {icon:'⚖️',title:'Derecho Civil',desc:'Contratos, herencias, divorcios y litigios civiles con experiencia comprobada.'},
+    {icon:'🏢',title:'Derecho Corporativo',desc:'Constitución de empresas, fusiones, adquisiciones y asesoría mercantil.'},
+    {icon:'📜',title:'Derecho Penal',desc:'Defensa penal especializada con enfoque estratégico y confidencial.'},
+    {icon:'🏠',title:'Derecho Inmobiliario',desc:'Compraventa de inmuebles, escrituración y asesoría registral.'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(9,9,11,0.95)',borderBottom:'1px solid #222230',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#c4b5fd'}}>⚖️ Mi Bufete Legal</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Equipo','Consulta'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#6b6b7a',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Consulta Gratis</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(139,92,246,0.08) 0%,transparent 60%)'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Justicia, Confianza y Resultados</h1>
+      <p style={{fontSize:'1.15rem',color:'#6b6b7a',maxWidth:600,marginBottom:'2rem'}}>Más de 15 años defendiendo tus derechos con profesionalismo, ética y compromiso.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Consulta Gratuita →</button>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#e8e8ed'}}>Áreas de Práctica</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {areas.map((a,i)=><div key={i} style={{background:'#121216',border:'1px solid #222230',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.borderColor='#8b5cf6';e.currentTarget.style.transform='translateY(-4px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#222230';e.currentTarget.style.transform=''}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{a.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem',color:'#e8e8ed'}}>{a.title}</h3>
+          <p style={{color:'#6b6b7a',fontSize:'0.95rem'}}>{a.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="consulta" style={{padding:'5rem 2rem',background:'#0d0d10',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#e8e8ed'}}>Consulta Gratuita</h2>
+      {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Consulta enviada! Te contactaremos pronto.</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+        <input style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="email" style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',outline:'none'}} placeholder="tu@email.com" required />
+        <textarea style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',outline:'none',resize:'vertical',minHeight:100}} placeholder="Describe tu caso..." required />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Enviar Consulta</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #222230',padding:'2rem',textAlign:'center',color:'#6b6b7a',fontSize:'0.85rem'}}>© 2026 Mi Bufete Legal. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Bufete Legal"),
+  },
+  // ==================== ACCOUNTING ====================
+  {
+    id: "accounting",
+    name: "Contabilidad",
+    keywords: ["contador", "contabilidad", "impuestos", "fiscal", "auditor", "contable", "nómina", "tributario", "despacho contable"],
+    description: "Sitio web para despacho contable con React y TypeScript",
+    planSteps: [
+      "Crear navegación profesional contable",
+      "Diseñar hero con servicios fiscales",
+      "Crear sección de servicios contables",
+      "Agregar formulario de cotización",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [sent, setSent] = useState(false);
+  const services = [
+    {icon:'📊',title:'Contabilidad General',desc:'Registro y análisis de operaciones financieras.'},
+    {icon:'💰',title:'Declaración de Impuestos',desc:'Cumplimiento fiscal optimizado.'},
+    {icon:'📋',title:'Auditoría Financiera',desc:'Revisión de estados financieros.'},
+    {icon:'👥',title:'Nóminas',desc:'Cálculo y administración de nóminas.'},
+    {icon:'📈',title:'Consultoría Fiscal',desc:'Estrategias para optimizar tu carga fiscal.'},
+    {icon:'🏢',title:'Constitución de Empresas',desc:'Asesoría en la creación de sociedades.'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(6,6,15,0.95)',borderBottom:'1px solid #1a1a35',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#818cf8'}}>📊 Mi Contaduría</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Nosotros','Cotizar'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#7580b5',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#6366f1,#818cf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Cotizar</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#6366f1,#818cf8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Precisión Financiera para tu Negocio</h1>
+      <p style={{fontSize:'1.15rem',color:'#7580b5',maxWidth:600,marginBottom:'2rem'}}>Servicios contables y fiscales de excelencia. Tu tranquilidad financiera es nuestra especialidad.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#6366f1,#818cf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Solicitar Cotización →</button>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem',background:'#0a0a16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#e0e7ff'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#12121f',border:'1px solid #1a1a35',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.borderColor='#6366f1';e.currentTarget.style.transform='translateY(-4px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#1a1a35';e.currentTarget.style.transform=''}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem',color:'#e0e7ff'}}>{s.title}</h3>
+          <p style={{color:'#7580b5',fontSize:'0.95rem'}}>{s.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="cotizar" style={{padding:'5rem 2rem',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#e0e7ff'}}>Solicita una Cotización</h2>
+      {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Cotización solicitada! Te contactaremos pronto.</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+        <input style={{background:'#12121f',border:'1px solid #1a1a35',borderRadius:10,padding:'0.85rem 1rem',color:'#e0e7ff',outline:'none'}} placeholder="Nombre o empresa" required />
+        <input type="email" style={{background:'#12121f',border:'1px solid #1a1a35',borderRadius:10,padding:'0.85rem 1rem',color:'#e0e7ff',outline:'none'}} placeholder="tu@email.com" required />
+        <select style={{background:'#12121f',border:'1px solid #1a1a35',borderRadius:10,padding:'0.85rem 1rem',color:'#e0e7ff',appearance:'auto'}}><option>Contabilidad General</option><option>Declaración de Impuestos</option><option>Auditoría</option><option>Nóminas</option><option>Consultoría Fiscal</option></select>
+        <textarea style={{background:'#12121f',border:'1px solid #1a1a35',borderRadius:10,padding:'0.85rem 1rem',color:'#e0e7ff',outline:'none',resize:'vertical',minHeight:80}} placeholder="Cuéntanos sobre tu negocio..." />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#6366f1,#818cf8)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Solicitar Cotización</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #1a1a35',padding:'2rem',textAlign:'center',color:'#7580b5',fontSize:'0.85rem'}}>© 2026 Mi Contaduría. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Contaduría"),
+  },
+  // ==================== PHOTOGRAPHY ====================
+  {
+    id: "photography",
+    name: "Fotografía",
+    keywords: ["fotógrafo", "fotografo", "fotos", "fotografía", "fotografia", "sesión fotográfica", "cámara", "retrato", "boda"],
+    description: "Sitio web para estudio fotográfico con React y TypeScript",
+    planSteps: [
+      "Crear navegación con estilo artístico",
+      "Diseñar hero con imagen de fondo",
+      "Crear galería masonry de trabajos",
+      "Agregar paquetes y formulario de contacto",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [filter, setFilter] = useState('all');
+  const [sent, setSent] = useState(false);
+  const gallery = [
+    {cat:'bodas',h:300},{cat:'retratos',h:200},{cat:'eventos',h:250},{cat:'bodas',h:220},{cat:'retratos',h:280},{cat:'eventos',h:200},{cat:'bodas',h:240},{cat:'retratos',h:300},
+  ];
+  const filtered = filter==='all'?gallery:gallery.filter(g=>g.cat===filter);
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(9,9,11,0.95)',borderBottom:'1px solid #222230',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:700,color:'#c4b5fd'}}>📸 Mi Estudio</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Galería','Paquetes','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')}\`} style={{color:'#6b6b7a',fontSize:'0.9rem'}}>{l}</a>)}
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem'}}>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2.5rem,5vw,4rem)',marginBottom:'1rem',background:'linear-gradient(135deg,#a78bfa,#c4b5fd)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Capturamos Momentos Únicos</h1>
+      <p style={{fontSize:'1.15rem',color:'#6b6b7a',maxWidth:600,marginBottom:'2rem'}}>Fotografía profesional con pasión, creatividad y un ojo experto para el detalle.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Ver Portfolio →</button>
+    </section>
+
+    <section id="galeria" style={{padding:'5rem 2rem'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'1rem',color:'#e8e8ed'}}>Portfolio</h2>
+      <div style={{display:'flex',justifyContent:'center',gap:'0.5rem',marginBottom:'2rem'}}>
+        {[['all','Todos'],['bodas','Bodas'],['retratos','Retratos'],['eventos','Eventos']].map(([k,l])=><button key={k} onClick={()=>setFilter(k)} style={{padding:'0.5rem 1.2rem',borderRadius:99,border:'none',background:filter===k?'linear-gradient(135deg,#a78bfa,#8b5cf6)':'#121216',color:filter===k?'#fff':'#6b6b7a',fontSize:'0.85rem',fontWeight:500}}>{l}</button>)}
+      </div>
+      <div style={{columns:'3',columnGap:'1rem',maxWidth:1100,margin:'0 auto'}}>
+        {filtered.map((g,i)=><div key={i} style={{breakInside:'avoid',marginBottom:'1rem',borderRadius:12,overflow:'hidden',background:'#121216',border:'1px solid #222230'}}>
+          <div style={{height:g.h,background:\`linear-gradient(\${135+i*15}deg,#1a1a2e,#222244)\`,display:'flex',alignItems:'center',justifyContent:'center',color:'#6b6b7a',fontSize:'0.85rem'}}>📷 Foto {i+1}</div>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="contacto" style={{padding:'5rem 2rem',background:'#0d0d10',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#e8e8ed'}}>Reserva tu Sesión</h2>
+      {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Solicitud enviada!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+        <input style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="email" style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',outline:'none'}} placeholder="tu@email.com" required />
+        <select style={{background:'#121216',border:'1px solid #222230',borderRadius:10,padding:'0.85rem 1rem',color:'#e8e8ed',appearance:'auto'}}><option>Boda</option><option>Retrato</option><option>Evento</option><option>Producto</option></select>
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#a78bfa,#8b5cf6)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Solicitar Sesión</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #222230',padding:'2rem',textAlign:'center',color:'#6b6b7a',fontSize:'0.85rem'}}>© 2026 Mi Estudio Fotográfico. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Estudio Fotográfico"),
+  },
+  // ==================== MUSIC ====================
+  {
+    id: "music",
+    name: "Música / Producción",
+    keywords: ["músico", "musico", "banda", "dj", "grabación", "grabacion", "música", "musica", "cantante", "productor", "estudio musical"],
+    description: "Sitio web para estudio musical con React y TypeScript",
+    planSteps: [
+      "Crear navegación con estilo musical",
+      "Diseñar hero con ambiente de estudio",
+      "Crear sección de servicios de producción",
+      "Agregar formulario de contacto",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [sent, setSent] = useState(false);
+  const services = [
+    {icon:'🎙️',title:'Grabación',desc:'Estudio profesional con acústica tratada y equipamiento de primera línea.'},
+    {icon:'🎛️',title:'Mezcla & Master',desc:'Procesamiento de audio profesional para un sonido competitivo.'},
+    {icon:'🎵',title:'Producción Musical',desc:'Composición, arreglos y producción completa de tus canciones.'},
+    {icon:'🎧',title:'Podcast & Voz',desc:'Grabación y edición profesional de podcasts y voiceovers.'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(10,10,15,0.95)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#a78bfa'}}>🎵 Mi Estudio Musical</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Portfolio','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#94a3b8',fontSize:'0.9rem'}}>{l}</a>)}
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.1) 0%,transparent 60%)'}}>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,3.5rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#a78bfa,#6366f1)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Tu Música Suena Profesional</h1>
+      <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Producción musical de alto nivel. Grabación, mezcla y masterización con pasión por el sonido perfecto.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Escuchar Demo →</button>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem'}}>Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.borderColor='#7c3aed';e.currentTarget.style.transform='translateY(-4px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#1e1e2e';e.currentTarget.style.transform=''}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{s.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem'}}>{s.title}</h3>
+          <p style={{color:'#94a3b8',fontSize:'0.95rem'}}>{s.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="contacto" style={{padding:'5rem 2rem',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem'}}>Contáctanos</h2>
+      {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Mensaje enviado!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+        <input style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="email" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="tu@email.com" required />
+        <textarea style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none',resize:'vertical',minHeight:100}} placeholder="Cuéntanos sobre tu proyecto musical..." required />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Enviar</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 Mi Estudio Musical. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Estudio Musical"),
+  },
+  // ==================== SALON ====================
+  {
+    id: "salon",
+    name: "Salón de Belleza",
+    keywords: ["salón", "salon", "peluquería", "peluqueria", "barbería", "barberia", "spa", "estética", "estetica", "belleza", "cabello", "uñas", "maquillaje"],
+    description: "Sitio web para salón de belleza con React y TypeScript",
+    planSteps: [
+      "Crear navegación elegante con nombre del salón",
+      "Diseñar hero con servicios de belleza",
+      "Crear catálogo de servicios con precios",
+      "Agregar formulario de reserva",
+    ],
+    html: reactWrap(`
+const { useState } = React;
+
+function App() {
+  const [booked, setBooked] = useState(false);
+  const services = [
+    {icon:'✂️',title:'Corte & Peinado',price:'Desde $25',desc:'Estilistas expertos que crean el look perfecto.'},
+    {icon:'💇',title:'Color & Tinte',price:'Desde $60',desc:'Técnicas de colorimetría avanzada.'},
+    {icon:'💅',title:'Manicure & Pedicure',price:'Desde $20',desc:'Tratamientos de uñas con productos premium.'},
+    {icon:'💆',title:'Tratamientos Faciales',price:'Desde $45',desc:'Limpiezas, hidrataciones y rejuvenecimiento.'},
+    {icon:'💄',title:'Maquillaje',price:'Desde $50',desc:'Maquillaje profesional para toda ocasión.'},
+    {icon:'🧖',title:'Spa & Relajación',price:'Desde $70',desc:'Masajes, aromaterapia y tratamientos corporales.'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(15,6,10,0.95)',borderBottom:'1px solid #301520',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:700,color:'#f472b6'}}>💅 Mi Salón</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Precios','Reservar'].map(l=><a key={l} href={\`#\${l.toLowerCase()}\`} style={{color:'#c070a0',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#db2777,#ec4899)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Reservar Cita</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(219,39,119,0.08) 0%,transparent 60%)'}}>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2.5rem,5vw,4rem)',marginBottom:'1rem',background:'linear-gradient(135deg,#db2777,#f472b6)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Tu Espacio de Belleza y Bienestar</h1>
+      <p style={{fontSize:'1.15rem',color:'#c070a0',maxWidth:600,marginBottom:'2rem'}}>Profesionales apasionados que cuidan cada detalle para que te sientas increíble.</p>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#db2777,#ec4899)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Reservar Cita →</button>
+    </section>
+
+    <section id="servicios" style={{padding:'5rem 2rem',background:'#0f060a'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#fce7f3'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {services.map((s,i)=><div key={i} style={{background:'#1f1018',border:'1px solid #301520',borderRadius:16,padding:'2rem',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'all 0.3s'}} onMouseOver={e=>{e.currentTarget.style.borderColor='#db2777';e.currentTarget.style.transform='translateY(-2px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#301520';e.currentTarget.style.transform=''}}>
+          <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
+            <div style={{fontSize:'1.5rem'}}>{s.icon}</div>
+            <div><h3 style={{fontWeight:600,color:'#fce7f3',fontSize:'0.95rem'}}>{s.title}</h3><p style={{color:'#c070a0',fontSize:'0.82rem'}}>{s.desc}</p></div>
+          </div>
+          <span style={{color:'#f472b6',fontWeight:700,whiteSpace:'nowrap'}}>{s.price}</span>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="reservar" style={{padding:'5rem 2rem',textAlign:'center'}}>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#fce7f3'}}>Reserva tu Cita</h2>
+      {booked ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Cita reservada!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setBooked(true)}}>
+        <input style={{background:'#1f1018',border:'1px solid #301520',borderRadius:10,padding:'0.85rem 1rem',color:'#fce7f3',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="tel" style={{background:'#1f1018',border:'1px solid #301520',borderRadius:10,padding:'0.85rem 1rem',color:'#fce7f3',outline:'none'}} placeholder="Teléfono" required />
+        <select style={{background:'#1f1018',border:'1px solid #301520',borderRadius:10,padding:'0.85rem 1rem',color:'#fce7f3',appearance:'auto'}}><option>Corte & Peinado</option><option>Color & Tinte</option><option>Manicure</option><option>Tratamiento Facial</option><option>Maquillaje</option><option>Spa</option></select>
+        <input type="date" style={{background:'#1f1018',border:'1px solid #301520',borderRadius:10,padding:'0.85rem 1rem',color:'#fce7f3',outline:'none'}} required />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#db2777,#ec4899)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Confirmar Cita</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #301520',padding:'2rem',textAlign:'center',color:'#c070a0',fontSize:'0.85rem'}}>© 2026 Mi Salón. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Salón"),
+  },
+  // ==================== TECHNOLOGY ====================
+  {
+    id: "technology",
+    name: "Tecnología / Software",
+    keywords: ["tech", "software", "desarrollo", "programación", "programacion", "tecnología", "tecnologia", "sistemas", "informática", "devops", "plataforma"],
+    description: "Sitio web para empresa de tecnología con React y TypeScript",
+    planSteps: [
+      "Crear navegación moderna tech",
+      "Diseñar hero con propuesta de valor tech",
+      "Crear sección de features/servicios",
+      "Agregar CTA y contacto",
+    ],
+    html: reactWrap(`
+const { useState, useEffect, useRef } = React;
+
+function useOnScreen(ref) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return visible;
+}
+
+function App() {
+  const [sent, setSent] = useState(false);
+  const featRef = useRef(null);
+  const visible = useOnScreen(featRef);
+  const features = [
+    {icon:'💻',title:'Desarrollo a Medida',desc:'Software personalizado con las últimas tecnologías y mejores prácticas de la industria.'},
+    {icon:'☁️',title:'Cloud & DevOps',desc:'Infraestructura escalable, CI/CD automatizado y monitoreo 24/7.'},
+    {icon:'🤖',title:'Inteligencia Artificial',desc:'Soluciones de IA y ML para automatizar procesos y generar insights.'},
+    {icon:'📱',title:'Apps Móviles',desc:'Aplicaciones nativas y cross-platform para iOS y Android.'},
+    {icon:'🔒',title:'Ciberseguridad',desc:'Auditorías, pentesting y protección avanzada de datos.'},
+    {icon:'📊',title:'Big Data',desc:'Procesamiento y análisis de datos a gran escala para decisiones informadas.'},
+  ];
+
+  return <>
+    <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(12px)',background:'rgba(6,10,15,0.95)',borderBottom:'1px solid #152535',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div style={{fontSize:'1.3rem',fontWeight:700,color:'#67e8f9'}}>⚡ Mi Tech</div>
+      <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        {['Servicios','Tecnologías','Contacto'].map(l=><a key={l} href={\`#\${l.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')}\`} style={{color:'#60a5b8',fontSize:'0.9rem'}}>{l}</a>)}
+        <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem'}}>Ver Demo</button>
+      </div>
+    </nav>
+
+    <section style={{minHeight:'85vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.1) 0%,transparent 60%)'}}>
+      <span style={{background:'#06b6d422',color:'#67e8f9',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid #06b6d444'}}>⚡ Innovación Tecnológica</span>
+      <h1 style={{fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,#06b6d4,#67e8f9)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',maxWidth:700}}>Soluciones que impulsan tu negocio al futuro</h1>
+      <p style={{fontSize:'1.15rem',color:'#60a5b8',maxWidth:600,marginBottom:'2rem'}}>Desarrollamos software a medida, apps y plataformas con tecnología de vanguardia.</p>
+      <div style={{display:'flex',gap:'1rem'}}><button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Solicitar Demo →</button><button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #152535',color:'#cffafe',borderRadius:10,fontWeight:600}}>Conocer Más</button></div>
+    </section>
+
+    <section ref={featRef} id="servicios" style={{padding:'5rem 2rem',background:'#060a0f'}}>
+      <h2 style={{textAlign:'center',fontSize:'2rem',fontWeight:700,marginBottom:'3rem',color:'#cffafe'}}>Nuestros Servicios</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+        {features.map((f,i)=><div key={i} style={{background:'#0f1820',border:'1px solid #152535',borderRadius:16,padding:'2rem',opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transition:\`all 0.5s ease \${i*100}ms\`}} onMouseOver={e=>{e.currentTarget.style.borderColor='#06b6d4';e.currentTarget.style.transform='translateY(-4px)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#152535';e.currentTarget.style.transform=visible?'translateY(0)':'translateY(20px)'}}>
+          <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{f.icon}</div>
+          <h3 style={{fontWeight:600,marginBottom:'0.5rem',color:'#cffafe'}}>{f.title}</h3>
+          <p style={{color:'#60a5b8',fontSize:'0.95rem'}}>{f.desc}</p>
+        </div>)}
+      </div>
+    </section>
+
+    <section id="contacto" style={{padding:'5rem 2rem',textAlign:'center'}}>
+      <h2 style={{fontSize:'2rem',fontWeight:700,marginBottom:'2rem',color:'#cffafe'}}>Hablemos de tu Proyecto</h2>
+      {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Mensaje enviado!</p> :
+      <form style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+        <input style={{background:'#0f1820',border:'1px solid #152535',borderRadius:10,padding:'0.85rem 1rem',color:'#cffafe',outline:'none'}} placeholder="Tu nombre" required />
+        <input type="email" style={{background:'#0f1820',border:'1px solid #152535',borderRadius:10,padding:'0.85rem 1rem',color:'#cffafe',outline:'none'}} placeholder="tu@email.com" required />
+        <textarea style={{background:'#0f1820',border:'1px solid #152535',borderRadius:10,padding:'0.85rem 1rem',color:'#cffafe',outline:'none',resize:'vertical',minHeight:100}} placeholder="Cuéntanos sobre tu proyecto..." required />
+        <button type="submit" style={{padding:'0.85rem',background:'linear-gradient(135deg,#06b6d4,#0891b2)',color:'#fff',border:'none',borderRadius:10,fontWeight:600}}>Enviar</button>
+      </form>}
+    </section>
+
+    <footer style={{borderTop:'1px solid #152535',padding:'2rem',textAlign:'center',color:'#60a5b8',fontSize:'0.85rem'}}>© 2026 Mi Tech. Creado con DOKU AI.</footer>
+  </>;
+}
+`, "Mi Tech"),
+  },
 ];
 
 // Generate 5 color variants per template category
