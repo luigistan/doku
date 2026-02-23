@@ -1949,11 +1949,11 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
   }
 }
 
-// ==================== SHORT LLM CALLS (Optimized for tinyllama) ====================
-async function callLLMShort(prompt: string): Promise<string | null> {
+// ==================== SHORT LLM CALLS (Optimized for llama3.1:8b) ====================
+async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | null> {
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+  const model = Deno.env.get("LLM_MODEL") || "llama3.1:8b";
 
   try {
     if (provider === "ollama") {
@@ -1965,12 +1965,12 @@ async function callLLMShort(prompt: string): Promise<string | null> {
           prompt,
           stream: false,
           options: {
-            num_predict: 150,
+            num_predict: maxTokens,
             temperature: 0.7,
-            stop: ["\n\n", "---", "```"],
+            ...(maxTokens <= 500 ? { stop: ["\n\n\n", "---", "```"] } : {}),
           },
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
       });
       if (!response.ok) return null;
       const data = await response.json();
@@ -1985,7 +1985,7 @@ async function callLLMShort(prompt: string): Promise<string | null> {
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [{ role: "user", content: prompt }],
-          max_tokens: 150,
+          max_tokens: maxTokens,
           stream: false,
         }),
         signal: AbortSignal.timeout(10000),
@@ -2016,23 +2016,23 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
 
   console.log(`[Hybrid] Starting content enrichment with LLM for: ${businessName} (${intent})`);
 
-  // Run multiple short prompts in parallel for speed
+  // Run multiple short prompts in parallel - llama3.1:8b understands direct instructions
   const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
-    // 1. Hero subtitle (completion-style prompt)
+    // 1. Hero subtitle - direct instruction
     callLLMShort(
-      `Subtitulo para pagina web de ${businessName}:\n\n`
+      `Escribe un subtitulo profesional de 1-2 oraciones para la pagina web de "${businessName}", un negocio de tipo ${intent}. Solo responde con el texto del subtitulo, nada mas.`
     ),
-    // 2. Feature descriptions (few-shot with | delimiter)
+    // 2. Feature descriptions - clear format instruction
     callLLMShort(
-      `Servicios de ${businessName}:\nDesayunos frescos cada manana|Cafe de grano seleccionado|`
+      `Escribe exactamente 3 descripciones cortas (1 oracion cada una) de servicios o caracteristicas para "${businessName}" (${intent}). Separa cada descripcion con el caracter |. Ejemplo de formato: Descripcion uno|Descripcion dos|Descripcion tres. Responde solo con las 3 descripciones separadas por |.`
     ),
-    // 3. About text (completion-style)
+    // 3. About text - natural paragraph
     callLLMShort(
-      `Sobre nosotros: ${businessName} es`
+      `Escribe 2-3 oraciones naturales para la seccion "Sobre nosotros" de la pagina web de "${businessName}", un negocio de tipo ${intent}. Responde solo con el texto, sin titulos ni encabezados.`
     ),
-    // 4. Testimonials (few-shot with example)
+    // 4. Testimonials - structured format
     callLLMShort(
-      `Opiniones de clientes de ${businessName}:\nMaria Lopez - Excelente servicio y comida deliciosa - Cliente frecuente|`
+      `Escribe 2 testimonios ficticios de clientes satisfechos de "${businessName}" (${intent}). Usa este formato exacto para cada uno: Nombre - texto del testimonio - cargo/rol. Separa los testimonios con |. Responde solo con los 2 testimonios.`
     ),
   ]);
 
@@ -2210,19 +2210,30 @@ serve(async (req) => {
 
     const colors = getColors(entities.colorScheme);
 
-    // 5. Generate HTML using HYBRID approach (Template + LLM content enrichment)
-    // Step A: Enrich content with LLM (short calls, parallel, fault-tolerant)
-    const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
+    // 5. Generate HTML - Try FULL LLM generation first, fallback to hybrid
+    let html: string;
 
-    // Step B: Always use template engine for HTML structure (reliable)
-    // Pass enriched content to personalize the template text
-    const html = composeReactHtml({
-      name: entities.businessName,
-      colors,
-      sections: entities.sections,
-      intent,
-      enriched: enrichedContent,
-    });
+    // Step A: Attempt full HTML generation with llama3.1:8b (60s timeout, 2000 tokens)
+    const systemPrompt = buildSystemPrompt(intent, label, entities);
+    const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
+    const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
+
+    if (extractedHtml && extractedHtml.length > 200) {
+      // Full LLM generation succeeded
+      html = extractedHtml;
+      console.log(`[Full LLM] HTML generated successfully (${extractedHtml.length} chars)`);
+    } else {
+      // Step B: Fallback to hybrid approach (Template + LLM content enrichment)
+      console.log(`[Hybrid] Full LLM generation insufficient, falling back to hybrid approach`);
+      const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
+      html = composeReactHtml({
+        name: entities.businessName,
+        colors,
+        sections: entities.sections,
+        intent,
+        enriched: enrichedContent,
+      });
+    }
 
     // 6. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
