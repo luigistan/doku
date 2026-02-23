@@ -802,6 +802,647 @@ function applyNegativeLearning(
 
 // (AI providers removed - using local classification only)
 
+// ==================== BOOTSTRAPPING CORPUS (500+ synthetic training messages) ====================
+const bootstrapCorpus: { message: string; intent: string }[] = [
+  // RESTAURANT (~40 variations)
+  { message: "quiero un restaurante", intent: "restaurant" },
+  { message: "crea una cafeteria", intent: "restaurant" },
+  { message: "hazme una pagina de comida", intent: "restaurant" },
+  { message: "necesito un sitio para mi restaurante", intent: "restaurant" },
+  { message: "pagina para mi cafeteria", intent: "restaurant" },
+  { message: "restaurante con menu y contacto", intent: "restaurant" },
+  { message: "crea un restaurante de comida mexicana", intent: "restaurant" },
+  { message: "web para mi taqueria", intent: "restaurant" },
+  { message: "sitio web para mi pizzeria", intent: "restaurant" },
+  { message: "pagina para mi bar de sushi", intent: "restaurant" },
+  { message: "necesito una pagina para mi fonda", intent: "restaurant" },
+  { message: "crea un sitio de comida rapida", intent: "restaurant" },
+  { message: "hazme un menu digital para mi restaurante", intent: "restaurant" },
+  { message: "quiero un sitio para mi panaderia", intent: "restaurant" },
+  { message: "web de gastronomia", intent: "restaurant" },
+  { message: "restaurante con reservaciones online", intent: "restaurant" },
+  { message: "cafeteria con carta de bebidas", intent: "restaurant" },
+  { message: "bistro con menu gourmet", intent: "restaurant" },
+  { message: "food truck pagina web", intent: "restaurant" },
+  { message: "quiero una pagina para vender comida", intent: "restaurant" },
+  { message: "marisqueria con galeria", intent: "restaurant" },
+  { message: "asador con menu y precios", intent: "restaurant" },
+  { message: "bufete de comida china", intent: "restaurant" },
+  { message: "brunch cafe con contacto", intent: "restaurant" },
+  // ECOMMERCE (~40 variations)
+  { message: "quiero una tienda online", intent: "ecommerce" },
+  { message: "crea un ecommerce", intent: "ecommerce" },
+  { message: "tienda virtual de ropa", intent: "ecommerce" },
+  { message: "necesito vender productos en linea", intent: "ecommerce" },
+  { message: "hazme una tienda de zapatos", intent: "ecommerce" },
+  { message: "marketplace de accesorios", intent: "ecommerce" },
+  { message: "shop online con carrito de compras", intent: "ecommerce" },
+  { message: "catalogo de productos online", intent: "ecommerce" },
+  { message: "vender articulos por internet", intent: "ecommerce" },
+  { message: "tienda de joyeria con pagos", intent: "ecommerce" },
+  { message: "ecommerce con checkout", intent: "ecommerce" },
+  { message: "pagina para vender en linea", intent: "ecommerce" },
+  { message: "tienda de ropa con carrito", intent: "ecommerce" },
+  { message: "store de productos naturales", intent: "ecommerce" },
+  { message: "comercio electronico de tecnologia", intent: "ecommerce" },
+  { message: "tienda online de cosmeticos", intent: "ecommerce" },
+  { message: "venta de artesanias online", intent: "ecommerce" },
+  { message: "marketplace de productos organicos", intent: "ecommerce" },
+  { message: "vender muebles por internet", intent: "ecommerce" },
+  { message: "tienda de electronica", intent: "ecommerce" },
+  // PORTFOLIO (~25 variations)
+  { message: "quiero un portfolio", intent: "portfolio" },
+  { message: "pagina de mis trabajos", intent: "portfolio" },
+  { message: "crea mi portafolio", intent: "portfolio" },
+  { message: "sitio web de mi curriculum", intent: "portfolio" },
+  { message: "hoja de vida digital", intent: "portfolio" },
+  { message: "mostrar mis proyectos", intent: "portfolio" },
+  { message: "galeria de trabajos creativos", intent: "portfolio" },
+  { message: "cv online profesional", intent: "portfolio" },
+  { message: "portfolio de disenador", intent: "portfolio" },
+  { message: "pagina de freelancer", intent: "portfolio" },
+  { message: "exhibir mis obras", intent: "portfolio" },
+  { message: "sitio personal con proyectos", intent: "portfolio" },
+  { message: "portfolio de artista", intent: "portfolio" },
+  { message: "web para mostrar mi trabajo", intent: "portfolio" },
+  // LANDING (~25 variations)
+  { message: "quiero una landing page", intent: "landing" },
+  { message: "pagina de aterrizaje", intent: "landing" },
+  { message: "crea una landing para mi startup", intent: "landing" },
+  { message: "web corporativa", intent: "landing" },
+  { message: "pagina de presentacion de empresa", intent: "landing" },
+  { message: "sitio institucional", intent: "landing" },
+  { message: "landing de producto", intent: "landing" },
+  { message: "pagina de mi negocio", intent: "landing" },
+  { message: "web de mi empresa", intent: "landing" },
+  { message: "pagina principal de mi marca", intent: "landing" },
+  { message: "sitio de presentacion corporativa", intent: "landing" },
+  { message: "landing con llamada a la accion", intent: "landing" },
+  { message: "pagina de inicio de empresa", intent: "landing" },
+  // FITNESS (~20 variations)
+  { message: "pagina para mi gimnasio", intent: "fitness" },
+  { message: "web de crossfit", intent: "fitness" },
+  { message: "sitio de gym con planes", intent: "fitness" },
+  { message: "crea un gimnasio con clases", intent: "fitness" },
+  { message: "centro deportivo web", intent: "fitness" },
+  { message: "fitness con precios y horarios", intent: "fitness" },
+  { message: "quiero una pagina de yoga", intent: "fitness" },
+  { message: "web de pilates", intent: "fitness" },
+  { message: "gimnasio con membresias", intent: "fitness" },
+  { message: "hazme un gym online", intent: "fitness" },
+  { message: "entrenamiento personal web", intent: "fitness" },
+  { message: "box de crossfit pagina", intent: "fitness" },
+  // CLINIC (~20 variations)
+  { message: "pagina para mi clinica", intent: "clinic" },
+  { message: "consultorio medico web", intent: "clinic" },
+  { message: "clinica dental online", intent: "clinic" },
+  { message: "centro de salud web", intent: "clinic" },
+  { message: "crea pagina de doctor", intent: "clinic" },
+  { message: "consultorio con citas", intent: "clinic" },
+  { message: "clinica con especialidades", intent: "clinic" },
+  { message: "web de pediatra", intent: "clinic" },
+  { message: "centro medico profesional", intent: "clinic" },
+  { message: "pagina de dermatologo", intent: "clinic" },
+  { message: "fisioterapia pagina web", intent: "clinic" },
+  { message: "rehabilitacion sitio web", intent: "clinic" },
+  // AGENCY (~18 variations)
+  { message: "pagina de mi agencia digital", intent: "agency" },
+  { message: "agencia de marketing web", intent: "agency" },
+  { message: "estudio creativo online", intent: "agency" },
+  { message: "agencia de publicidad", intent: "agency" },
+  { message: "consultoria digital", intent: "agency" },
+  { message: "agencia de diseno web", intent: "agency" },
+  { message: "estudio de branding", intent: "agency" },
+  { message: "firma de marketing digital", intent: "agency" },
+  { message: "agencia creativa web", intent: "agency" },
+  // HOTEL (~18 variations)
+  { message: "pagina para mi hotel", intent: "hotel" },
+  { message: "hospedaje web", intent: "hotel" },
+  { message: "airbnb pagina", intent: "hotel" },
+  { message: "resort con reservaciones", intent: "hotel" },
+  { message: "posada web", intent: "hotel" },
+  { message: "hostal con habitaciones", intent: "hotel" },
+  { message: "hotel boutique web", intent: "hotel" },
+  { message: "alojamiento turistico", intent: "hotel" },
+  { message: "casa rural pagina", intent: "hotel" },
+  // SALON (~18 variations)
+  { message: "salon de belleza web", intent: "salon" },
+  { message: "peluqueria pagina", intent: "salon" },
+  { message: "barberia online", intent: "salon" },
+  { message: "spa con servicios", intent: "salon" },
+  { message: "centro de estetica", intent: "salon" },
+  { message: "salon de unas", intent: "salon" },
+  { message: "barber shop web", intent: "salon" },
+  { message: "peluqueria con citas", intent: "salon" },
+  { message: "salon con manicure y pedicure", intent: "salon" },
+  // BILLING (~20 variations)
+  { message: "sistema de facturacion", intent: "billing" },
+  { message: "app de facturas", intent: "billing" },
+  { message: "generar facturas online", intent: "billing" },
+  { message: "sistema de cobros", intent: "billing" },
+  { message: "facturar electronicamente", intent: "billing" },
+  { message: "cuentas por cobrar app", intent: "billing" },
+  { message: "recibos y facturas sistema", intent: "billing" },
+  { message: "cotizaciones online", intent: "billing" },
+  { message: "notas de venta digitales", intent: "billing" },
+  { message: "emitir facturas para mi negocio", intent: "billing" },
+  { message: "sistema contable de facturacion", intent: "billing" },
+  // INVENTORY (~15 variations)
+  { message: "sistema de inventario", intent: "inventory" },
+  { message: "control de stock", intent: "inventory" },
+  { message: "gestion de almacen", intent: "inventory" },
+  { message: "app de inventarios", intent: "inventory" },
+  { message: "control de existencias", intent: "inventory" },
+  { message: "bodega y almacen sistema", intent: "inventory" },
+  { message: "inventario de productos", intent: "inventory" },
+  { message: "registro de mercancia", intent: "inventory" },
+  // CRM (~15 variations)
+  { message: "sistema de clientes", intent: "crm" },
+  { message: "crm para mi empresa", intent: "crm" },
+  { message: "gestion de prospectos", intent: "crm" },
+  { message: "seguimiento de leads", intent: "crm" },
+  { message: "base de datos de contactos", intent: "crm" },
+  { message: "pipeline de ventas", intent: "crm" },
+  { message: "app de oportunidades de negocio", intent: "crm" },
+  // POS (~15 variations)
+  { message: "punto de venta", intent: "pos" },
+  { message: "caja registradora digital", intent: "pos" },
+  { message: "terminal de venta", intent: "pos" },
+  { message: "pos para mi tienda", intent: "pos" },
+  { message: "sistema de caja", intent: "pos" },
+  { message: "registro de ventas", intent: "pos" },
+  { message: "ticket de venta app", intent: "pos" },
+  // BOOKING (~15 variations)
+  { message: "sistema de reservas", intent: "booking" },
+  { message: "agendar citas online", intent: "booking" },
+  { message: "app de turnos", intent: "booking" },
+  { message: "reservas con calendario", intent: "booking" },
+  { message: "agenda de citas digital", intent: "booking" },
+  { message: "programar horarios online", intent: "booking" },
+  { message: "sistema de agendamiento", intent: "booking" },
+  // BLOG (~15 variations)
+  { message: "quiero un blog", intent: "blog" },
+  { message: "pagina de articulos", intent: "blog" },
+  { message: "sitio de noticias", intent: "blog" },
+  { message: "revista digital", intent: "blog" },
+  { message: "blog personal", intent: "blog" },
+  { message: "magazine online", intent: "blog" },
+  { message: "publicar articulos", intent: "blog" },
+  // DASHBOARD (~12 variations)
+  { message: "panel de administracion", intent: "dashboard" },
+  { message: "dashboard de metricas", intent: "dashboard" },
+  { message: "panel de control", intent: "dashboard" },
+  { message: "admin con estadisticas", intent: "dashboard" },
+  { message: "sistema de gestion interno", intent: "dashboard" },
+  { message: "analytics dashboard", intent: "dashboard" },
+  // REALESTATE (~15 variations)
+  { message: "inmobiliaria web", intent: "realestate" },
+  { message: "venta de casas online", intent: "realestate" },
+  { message: "bienes raices pagina", intent: "realestate" },
+  { message: "renta de departamentos", intent: "realestate" },
+  { message: "alquiler de propiedades", intent: "realestate" },
+  { message: "catalogo de inmuebles", intent: "realestate" },
+  { message: "inmobiliaria con propiedades", intent: "realestate" },
+  // EDUCATION (~12 variations)
+  { message: "pagina de cursos online", intent: "education" },
+  { message: "academia web", intent: "education" },
+  { message: "escuela con cursos", intent: "education" },
+  { message: "plataforma educativa", intent: "education" },
+  { message: "instituto de capacitacion", intent: "education" },
+  { message: "tutoria online", intent: "education" },
+  // VETERINARY (~12 variations)
+  { message: "veterinaria web", intent: "veterinary" },
+  { message: "clinica de mascotas", intent: "veterinary" },
+  { message: "pet shop online", intent: "veterinary" },
+  { message: "hospital animal", intent: "veterinary" },
+  { message: "veterinario con citas", intent: "veterinary" },
+  { message: "consultorio veterinario", intent: "veterinary" },
+  // LAWYER (~12 variations)
+  { message: "bufete de abogados", intent: "lawyer" },
+  { message: "despacho juridico web", intent: "lawyer" },
+  { message: "firma legal online", intent: "lawyer" },
+  { message: "abogado pagina web", intent: "lawyer" },
+  { message: "asesoria legal web", intent: "lawyer" },
+  { message: "notaria online", intent: "lawyer" },
+  // ACCOUNTING (~10 variations)
+  { message: "despacho contable web", intent: "accounting" },
+  { message: "contador pagina", intent: "accounting" },
+  { message: "asesoria fiscal online", intent: "accounting" },
+  { message: "contabilidad web", intent: "accounting" },
+  { message: "servicios contables pagina", intent: "accounting" },
+  // PHOTOGRAPHY (~10 variations)
+  { message: "pagina de fotografo", intent: "photography" },
+  { message: "estudio fotografico web", intent: "photography" },
+  { message: "fotografia de bodas", intent: "photography" },
+  { message: "sesion fotografica web", intent: "photography" },
+  { message: "portfolio fotografico", intent: "photography" },
+  // MUSIC (~10 variations)
+  { message: "estudio de grabacion web", intent: "music" },
+  { message: "pagina de musico", intent: "music" },
+  { message: "productor musical web", intent: "music" },
+  { message: "banda musical pagina", intent: "music" },
+  { message: "dj web portfolio", intent: "music" },
+  // TECHNOLOGY (~10 variations)
+  { message: "empresa de software", intent: "technology" },
+  { message: "startup tech web", intent: "technology" },
+  { message: "desarrollo de apps pagina", intent: "technology" },
+  { message: "empresa de tecnologia", intent: "technology" },
+  { message: "saas landing page", intent: "technology" },
+  // Misspellings and informal variations
+  { message: "resturante comida", intent: "restaurant" },
+  { message: "quero una tinda", intent: "ecommerce" },
+  { message: "gimansio con precios", intent: "fitness" },
+  { message: "beterinaria de mascotas", intent: "veterinary" },
+  { message: "peluqeria con citas", intent: "salon" },
+  { message: "avogado pagina", intent: "lawyer" },
+  { message: "inmoviliaria online", intent: "realestate" },
+  { message: "cafetria menu", intent: "restaurant" },
+  { message: "portafolios personal", intent: "portfolio" },
+  { message: "tiena de ropa", intent: "ecommerce" },
+  { message: "facturacion electronica app", intent: "billing" },
+  { message: "otel con reservas", intent: "hotel" },
+  { message: "sofware empresa", intent: "technology" },
+  { message: "escuala de idiomas", intent: "education" },
+  // Conversational-like but actually generation requests
+  { message: "me puedes hacer un restaurante", intent: "restaurant" },
+  { message: "podrias crear una tienda", intent: "ecommerce" },
+  { message: "seria posible hacer un gym", intent: "fitness" },
+  { message: "me gustaria un portfolio", intent: "portfolio" },
+  { message: "quisiera una landing", intent: "landing" },
+  { message: "necesitaria una pagina para vender", intent: "ecommerce" },
+];
+
+// ==================== N-GRAM PROBABILISTIC MODEL (Signal 9) ====================
+interface TrigramModel {
+  freq: Map<string, Map<string, number>>;
+  totalPerIntent: Map<string, number>;
+}
+
+function extractTrigrams(tokens: string[]): string[] {
+  const trigrams: string[] = [];
+  // Pad with start/end tokens
+  const padded = ["__START__", ...tokens, "__END__"];
+  for (let i = 0; i < padded.length - 2; i++) {
+    trigrams.push(`${padded[i]} ${padded[i + 1]} ${padded[i + 2]}`);
+  }
+  // Also add bigrams as pseudo-trigrams for short messages
+  for (let i = 0; i < padded.length - 1; i++) {
+    trigrams.push(`__BI__ ${padded[i]} ${padded[i + 1]}`);
+  }
+  return trigrams;
+}
+
+function buildTrigramModel(patterns: LearningLog[]): TrigramModel {
+  const freq = new Map<string, Map<string, number>>();
+  const totalPerIntent = new Map<string, number>();
+
+  // Train from learning logs (accepted patterns)
+  const accepted = patterns.filter(p => p.user_accepted === true);
+  for (const p of accepted) {
+    const tokens = tokenize(p.user_message);
+    const trigrams = extractTrigrams(tokens);
+    for (const tri of trigrams) {
+      if (!freq.has(tri)) freq.set(tri, new Map());
+      const intentFreq = freq.get(tri)!;
+      intentFreq.set(p.detected_intent, (intentFreq.get(p.detected_intent) || 0) + 1);
+      totalPerIntent.set(p.detected_intent, (totalPerIntent.get(p.detected_intent) || 0) + 1);
+    }
+  }
+
+  // Train from bootstrap corpus
+  for (const entry of bootstrapCorpus) {
+    const tokens = tokenize(entry.message);
+    const trigrams = extractTrigrams(tokens);
+    for (const tri of trigrams) {
+      if (!freq.has(tri)) freq.set(tri, new Map());
+      const intentFreq = freq.get(tri)!;
+      // Bootstrap entries get 0.5 weight vs real data's 1.0
+      intentFreq.set(entry.intent, (intentFreq.get(entry.intent) || 0) + 0.5);
+      totalPerIntent.set(entry.intent, (totalPerIntent.get(entry.intent) || 0) + 0.5);
+    }
+  }
+
+  return { freq, totalPerIntent };
+}
+
+function scoreWithNgram(tokens: string[], model: TrigramModel, intents: string[]): Record<string, number> {
+  const scores: Record<string, number> = {};
+  const trigrams = extractTrigrams(tokens);
+  const numIntents = intents.length;
+
+  for (const intent of intents) {
+    let logProb = 0;
+    let count = 0;
+    for (const tri of trigrams) {
+      const triFreq = model.freq.get(tri);
+      const intentCount = triFreq?.get(intent) || 0;
+      const total = model.totalPerIntent.get(intent) || 0;
+      // Laplace smoothing
+      const prob = (intentCount + 1) / (total + numIntents);
+      logProb += Math.log(prob);
+      count++;
+    }
+    if (count > 0) {
+      const normalizedLogProb = logProb / count;
+      scores[intent] = Math.exp(normalizedLogProb) * 5;
+    }
+  }
+  return scores;
+}
+
+// ==================== WORD EMBEDDINGS ENGINE (Signal 10) ====================
+const EMBEDDING_DIM = 32;
+
+interface EmbeddingModel {
+  vectors: Map<string, number[]>;
+  centroids: Map<string, number[]>;
+}
+
+function buildCoOccurrenceMatrix(vocabulary: Record<string, string[]>, patterns: LearningLog[]): Map<string, Map<string, number>> {
+  const coOccur = new Map<string, Map<string, number>>();
+  
+  // From semantic vocabulary (words in same intent co-occur)
+  for (const terms of Object.values(vocabulary)) {
+    for (let i = 0; i < terms.length; i++) {
+      for (let j = i + 1; j < terms.length; j++) {
+        const a = terms[i], b = terms[j];
+        if (!coOccur.has(a)) coOccur.set(a, new Map());
+        if (!coOccur.has(b)) coOccur.set(b, new Map());
+        coOccur.get(a)!.set(b, (coOccur.get(a)!.get(b) || 0) + 1);
+        coOccur.get(b)!.set(a, (coOccur.get(b)!.get(a) || 0) + 1);
+      }
+    }
+  }
+
+  // From learning logs
+  const accepted = patterns.filter(p => p.user_accepted === true);
+  for (const p of accepted) {
+    const tokens = tokenize(p.user_message);
+    for (let i = 0; i < tokens.length; i++) {
+      for (let j = i + 1; j < Math.min(i + 5, tokens.length); j++) {
+        const a = tokens[i], b = tokens[j];
+        if (!coOccur.has(a)) coOccur.set(a, new Map());
+        if (!coOccur.has(b)) coOccur.set(b, new Map());
+        coOccur.get(a)!.set(b, (coOccur.get(a)!.get(b) || 0) + 1);
+        coOccur.get(b)!.set(a, (coOccur.get(b)!.get(a) || 0) + 1);
+      }
+    }
+  }
+
+  // From bootstrap corpus
+  for (const entry of bootstrapCorpus) {
+    const tokens = tokenize(entry.message);
+    for (let i = 0; i < tokens.length; i++) {
+      for (let j = i + 1; j < Math.min(i + 5, tokens.length); j++) {
+        const a = tokens[i], b = tokens[j];
+        if (!coOccur.has(a)) coOccur.set(a, new Map());
+        if (!coOccur.has(b)) coOccur.set(b, new Map());
+        coOccur.get(a)!.set(b, (coOccur.get(a)!.get(b) || 0) + 0.5);
+        coOccur.get(b)!.set(a, (coOccur.get(b)!.get(a) || 0) + 0.5);
+      }
+    }
+  }
+
+  return coOccur;
+}
+
+// Power iteration SVD approximation for dimensionality reduction
+function powerIterationSVD(coOccur: Map<string, Map<string, number>>, dim: number): Map<string, number[]> {
+  const words = Array.from(coOccur.keys());
+  const wordIdx = new Map<string, number>();
+  words.forEach((w, i) => wordIdx.set(w, i));
+  const n = words.length;
+  if (n === 0) return new Map();
+
+  // Initialize random vectors
+  const vectors = new Map<string, number[]>();
+  for (const word of words) {
+    const vec = Array.from({ length: dim }, () => (Math.random() - 0.5) * 0.1);
+    vectors.set(word, vec);
+  }
+
+  // Power iteration (5 iterations for speed)
+  for (let iter = 0; iter < 5; iter++) {
+    for (const word of words) {
+      const neighbors = coOccur.get(word);
+      if (!neighbors) continue;
+      const newVec = new Array(dim).fill(0);
+      let totalWeight = 0;
+      for (const [neighbor, weight] of neighbors) {
+        const nVec = vectors.get(neighbor);
+        if (nVec) {
+          for (let d = 0; d < dim; d++) {
+            newVec[d] += nVec[d] * weight;
+          }
+          totalWeight += weight;
+        }
+      }
+      if (totalWeight > 0) {
+        // Normalize
+        let magnitude = 0;
+        for (let d = 0; d < dim; d++) {
+          newVec[d] /= totalWeight;
+          magnitude += newVec[d] * newVec[d];
+        }
+        magnitude = Math.sqrt(magnitude) || 1;
+        for (let d = 0; d < dim; d++) {
+          newVec[d] /= magnitude;
+        }
+        vectors.set(word, newVec);
+      }
+    }
+  }
+
+  return vectors;
+}
+
+function buildEmbeddingModel(vocabulary: Record<string, string[]>, patterns: LearningLog[]): EmbeddingModel {
+  const coOccur = buildCoOccurrenceMatrix(vocabulary, patterns);
+  const vectors = powerIterationSVD(coOccur, EMBEDDING_DIM);
+
+  // Compute centroids per intent
+  const centroids = new Map<string, number[]>();
+  for (const [intent, terms] of Object.entries(vocabulary)) {
+    const centroid = new Array(EMBEDDING_DIM).fill(0);
+    let count = 0;
+    for (const term of terms) {
+      const vec = vectors.get(term);
+      if (vec) {
+        for (let d = 0; d < EMBEDDING_DIM; d++) centroid[d] += vec[d];
+        count++;
+      }
+    }
+    if (count > 0) {
+      for (let d = 0; d < EMBEDDING_DIM; d++) centroid[d] /= count;
+      centroids.set(intent, centroid);
+    }
+  }
+
+  return { vectors, centroids };
+}
+
+function vectorizeMessage(tokens: string[], model: EmbeddingModel): number[] {
+  const vec = new Array(EMBEDDING_DIM).fill(0);
+  let count = 0;
+  for (const t of tokens) {
+    const wv = model.vectors.get(t);
+    if (wv) {
+      for (let d = 0; d < EMBEDDING_DIM; d++) vec[d] += wv[d];
+      count++;
+    }
+  }
+  if (count > 0) {
+    for (let d = 0; d < EMBEDDING_DIM; d++) vec[d] /= count;
+  }
+  return vec;
+}
+
+function cosineSimVec(a: number[], b: number[]): number {
+  let dot = 0, magA = 0, magB = 0;
+  for (let d = 0; d < a.length; d++) {
+    dot += a[d] * b[d];
+    magA += a[d] * a[d];
+    magB += b[d] * b[d];
+  }
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+function scoreWithEmbeddings(tokens: string[], model: EmbeddingModel): Record<string, number> {
+  const scores: Record<string, number> = {};
+  const msgVec = vectorizeMessage(tokens, model);
+  for (const [intent, centroid] of model.centroids) {
+    const sim = cosineSimVec(msgVec, centroid);
+    if (sim > 0.05) {
+      scores[intent] = sim * 7;
+    }
+  }
+  return scores;
+}
+
+// ==================== MARKOV CHAIN PREDICTOR (Signal 11) ====================
+const defaultTransitions: Record<string, Record<string, number>> = {
+  restaurant: { modification: 0.35, page_add: 0.3, booking: 0.15, billing: 0.1 },
+  ecommerce: { modification: 0.3, page_add: 0.25, inventory: 0.2, billing: 0.15 },
+  fitness: { modification: 0.3, page_add: 0.25, booking: 0.2, billing: 0.1 },
+  clinic: { modification: 0.25, page_add: 0.25, booking: 0.3, billing: 0.1 },
+  hotel: { modification: 0.3, page_add: 0.25, booking: 0.25, billing: 0.1 },
+  salon: { modification: 0.3, page_add: 0.2, booking: 0.3, billing: 0.1 },
+  landing: { modification: 0.4, page_add: 0.3, ecommerce: 0.1, blog: 0.1 },
+  portfolio: { modification: 0.4, page_add: 0.3, blog: 0.15 },
+  billing: { modification: 0.35, page_add: 0.2, inventory: 0.2, crm: 0.15 },
+  inventory: { modification: 0.3, page_add: 0.2, billing: 0.25, pos: 0.15 },
+  crm: { modification: 0.3, page_add: 0.2, billing: 0.2, booking: 0.15 },
+  pos: { modification: 0.35, page_add: 0.2, inventory: 0.25, billing: 0.15 },
+};
+
+function buildTransitionMatrix(conversationHistory?: { role: string; content: string }[]): Record<string, Record<string, number>> {
+  // Start with defaults
+  const matrix = JSON.parse(JSON.stringify(defaultTransitions)) as Record<string, Record<string, number>>;
+  
+  // If conversation history exists, learn from it
+  if (conversationHistory && conversationHistory.length > 1) {
+    // Extract intents from conversation (look for analysis messages)
+    const mentionedIntents: string[] = [];
+    for (const msg of conversationHistory) {
+      if (msg.role === "system" && msg.content.includes("Análisis completado")) {
+        for (const [intent, data] of Object.entries(intentMap)) {
+          if (msg.content.includes(data.label)) {
+            mentionedIntents.push(intent);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Learn transitions
+    for (let i = 0; i < mentionedIntents.length - 1; i++) {
+      const from = mentionedIntents[i];
+      const to = mentionedIntents[i + 1];
+      if (!matrix[from]) matrix[from] = {};
+      matrix[from][to] = (matrix[from][to] || 0) + 0.2;
+    }
+  }
+  
+  return matrix;
+}
+
+function getMarkovBoost(previousIntent: string | undefined, candidateIntent: string, matrix: Record<string, Record<string, number>>): number {
+  if (!previousIntent || !matrix[previousIntent]) return 0;
+  return (matrix[previousIntent][candidateIntent] || 0) * 3;
+}
+
+// ==================== ENHANCED NER ====================
+const styleColorMap: Record<string, string> = {
+  profesional: "dark", corporativo: "dark", serio: "dark", formal: "dark",
+  juvenil: "modern", joven: "modern", fresco: "modern", dinamico: "modern",
+  minimalista: "cool", minimal: "cool", limpio: "cool", simple: "light",
+  lujoso: "elegant", lujo: "elegant", premium: "elegant", exclusivo: "elegant",
+  calido: "warm", acogedor: "warm", rustico: "warm", hogareño: "warm",
+  moderno: "modern", contemporaneo: "modern", innovador: "modern", tech: "modern",
+  divertido: "orange", alegre: "orange", colorido: "orange", vibrante: "pink",
+  natural: "green", organico: "green", ecologico: "green", eco: "green",
+  femenino: "pink", delicado: "pink", suave: "pink",
+  clasico: "blue", tradicional: "blue", confiable: "blue",
+};
+
+function enhancedExtractEntities(text: string, tokens: string[], intent: string): { style?: string; phone?: string; schedule?: string; address?: string; tone?: string } {
+  const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const extra: { style?: string; phone?: string; schedule?: string; address?: string; tone?: string } = {};
+
+  // Detect style/tone
+  for (const [style, color] of Object.entries(styleColorMap)) {
+    if (lower.includes(style)) {
+      extra.style = color;
+      extra.tone = style;
+      break;
+    }
+  }
+
+  // Detect phone numbers
+  const phoneMatch = text.match(/\b\d{2,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b/);
+  if (phoneMatch) extra.phone = phoneMatch[0];
+
+  // Detect schedules
+  const scheduleMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?)?\s*(?:a|al?|-)\s*\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?)?)/i);
+  if (scheduleMatch) extra.schedule = scheduleMatch[1];
+
+  // Detect addresses (simplified)
+  const addressMatch = text.match(/(?:(?:calle|av(?:enida)?|blvd|col(?:onia)?|num(?:ero)?)\s+[A-Za-zÀ-ÿ0-9\s#.,]+)/i);
+  if (addressMatch) extra.address = addressMatch[0].trim();
+
+  return extra;
+}
+
+// ==================== CONFIDENCE CALIBRATION ====================
+function calibrateConfidence(rawConfidence: number, intent: string, patterns: LearningLog[]): number {
+  // Compute historical acceptance rate for this intent
+  const intentLogs = patterns.filter(p => p.detected_intent === intent);
+  if (intentLogs.length < 3) return rawConfidence; // Not enough data
+
+  const accepted = intentLogs.filter(p => p.user_accepted === true).length;
+  const acceptanceRate = accepted / intentLogs.length;
+
+  // Isotonic-style calibration: adjust confidence based on historical accuracy
+  // If we classify "restaurant" with 70% confidence but 95% of restaurant detections were accepted,
+  // then the actual reliability is higher
+  const calibrated = rawConfidence * (0.5 + 0.5 * acceptanceRate);
+
+  // Also check: were low-confidence predictions often wrong?
+  const lowConfLogs = intentLogs.filter(p => (p.confidence || 0) < 0.6);
+  if (lowConfLogs.length > 2) {
+    const lowConfAccepted = lowConfLogs.filter(p => p.user_accepted === true).length;
+    const lowConfRate = lowConfAccepted / lowConfLogs.length;
+    // If low-confidence predictions were still accurate, raise the floor
+    if (lowConfRate > 0.7 && rawConfidence < 0.6) {
+      return Math.max(calibrated, 0.65);
+    }
+  }
+
+  // Clamp
+  return Math.max(0.1, Math.min(calibrated * 1.1, 0.99));
+}
+
 // ==================== WEIGHTED LEARNING (SIGNAL 8.5) ====================
 function computeWeightedBoosts(patterns: LearningLog[]): Record<string, number> {
   const intentStats: Record<string, { accepted: number; total: number }> = {};
@@ -883,7 +1524,7 @@ async function saveEntityMemory(projectId: string, intent: string, entities: Ent
 }
 
 // ==================== ENHANCED CLASSIFIER (Multi-Signal Fusion + TF-IDF) ====================
-async function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[]): Promise<IntentMatch> {
+async function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[], previousIntent?: string, conversationHistory?: { role: string; content: string }[]): Promise<IntentMatch> {
   const scores: Record<string, number> = {};
 
   // Initialize all intents
@@ -983,6 +1624,31 @@ async function classifyIntent(tokens: string[], originalText: string, patterns: 
     }
   }
 
+  // ---- SIGNAL 9: N-gram Probabilistic Model ----
+  const trigramModel = buildTrigramModel(patterns);
+  const ngramScores = scoreWithNgram(tokens, trigramModel, Object.keys(intentMap));
+  for (const [intent, nScore] of Object.entries(ngramScores)) {
+    scores[intent] = (scores[intent] || 0) + nScore;
+  }
+
+  // ---- SIGNAL 10: Word Embeddings (replaces basic TF-IDF weight) ----
+  const embeddingModel = buildEmbeddingModel(semanticVocabulary, patterns);
+  const embeddingScores = scoreWithEmbeddings(expanded, embeddingModel);
+  for (const [intent, eScore] of Object.entries(embeddingScores)) {
+    scores[intent] = (scores[intent] || 0) + eScore;
+  }
+
+  // ---- SIGNAL 11: Markov Chain Contextual Prediction ----
+  if (previousIntent) {
+    const transMatrix = buildTransitionMatrix(conversationHistory);
+    for (const intent of Object.keys(scores)) {
+      const markovBoost = getMarkovBoost(previousIntent, intent, transMatrix);
+      if (markovBoost > 0) {
+        scores[intent] = (scores[intent] || 0) + markovBoost;
+      }
+    }
+  }
+
   // Find best scoring intent
   let bestIntent = "landing";
   let bestScore = 0;
@@ -999,9 +1665,12 @@ async function classifyIntent(tokens: string[], originalText: string, patterns: 
 
   const sortedScores = Object.values(scores).sort((a, b) => b - a);
   const gap = sortedScores.length > 1 ? sortedScores[0] - sortedScores[1] : sortedScores[0];
-  const absConfidence = Math.min(bestScore / 12, 1);
-  const gapConfidence = Math.min(gap / 6, 1);
-  const confidence = Math.round(Math.min((absConfidence * 0.6 + gapConfidence * 0.4) * 1.1, 1) * 100) / 100;
+  const absConfidence = Math.min(bestScore / 15, 1); // Raised denominator for more signals
+  const gapConfidence = Math.min(gap / 8, 1);
+  let confidence = Math.round(Math.min((absConfidence * 0.6 + gapConfidence * 0.4) * 1.1, 1) * 100) / 100;
+
+  // Apply confidence calibration
+  confidence = calibrateConfidence(confidence, bestIntent, patterns);
 
   return {
     intent: bestIntent,
@@ -1113,19 +1782,20 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     /(?:llamad[oa]|se llama|nombre(?:s)?)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
     // "para mi restaurante X con..."
     /(?:para|de)\s+(?:mi\s+)?(?:negocio|empresa|tienda|restaurante|cafeter[ií]a|caf[eé]|gym|gimnasio|agencia|estudio|salon|barberia|peluqueria|hotel|bufete|consultorio|clinica|veterinaria|academia|barveria|restorante)\s+["']?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$|["'])/i,
+    // Generic "para [NOMBRE]" without industry restriction
+    /(?:para)\s+["']?([A-ZÁÉÍÓÚÑÜ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|donde|en)\b|$|["'])/i,
     // Quoted names
     /["']([^"']{2,30})["']/,
-    // "comida mexicana La Tlayuda" — capitalized words after industry keywords
+    // Capitalized words after industry keywords
     /(?:restaurante|cafeteria|tienda|gym|gimnasio|hotel|salon|barberia|peluqueria|agencia|estudio|clinica|veterinaria|academia|bufete|empresa|negocio|barveria|restorante|bar|pizzeria|taqueria|bistro)\s+(?:de\s+)?(?:\w+\s+)?([A-ZÁÉÍÓÚÑÜ][A-Za-zÀ-ÿ\s]{1,30}?)(?:\s+(?:con|y|que|para|donde|en)\b|$)/,
-    // Capitalized multi-word names (2+ words starting with uppercase) anywhere in text
+    // Capitalized multi-word names
     /\b((?:[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+\s+){1,3}[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+)\b/,
   ];
   for (const pattern of namePatterns) {
     const match = text.match(pattern);
     if (match?.[1]) {
       const candidate = match[1].trim();
-      // Validate it's not a common word/verb
-      const commonWords = new Set(["Quiero", "Necesito", "Hazme", "Para", "Como", "Tipo", "Algo", "Crear"]);
+      const commonWords = new Set(["Quiero", "Necesito", "Hazme", "Para", "Como", "Tipo", "Algo", "Crear", "Sistema", "Pagina", "Sitio", "Web"]);
       if (!commonWords.has(candidate) && candidate.length > 2) {
         businessName = candidate;
         break;
@@ -1175,8 +1845,14 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
   for (const s of (intentDefaults[intent] || ["features", "contact"])) sections.add(s);
 
   let colorScheme = "default";
+  // Check explicit color mentions first
   for (const [word, scheme] of Object.entries(colorMap)) {
     if (lower.includes(word)) { colorScheme = scheme; break; }
+  }
+  // Then check style/tone mentions (enhanced NER)
+  if (colorScheme === "default") {
+    const enhancedData = enhancedExtractEntities(text, tokens, intent);
+    if (enhancedData.style) colorScheme = enhancedData.style;
   }
   if (colorScheme === "default") {
     const intentColors: Record<string, string> = {
@@ -3020,7 +3696,7 @@ serve(async (req) => {
     } else {
       // Local classification with TF-IDF
       console.log(`[Classifier] Using local classification`);
-      const classification = await classifyIntent(tokens, message, patterns);
+      const classification = await classifyIntent(tokens, message, patterns, previousIntent, conversationHistory);
       intent = classification.intent;
       confidence = classification.confidence;
       label = classification.label;
