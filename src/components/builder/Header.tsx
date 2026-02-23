@@ -1,15 +1,17 @@
-import { Code2, Settings, ArrowLeft, Download } from "lucide-react";
+import { Code2, Settings, ArrowLeft, Download, Database, Brain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 
 interface HeaderProps {
   projectName?: string;
   projectId?: string;
+  dbEnabled?: boolean;
+  ollamaEnabled?: boolean;
   onOpenSettings: () => void;
   onOpenCode: () => void;
 }
 
-export function Header({ projectName, projectId, onOpenSettings, onOpenCode }: HeaderProps) {
+export function Header({ projectName, projectId, dbEnabled, ollamaEnabled, onOpenSettings, onOpenCode }: HeaderProps) {
   const navigate = useNavigate();
 
   const handleExport = async () => {
@@ -49,6 +51,18 @@ export function Header({ projectName, projectId, onOpenSettings, onOpenCode }: H
         <span className="rounded-md bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
           BETA
         </span>
+        {dbEnabled && (
+          <span className="flex items-center gap-1 rounded-md bg-execute/15 px-2 py-0.5 text-[10px] font-medium text-execute">
+            <Database className="h-3 w-3" />
+            DB
+          </span>
+        )}
+        {ollamaEnabled && (
+          <span className="flex items-center gap-1 rounded-md bg-brain/15 px-2 py-0.5 text-[10px] font-medium text-brain">
+            <Brain className="h-3 w-3" />
+            Ollama
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button
