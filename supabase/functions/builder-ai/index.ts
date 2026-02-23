@@ -1879,6 +1879,7 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
   const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+  console.log(`[LLM] callLLM -> provider: ${provider}, url: ${baseUrl}, model: ${model}`);
 
   try {
     if (provider === "ollama") {
@@ -1959,6 +1960,7 @@ async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | n
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
   const model = Deno.env.get("OLLAMA_MODEL") || Deno.env.get("LLM_MODEL") || "llama3.1:8b";
+  console.log(`[LLM] callLLMShort -> provider: ${provider}, url: ${baseUrl}, model: ${model}`);
 
   try {
     if (provider === "ollama") {
@@ -1978,9 +1980,13 @@ async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | n
             num_thread: 4,
           },
         }),
-        signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
+        signal: AbortSignal.timeout(maxTokens > 500 ? 120000 : 90000),
       });
-      if (!response.ok) return null;
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => "");
+        console.error(`[Ollama] callLLMShort HTTP ${response.status}: ${errBody.substring(0, 200)}`);
+        return null;
+      }
       const data = await response.json();
       const text = (data.response || "").trim();
       return text.length > 5 ? text : null;
@@ -2023,6 +2029,25 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
   if (provider === "none") return enriched;
 
   console.log(`[Hybrid] Starting content enrichment with LLM for: ${businessName} (${intent})`);
+
+  // Health check for Ollama before parallel calls
+  if (provider === "ollama") {
+    const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
+    try {
+      const health = await fetch(`${baseUrl}/api/tags`, {
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!health.ok) {
+        console.error(`[Ollama] Health check failed: HTTP ${health.status}`);
+        return enriched;
+      }
+      const tags = await health.json();
+      console.log(`[Ollama] Server healthy. Models available:`, JSON.stringify(tags.models?.map((m: any) => m.name) || []));
+    } catch (err: any) {
+      console.error(`[Ollama] Server unreachable at ${baseUrl}:`, err?.message || err);
+      return enriched;
+    }
+  }
 
   // Run multiple short prompts in parallel - llama3.1:8b understands direct instructions
   const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
