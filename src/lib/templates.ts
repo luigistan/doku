@@ -1,4 +1,5 @@
 import { Template } from "@/types/builder";
+import { generateVariants, BaseTemplate } from "./templateVariants";
 
 // Helper: wraps a React+TypeScript component in a full HTML page that renders via CDN
 function reactWrap(componentCode: string, title: string): string {
@@ -35,7 +36,7 @@ root.render(<App />);
 </html>`;
 }
 
-export const templates: Template[] = [
+const baseTemplates: BaseTemplate[] = [
   {
     id: "landing",
     name: "Landing Page",
@@ -1441,6 +1442,9 @@ function App() {
 `, "Mi Veterinaria"),
   },
 ];
+
+// Generate 5 color variants per template category
+export const templates: Template[] = baseTemplates.flatMap(t => generateVariants(t));
 
 export function findTemplate(message: string): Template | null {
   const lower = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");

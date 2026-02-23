@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { templates } from "@/lib/templates";
 import { TemplateCard } from "./TemplateCard";
 import { TemplatePreviewModal } from "./TemplatePreviewModal";
+import type { Template } from "@/types/builder";
 
-const categoryMap: Record<string, { label: string; icon: string }> = {
+const categoryMeta: Record<string, { label: string; icon: string }> = {
   all:        { label: "Todos",        icon: "🌐" },
   landing:    { label: "Landing",      icon: "🚀" },
   restaurant: { label: "Restaurante",  icon: "🍽️" },
@@ -16,22 +17,12 @@ const categoryMap: Record<string, { label: string; icon: string }> = {
   medical:    { label: "Clínica",      icon: "🏥" },
   education:  { label: "Educación",    icon: "🎓" },
   realestate: { label: "Inmobiliaria", icon: "🏠" },
+  event:      { label: "Evento",       icon: "🎤" },
+  saas:       { label: "SaaS",         icon: "⚡" },
   login:      { label: "Login",        icon: "🔐" },
-};
-
-const templateIcons: Record<string, string> = {
-  landing: "🚀",
-  restaurant: "🍽️",
-  ecommerce: "🛒",
-  portfolio: "💼",
-  blog: "✍️",
-  dashboard: "📊",
-  fitness: "💪",
-  agency: "🚀",
-  medical: "🏥",
-  education: "🎓",
-  realestate: "🏠",
-  login: "🔐",
+  pricing:    { label: "Precios",      icon: "💎" },
+  veterinary: { label: "Veterinaria",  icon: "🐾" },
+  notfound:   { label: "404",          icon: "🔍" },
 };
 
 interface TemplateSelectorProps {
@@ -40,21 +31,42 @@ interface TemplateSelectorProps {
 
 export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
   const [category, setCategory] = useState("all");
-  const [previewTemplate, setPreviewTemplate] = useState<typeof templates[number] | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
 
-  const categories = ["all", ...Array.from(new Set(templates.map((t) => t.id)))];
-  const filtered = category === "all" ? templates : templates.filter((t) => t.id === category);
+  // Get unique category IDs preserving order
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    return ["all", ...templates.reduce<string[]>((acc, t) => {
+      if (!seen.has(t.id)) { seen.add(t.id); acc.push(t.id); }
+      return acc;
+    }, [])];
+  }, []);
+
+  // When "all" show first variant per category, otherwise show all variants
+  const filtered = useMemo(() => {
+    if (category === "all") {
+      const seen = new Set<string>();
+      return templates.filter(t => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
+    }
+    return templates.filter(t => t.id === category);
+  }, [category]);
 
   return (
     <div className="px-2 pb-4">
       <p className="mb-3 px-2 text-xs font-medium text-muted-foreground">
-        O elige un template para empezar:
+        {category === "all"
+          ? "Elige una categoría o explora los templates:"
+          : `${filtered.length} estilos disponibles — elige el que más te guste:`}
       </p>
 
       {/* Category pills */}
       <div className="mb-3 flex gap-1.5 overflow-x-auto px-2 pb-1 scrollbar-thin">
         {categories.map((cat) => {
-          const meta = categoryMap[cat];
+          const meta = categoryMeta[cat];
           if (!meta) return null;
           return (
             <button
@@ -77,12 +89,13 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
       <div className="grid grid-cols-1 gap-3 px-1 sm:grid-cols-2">
         {filtered.map((t) => (
           <TemplateCard
-            key={t.id}
+            key={t.styleId}
             name={t.name}
+            styleName={category !== "all" ? t.styleName : undefined}
             html={t.html}
-            icon={templateIcons[t.id]}
+            icon={categoryMeta[t.id]?.icon}
             onPreview={() => setPreviewTemplate(t)}
-            onSelect={() => onSelect(`Crea un sitio tipo ${t.name} profesional`)}
+            onSelect={() => onSelect(`Crea un sitio tipo ${t.name} estilo ${t.styleName} profesional`)}
           />
         ))}
       </div>
@@ -93,9 +106,9 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
           open={!!previewTemplate}
           onClose={() => setPreviewTemplate(null)}
           html={previewTemplate.html}
-          name={previewTemplate.name}
+          name={`${previewTemplate.name} — ${previewTemplate.styleName}`}
           onSelect={() => {
-            onSelect(`Crea un sitio tipo ${previewTemplate.name} profesional`);
+            onSelect(`Crea un sitio tipo ${previewTemplate.name} estilo ${previewTemplate.styleName} profesional`);
             setPreviewTemplate(null);
           }}
         />
