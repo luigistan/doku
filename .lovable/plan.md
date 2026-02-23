@@ -1,112 +1,113 @@
 
-## Plan: Templates con Preview Visual en el Chat + Multiples Estilos
 
-### Problema actual
+## Plan: Preview Interactivo en el Homepage + Estrategia de Inteligencia Avanzada
 
-1. Los templates en el chat son solo botones de texto sin mostrar como se ve cada uno
-2. Solo hay 1 estilo por categoria (1 ecommerce, 1 restaurante, etc.)
-3. El usuario no puede comparar visualmente antes de elegir
+### Parte 1: Demo Interactivo en el Homepage
 
-### Solucion
+El mockup estatico actual (lineas 64-106 de `Home.tsx`) se reemplaza con un componente animado que simula en tiempo real como DOKU AI crea un e-commerce paso a paso.
 
-#### Parte 1: Sistema de Template Cards con Preview en el Chat
+**Nuevo componente: `src/components/home/HeroDemo.tsx`**
 
-**Nuevo componente `TemplateCard.tsx`**
-- Card compacta con mini-preview del template usando un iframe en miniatura (200x120px)
-- Muestra: nombre, estilo, icono y una miniatura real del HTML renderizado
-- Boton "Vista previa" que abre un popup fullscreen con el sitio completo
-- Boton "Elegir este" que selecciona el template y lo envia al builder
+Una animacion autonoma que corre en loop infinito simulando una sesion real del builder:
 
-**Nuevo componente `TemplatePreviewModal.tsx`**
-- Modal fullscreen (o 90vh) que renderiza el HTML completo del template en un iframe
-- Barra superior con nombre del template, boton "Elegir este template" y boton cerrar
-- Toggles de viewport (desktop/tablet/mobile) para ver como se ve en cada dispositivo
+1. **Fase 1 (0-2s)**: Aparece el prompt del usuario con efecto de "typing" letra por letra: *"Quiero una tienda online para vender zapatillas con catalogo y carrito"*
+2. **Fase 2 (2-4s)**: El sistema responde con analisis animado (aparecen bullets uno por uno):
+   - Tipo: E-Commerce
+   - Secciones: 6 detectadas
+   - Nombre: Sneaker Store
+   - Confianza: 94%
+3. **Fase 3 (4-5s)**: Barra de progreso "Generando..." con el efecto DOKU fill
+4. **Fase 4 (5-8s)**: En el panel derecho aparece un iframe real con un mini e-commerce HTML (usando uno de los templates existentes de la libreria, escalado al 25%)
+5. **Fase 5 (8-10s)**: Pausa para que el usuario vea el resultado
+6. **Loop**: Resetea y repite con un prompt diferente (rota entre 3 prompts: tienda, restaurante, portfolio)
 
-**Refactor de `TemplateSelector.tsx`**
-- En lugar de botones simples, mostrar las TemplateCards agrupadas por categoria
-- Filtro por categoria en la parte superior (Todos, Tiendas, Restaurantes, etc.)
-- Scroll horizontal por categoria para que no ocupe demasiado espacio vertical
-- Cada categoria muestra sus variantes de estilo
+**Estructura visual:**
+- Misma ventana estilo browser (dots rojo/amarillo/verde + barra URL)
+- Lado izquierdo: chat simulado con typing animation
+- Lado derecho: preview que transiciona de vacio a un sitio real renderizado en iframe
 
-#### Parte 2: Multiples Estilos por Categoria
+**Detalles de la animacion:**
+- `useEffect` con `setInterval` manejando un state machine (fase actual)
+- Typing effect: incrementa un indice de caracteres cada 40ms
+- Bullets: aparecen con `opacity` transition cada 400ms
+- Preview: fade-in del iframe con `opacity` y `scale` transition
+- 3 demos que rotan: E-Commerce, Restaurante, Portfolio
+- Los HTML se importan directamente de `src/lib/templates.ts`
 
-Agregar variantes de estilo para cada tipo de template. Cada variante comparte el mismo `id` base pero tiene un `styleId` diferente:
-
-| Categoria | Estilos nuevos |
-|-----------|---------------|
-| E-Commerce | Moderno (actual), Minimalista, Colorido/Neon |
-| Restaurante | Elegante (actual), Casual/Moderno, Rustico |
-| Landing Page | Corporativo (actual), Startup Gradient, Minimalista |
-| Portfolio | Developer (actual), Fotografo, Creativo |
-| Blog | Tech (actual), Magazine, Personal |
-| Dashboard | Dark (actual), Light/Clean, Colorful |
-| Fitness | Energetico (actual), Zen/Yoga, CrossFit |
-| Clinica | Profesional (actual), Moderno, Calido |
-
-Esto implica crear ~16 nuevas variantes de templates HTML (2 adicionales por las 8 categorias principales).
-
-#### Parte 3: Estructura de Datos Actualizada
-
-**Actualizar `Template` type en `src/types/builder.ts`:**
-```typescript
-export interface Template {
-  id: string;           // "ecommerce"
-  styleId: string;      // "ecommerce-modern", "ecommerce-minimal"
-  name: string;         // "E-Commerce"
-  styleName: string;    // "Moderno", "Minimalista"
-  keywords: string[];
-  description: string;
-  html: string;
-  planSteps: string[];
-  thumbnail?: string;   // emoji o icono representativo
-}
-```
-
-#### Parte 4: Aprendizaje Continuo de Templates Preferidos
-
-- Cuando el usuario elige un estilo especifico, guardar esa preferencia en `ai_learning_logs`
-- La proxima vez que pida el mismo tipo de sitio, priorizar el estilo que mas le gusto
-- Si rechaza un estilo, bajar su prioridad para ese usuario
-
-### Archivos a modificar/crear
+**Archivos:**
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/types/builder.ts` | Agregar `styleId`, `styleName`, `thumbnail` al tipo Template |
-| `src/lib/templates.ts` | Agregar 16+ variantes de estilos nuevos con HTML completo |
-| `src/components/builder/TemplateCard.tsx` | NUEVO: card con mini-preview iframe |
-| `src/components/builder/TemplatePreviewModal.tsx` | NUEVO: modal fullscreen con preview del template |
-| `src/components/builder/TemplateSelector.tsx` | Refactor: grid de cards con filtro por categoria, mini-previews |
-| `src/components/builder/ChatPanel.tsx` | Pasar templates como prop, integrar nuevo selector |
-| `src/hooks/useBuilderState.ts` | Manejar seleccion de template con styleId |
+| `src/components/home/HeroDemo.tsx` | NUEVO: componente de demo animado con state machine |
+| `src/pages/Home.tsx` | Reemplazar mockup estatico (lineas 64-106) con `<HeroDemo />` |
 
-### Detalle tecnico del mini-preview
+---
 
-El mini-preview usa un iframe escalado al 20% con CSS transform:
-```css
-iframe {
-  width: 1280px;
-  height: 800px;
-  transform: scale(0.15);
-  transform-origin: top left;
-  pointer-events: none;
+### Parte 2: Estrategia de Inteligencia con Ollama (Nivel Arquitecto)
+
+Actualmente Ollama se usa para generar HTML y para extraer intent (Signal 8). Para convertirlo en un verdadero "arquitecto de sistemas", se necesitan estos cambios en el edge function:
+
+**1. System Prompt de Arquitecto**
+
+Actualizar el prompt de Ollama en `builder-ai/index.ts` para que actue como diseñador de sistemas, no solo generador de HTML. El prompt debe instruirlo a:
+
+- Analizar requerimientos como un arquitecto de software
+- Proponer estructura de componentes (Header, Hero, Features, etc.)
+- Definir el flujo de datos del sitio
+- Generar HTML que siga patrones de diseño profesional
+- Responder conversacionalmente cuando el usuario hace preguntas (no todo es "genera un sitio")
+
+**2. Respuesta Estructurada con Tool Calling**
+
+En lugar de pedirle texto libre a Ollama, usar un formato de respuesta estructurada:
+
+```json
+{
+  "analysis": {
+    "intent": "ecommerce",
+    "businessName": "Sneaker Store",
+    "sections": ["hero", "catalog", "cart", "about", "contact"],
+    "colorScheme": "ocean",
+    "complexity": "medium"
+  },
+  "architecture": {
+    "components": ["Navbar", "HeroBanner", "ProductGrid", "CartSidebar", "Footer"],
+    "dataFlow": "Products -> Cart -> Checkout"
+  },
+  "html": "... codigo completo ..."
 }
 ```
-Dentro de un contenedor de ~200x120px con `overflow: hidden`. Esto muestra una miniatura real del sitio sin screenshots.
 
-### Flujo del usuario
+Esto permite que el sistema ENTIENDA lo que genero y pueda iterar sobre el.
 
-1. Usuario abre el builder, ve el mensaje de bienvenida
-2. Debajo aparecen las categorias (Tiendas, Restaurantes, etc.)
-3. Click en una categoria expande las variantes de estilo con mini-previews
-4. Click en "Vista previa" abre modal fullscreen para ver el sitio completo
-5. Click en "Elegir" envia el prompt con el estilo especifico al builder
-6. El sistema usa ese template como base y lo personaliza con Ollama
+**3. Aprendizaje Continuo en Vivo**
 
-### Nota importante sobre scope
+El sistema ya tiene `ai_learning_logs` con 91 entradas. Para que aprenda en vivo:
 
-Dado que crear 16 variantes completas de HTML es un volumen muy alto de codigo, se implementaran en fases:
-- **Fase 1** (este plan): Infraestructura de preview cards + modal + 2-3 variantes para E-Commerce y Restaurante como prueba de concepto
-- **Fase 2** (siguiente): Completar variantes para todas las categorias restantes
+- Cada vez que un usuario acepta, el sistema incrementa el peso de esos tokens para ese intent
+- Cada vez que rechaza, el negative learning reduce la probabilidad de esa combinacion
+- Los patrones se recargan en cada request (ya se hace con `queryLearningPatterns()`)
+- Agregar un cache de 5 minutos para no consultar la DB en cada request
 
-Esto permite validar el concepto rapidamente sin un cambio masivo de una sola vez.
+**4. Memoria de Contexto Mejorada**
+
+Ya se implemento `conversationHistory` y `user_entity_memory`. Para hacerlo mas inteligente:
+
+- Cuando el usuario dice "cambia el color" o "hazlo mas moderno", Ollama recibe el HTML anterior + la instruccion y genera solo las modificaciones
+- El edge function detecta si es un mensaje de "modificacion" (contiene "cambia", "modifica", "hazlo", "ponle") vs uno de "creacion nueva"
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/builder-ai/index.ts` | System prompt de arquitecto, deteccion de modificacion vs creacion, cache de patterns |
+
+---
+
+### Resumen de prioridades
+
+1. **HeroDemo interactivo** - impacto visual inmediato en la homepage
+2. **System prompt de arquitecto** - mejora calidad de generacion
+3. **Deteccion modificacion vs creacion** - mejora la experiencia conversacional
+4. **Cache de learning patterns** - mejora rendimiento
+
