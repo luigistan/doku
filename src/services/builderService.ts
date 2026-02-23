@@ -35,10 +35,10 @@ export async function generateSite(
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const config = JSON.parse(stored);
-        ollamaModel = config.model || "gemma3";
+        ollamaModel = config.model || "gpt-oss:20b";
       }
     } catch {}
-    if (!ollamaModel) ollamaModel = "gemma3";
+    if (!ollamaModel) ollamaModel = "gpt-oss:20b";
 
     const { data, error } = await supabase.functions.invoke("builder-ai", {
       body: {

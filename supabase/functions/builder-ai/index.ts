@@ -375,20 +375,17 @@ async function callOllama(message: string, modelOverride?: string, conversationH
     return null;
   }
 
-  let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gemma3";
+  let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gpt-oss:20b";
   
-  // Normalize model name
-  if (selectedModel.includes(":")) {
-    const base = selectedModel.split(":")[0];
-    console.log(`[Ollama] Normalizing model "${selectedModel}" -> "${base}"`);
-    selectedModel = base;
-  }
+  // Map local-only models to cloud-available models
+  // DO NOT strip ":" from model names - cloud models use it (e.g. gpt-oss:20b, glm-4.7:cloud)
   const modelAliases: Record<string, string> = {
-    "llama3": "gemma3", "llama3.1": "gemma3", "llama3.2": "gemma3",
-    "llama3.3": "gemma3", "llama2": "gemma3",
+    "llama3": "gpt-oss:20b", "llama3.1": "gpt-oss:20b", "llama3.2": "gpt-oss:20b",
+    "llama3.3": "gpt-oss:20b", "llama2": "gpt-oss:20b", "gemma3": "gpt-oss:20b",
+    "qwen3": "gpt-oss:20b",
   };
   if (modelAliases[selectedModel]) {
-    console.log(`[Ollama] Mapping model "${selectedModel}" -> "${modelAliases[selectedModel]}"`);
+    console.log(`[Ollama] Mapping local model "${selectedModel}" -> "${modelAliases[selectedModel]}"`);
     selectedModel = modelAliases[selectedModel];
   }
 

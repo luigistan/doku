@@ -54,7 +54,7 @@ export function ProjectSettings({
       const stored = localStorage.getItem(ollamaStorageKey);
       if (stored) return JSON.parse(stored);
     } catch {}
-    return { enabled: true, model: "gemma3", confidenceThreshold: 0.6 };
+    return { enabled: true, model: "gpt-oss:20b", confidenceThreshold: 0.6 };
   });
   const [ollamaModelInput, setOllamaModelInput] = useState(ollamaConfig.model);
 
@@ -367,8 +367,8 @@ export function ProjectSettings({
                 <div className="flex gap-2">
                   <input
                     value={ollamaModelInput}
-                    onChange={e => setOllamaModelInput(e.target.value.replace(/:[^\s]*/g, ""))}
-                    placeholder="gemma3 (modelo por defecto)"
+                    onChange={e => setOllamaModelInput(e.target.value)}
+                    placeholder="gpt-oss:20b (modelo por defecto)"
                     className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
                   />
                   <button
@@ -388,7 +388,7 @@ export function ProjectSettings({
               {/* Info note */}
               <div className="rounded-md bg-brain/5 border border-brain/20 px-3 py-2">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  💡 Ollama Cloud es el motor principal. Usa modelos como <span className="font-mono">gemma3</span>, <span className="font-mono">llama3.1</span>, etc.
+                  💡 Ollama Cloud es el motor principal. Modelos disponibles: <span className="font-mono">gpt-oss:20b</span>, <span className="font-mono">gpt-oss:120b</span>, <span className="font-mono">glm-4.7:cloud</span>, <span className="font-mono">minimax-m2.1:cloud</span>
                 </p>
               </div>
             </div>
