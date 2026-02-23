@@ -1,113 +1,99 @@
 
+## Plan: Base de Datos Multi-Tenant para Proyectos del Usuario
 
-## Plan: Preview Interactivo en el Homepage + Estrategia de Inteligencia Avanzada
+### Concepto
 
-### Parte 1: Demo Interactivo en el Homepage
+Agregar una seccion "Base de Datos" en el modal de Configuracion del Proyecto (entre "Visibilidad" y "Eliminar proyecto"). El usuario podra activar una base de datos gestionada por DOKU para su proyecto, crear tablas dinamicas, definir columnas, y ver/editar filas -- todo sin salir del builder.
 
-El mockup estatico actual (lineas 64-106 de `Home.tsx`) se reemplaza con un componente animado que simula en tiempo real como DOKU AI crea un e-commerce paso a paso.
+Se usa el modelo multi-tenant que propones: una sola DB de Supabase con `project_id` en cada fila y RLS que garantiza aislamiento total.
 
-**Nuevo componente: `src/components/home/HeroDemo.tsx`**
+### Mejora al modelo propuesto
 
-Una animacion autonoma que corre en loop infinito simulando una sesion real del builder:
+Tu modelo es solido. Estas son las mejoras que recomiendo:
 
-1. **Fase 1 (0-2s)**: Aparece el prompt del usuario con efecto de "typing" letra por letra: *"Quiero una tienda online para vender zapatillas con catalogo y carrito"*
-2. **Fase 2 (2-4s)**: El sistema responde con analisis animado (aparecen bullets uno por uno):
-   - Tipo: E-Commerce
-   - Secciones: 6 detectadas
-   - Nombre: Sneaker Store
-   - Confianza: 94%
-3. **Fase 3 (4-5s)**: Barra de progreso "Generando..." con el efecto DOKU fill
-4. **Fase 4 (5-8s)**: En el panel derecho aparece un iframe real con un mini e-commerce HTML (usando uno de los templates existentes de la libreria, escalado al 25%)
-5. **Fase 5 (8-10s)**: Pausa para que el usuario vea el resultado
-6. **Loop**: Resetea y repite con un prompt diferente (rota entre 3 prompts: tienda, restaurante, portfolio)
+1. **`app_tables` + `app_columns` + `app_rows`** es mejor que `app_data_json` porque:
+   - Permite validacion de tipos por columna
+   - Soporta indices futuros por columna
+   - Permite exportar a SQL real si el usuario migra
 
-**Estructura visual:**
-- Misma ventana estilo browser (dots rojo/amarillo/verde + barra URL)
-- Lado izquierdo: chat simulado con typing animation
-- Lado derecho: preview que transiciona de vacio a un sitio real renderizado en iframe
+2. **Agregar `column_type` enum** con tipos basicos: `text`, `number`, `boolean`, `date`, `email`, `url`, `select` -- esto permite que la IA genere formularios automaticos
 
-**Detalles de la animacion:**
-- `useEffect` con `setInterval` manejando un state machine (fase actual)
-- Typing effect: incrementa un indice de caracteres cada 40ms
-- Bullets: aparecen con `opacity` transition cada 400ms
-- Preview: fade-in del iframe con `opacity` y `scale` transition
-- 3 demos que rotan: E-Commerce, Restaurante, Portfolio
-- Los HTML se importan directamente de `src/lib/templates.ts`
+3. **Agregar `app_rows.data` como JSONB** en lugar de una columna por campo -- esto da flexibilidad total sin alterar el schema cuando el usuario agrega columnas
 
-**Archivos:**
+4. **Toggle `db_enabled` en la tabla `projects`** para saber si el proyecto tiene DB activa
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/home/HeroDemo.tsx` | NUEVO: componente de demo animado con state machine |
-| `src/pages/Home.tsx` | Reemplazar mockup estatico (lineas 64-106) con `<HeroDemo />` |
+### Nuevas tablas (migracion SQL)
 
----
+```text
+projects (agregar columna)
+  +-- db_enabled boolean default false
 
-### Parte 2: Estrategia de Inteligencia con Ollama (Nivel Arquitecto)
+app_tables
+  id uuid PK
+  project_id uuid FK -> projects.id
+  name text (nombre de la tabla del usuario)
+  created_at timestamp
 
-Actualmente Ollama se usa para generar HTML y para extraer intent (Signal 8). Para convertirlo en un verdadero "arquitecto de sistemas", se necesitan estos cambios en el edge function:
+app_columns
+  id uuid PK
+  table_id uuid FK -> app_tables.id
+  name text
+  column_type text (text | number | boolean | date | email | url | select)
+  is_required boolean default false
+  default_value text nullable
+  position integer default 0
+  created_at timestamp
 
-**1. System Prompt de Arquitecto**
-
-Actualizar el prompt de Ollama en `builder-ai/index.ts` para que actue como diseñador de sistemas, no solo generador de HTML. El prompt debe instruirlo a:
-
-- Analizar requerimientos como un arquitecto de software
-- Proponer estructura de componentes (Header, Hero, Features, etc.)
-- Definir el flujo de datos del sitio
-- Generar HTML que siga patrones de diseño profesional
-- Responder conversacionalmente cuando el usuario hace preguntas (no todo es "genera un sitio")
-
-**2. Respuesta Estructurada con Tool Calling**
-
-En lugar de pedirle texto libre a Ollama, usar un formato de respuesta estructurada:
-
-```json
-{
-  "analysis": {
-    "intent": "ecommerce",
-    "businessName": "Sneaker Store",
-    "sections": ["hero", "catalog", "cart", "about", "contact"],
-    "colorScheme": "ocean",
-    "complexity": "medium"
-  },
-  "architecture": {
-    "components": ["Navbar", "HeroBanner", "ProductGrid", "CartSidebar", "Footer"],
-    "dataFlow": "Products -> Cart -> Checkout"
-  },
-  "html": "... codigo completo ..."
-}
+app_rows
+  id uuid PK
+  table_id uuid FK -> app_tables.id
+  data jsonb (las columnas del usuario como JSON)
+  created_at timestamp
+  updated_at timestamp
 ```
 
-Esto permite que el sistema ENTIENDA lo que genero y pueda iterar sobre el.
+### RLS (aislamiento total)
 
-**3. Aprendizaje Continuo en Vivo**
+Todas las tablas usan la misma logica:
 
-El sistema ya tiene `ai_learning_logs` con 91 entradas. Para que aprenda en vivo:
+- SELECT/INSERT/UPDATE/DELETE: solo si el usuario es dueno del `project_id` asociado
+- Para `app_columns` y `app_rows`: se valida via JOIN a `app_tables.project_id -> projects.user_id`
 
-- Cada vez que un usuario acepta, el sistema incrementa el peso de esos tokens para ese intent
-- Cada vez que rechaza, el negative learning reduce la probabilidad de esa combinacion
-- Los patrones se recargan en cada request (ya se hace con `queryLearningPatterns()`)
-- Agregar un cache de 5 minutos para no consultar la DB en cada request
+Ejemplo de politica:
+```text
+"El usuario solo puede acceder a filas donde
+ app_tables.project_id pertenece a un proyecto suyo"
+```
 
-**4. Memoria de Contexto Mejorada**
+### Cambios en la UI
 
-Ya se implemento `conversationHistory` y `user_entity_memory`. Para hacerlo mas inteligente:
+**`ProjectSettings.tsx`** -- nueva seccion "Base de Datos" con:
 
-- Cuando el usuario dice "cambia el color" o "hazlo mas moderno", Ollama recibe el HTML anterior + la instruccion y genera solo las modificaciones
-- El edge function detecta si es un mensaje de "modificacion" (contiene "cambia", "modifica", "hazlo", "ponle") vs uno de "creacion nueva"
+1. **Toggle de activacion**: Boton "Activar Base de Datos" que cambia `db_enabled` a true
+2. **Lista de tablas**: Cuando esta activo, muestra las tablas creadas con un boton "+ Nueva tabla"
+3. **Crear tabla**: Input para nombre + boton crear
+4. **Indicador visual**: Icono de Database con badge verde cuando esta activo
 
-**Archivos:**
+**`projectService.ts`** -- nuevas funciones:
+
+- `enableProjectDb(projectId)` -- actualiza `db_enabled = true`
+- `getAppTables(projectId)` -- lista tablas del proyecto
+- `createAppTable(projectId, name)` -- crea una tabla
+- `deleteAppTable(tableId)` -- elimina tabla y sus columnas/filas en cascada
+
+El editor completo de columnas y filas (tipo Airtable) se implementara como un componente separado `DatabaseManager.tsx` accesible desde el builder.
+
+### Archivos a modificar/crear
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/builder-ai/index.ts` | System prompt de arquitecto, deteccion de modificacion vs creacion, cache de patterns |
+| Migracion SQL | Crear `app_tables`, `app_columns`, `app_rows` + agregar `db_enabled` a `projects` + RLS policies |
+| `src/services/projectService.ts` | Agregar funciones CRUD para tablas de la app |
+| `src/components/builder/ProjectSettings.tsx` | Agregar seccion "Base de Datos" con toggle y lista de tablas |
+| `src/pages/Builder.tsx` | Pasar nuevo estado `dbEnabled` al modal de settings |
 
----
+### Secuencia de implementacion
 
-### Resumen de prioridades
-
-1. **HeroDemo interactivo** - impacto visual inmediato en la homepage
-2. **System prompt de arquitecto** - mejora calidad de generacion
-3. **Deteccion modificacion vs creacion** - mejora la experiencia conversacional
-4. **Cache de learning patterns** - mejora rendimiento
-
+1. Migracion SQL: crear tablas + RLS
+2. Service layer: funciones CRUD
+3. UI: seccion en ProjectSettings con toggle + lista de tablas + crear tabla
