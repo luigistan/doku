@@ -1965,7 +1965,7 @@ async function callLLMShort(prompt: string): Promise<string | null> {
           prompt,
           stream: false,
           options: {
-            num_predict: 120,
+            num_predict: 150,
             temperature: 0.7,
             stop: ["\n\n", "---", "```"],
           },
@@ -2018,28 +2018,37 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
 
   // Run multiple short prompts in parallel for speed
   const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
-    // 1. Hero subtitle
+    // 1. Hero subtitle (completion-style prompt)
     callLLMShort(
-      `Escribe UN subtitulo corto (maximo 2 oraciones) para la pagina web de "${businessName}", que es un negocio de tipo ${intent}. Solo responde con el texto, sin comillas ni explicaciones.`
+      `Subtitulo para pagina web de ${businessName}:\n\n`
     ),
-    // 2. Feature descriptions (3 short ones)
+    // 2. Feature descriptions (few-shot with | delimiter)
     callLLMShort(
-      `Escribe 3 descripciones cortas (1 oracion cada una) de servicios para "${businessName}" (${intent}). Separa cada descripcion con "|". Solo el texto, sin numeros ni explicaciones.`
+      `Servicios de ${businessName}:\nDesayunos frescos cada manana|Cafe de grano seleccionado|`
     ),
-    // 3. About text
+    // 3. About text (completion-style)
     callLLMShort(
-      `Escribe 2 oraciones sobre "${businessName}" (${intent}) para la seccion "Sobre nosotros" de su pagina web. Solo responde con el texto.`
+      `Sobre nosotros: ${businessName} es`
     ),
-    // 4. Testimonials
+    // 4. Testimonials (few-shot with example)
     callLLMShort(
-      `Escribe 2 testimonios ficticios cortos (1 oracion cada uno) de clientes satisfechos de "${businessName}" (${intent}). Formato: Nombre - "testimonio" - cargo. Separa con "|".`
+      `Opiniones de clientes de ${businessName}:\nMaria Lopez - Excelente servicio y comida deliciosa - Cliente frecuente|`
     ),
   ]);
 
   // Process hero subtitle
   if (heroResult.status === "fulfilled" && heroResult.value) {
-    const cleaned = heroResult.value.replace(/^["']|["']$/g, "").trim();
-    if (cleaned.length > 10 && cleaned.length < 300) {
+    let cleaned = heroResult.value
+      .replace(/^["']|["']$/g, "")
+      .replace(/^(Subtitulo|Subtitle|Titulo)\s*[:.-]\s*/i, "")
+      .replace(/^\n+/, "")
+      .trim();
+    // Remove if it just repeats the business name
+    if (cleaned.toLowerCase().startsWith(businessName.toLowerCase())) {
+      const rest = cleaned.substring(businessName.length).replace(/^[\s:.-]+/, "").trim();
+      if (rest.length > 5) cleaned = rest;
+    }
+    if (cleaned.length > 5 && cleaned.length < 300) {
       enriched.heroSubtitle = cleaned;
       console.log(`[Hybrid] Hero subtitle enriched: ${cleaned.substring(0, 50)}...`);
     }
@@ -2047,7 +2056,11 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
 
   // Process feature descriptions
   if (featResult.status === "fulfilled" && featResult.value) {
-    const parts = featResult.value.split("|").map(s => s.trim()).filter(s => s.length > 10);
+    // Accept | or newlines as separators
+    const rawParts = featResult.value.split(/[|\n]/).map(s => s.trim());
+    const parts = rawParts
+      .map(s => s.replace(/^\d+[\.\)\-]\s*/, "").replace(/^[-•]\s*/, "").trim()) // Clean numbering
+      .filter(s => s.length > 5);
     if (parts.length >= 2) {
       enriched.featuresDescriptions = parts.slice(0, 3);
       console.log(`[Hybrid] Features enriched: ${parts.length} descriptions`);
@@ -2056,8 +2069,17 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
 
   // Process about text
   if (aboutResult.status === "fulfilled" && aboutResult.value) {
-    const cleaned = aboutResult.value.replace(/^["']|["']$/g, "").trim();
-    if (cleaned.length > 20 && cleaned.length < 500) {
+    let cleaned = aboutResult.value
+      .replace(/^["']|["']$/g, "")
+      .replace(/^\d+[\.\)]\s*/gm, "") // Remove numbering like "1. "
+      .replace(/^[-•]\s*/gm, "")
+      .replace(/^(Sobre nosotros|About)\s*[:.-]\s*/i, "")
+      .trim();
+    // Prepend business name if the LLM continued from "es"
+    if (cleaned.length > 5 && !cleaned.toLowerCase().includes(businessName.toLowerCase())) {
+      cleaned = `${businessName} es ${cleaned}`;
+    }
+    if (cleaned.length > 10 && cleaned.length < 500) {
       enriched.aboutText = cleaned;
       console.log(`[Hybrid] About text enriched: ${cleaned.substring(0, 50)}...`);
     }
