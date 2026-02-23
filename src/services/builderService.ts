@@ -28,6 +28,21 @@ export async function generateSite(
   conversationHistory?: { role: string; content: string }[]
 ): Promise<BuilderResponse> {
   try {
+    // Read Ollama config from localStorage
+    const storageKey = projectId ? `doku_ollama_${projectId}` : "doku_ollama_default";
+    let ollamaModel: string | undefined;
+    let confidenceThreshold: number | undefined;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const config = JSON.parse(stored);
+        if (config.enabled) {
+          ollamaModel = config.model;
+          confidenceThreshold = config.confidenceThreshold;
+        }
+      }
+    } catch {}
+
     const { data, error } = await supabase.functions.invoke("builder-ai", {
       body: {
         message,
@@ -36,6 +51,8 @@ export async function generateSite(
         previousEntities: context?.previousEntities,
         projectId,
         conversationHistory,
+        ollamaModel,
+        confidenceThreshold,
       },
     });
 

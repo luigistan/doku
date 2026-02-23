@@ -967,7 +967,7 @@ Dado el mensaje del usuario, clasifica en UNO de estos intents:
 Responde SOLO con JSON válido, sin texto adicional:
 {"intent":"nombre_del_intent","confidence":0.0-1.0,"entities":{"businessName":"nombre detectado o vacío","sections":[],"colorScheme":"color detectado o vacío","industry":"industria"}}`;
 
-async function classifyWithOllama(message: string): Promise<{ intent: string; confidence: number; label: string } | null> {
+async function classifyWithOllama(message: string, modelOverride?: string): Promise<{ intent: string; confidence: number; label: string } | null> {
   const apiKey = Deno.env.get("OLLAMA_API_KEY");
   if (!apiKey) {
     console.log("[Ollama] No OLLAMA_API_KEY configured, skipping");
@@ -984,9 +984,10 @@ async function classifyWithOllama(message: string): Promise<{ intent: string; co
     try {
       console.log(`[Ollama] Trying ${endpoint.url} (${endpoint.format} format)`);
       
+      const selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
       const body = endpoint.format === "openai" 
         ? JSON.stringify({
-            model: Deno.env.get("LLM_MODEL") || "llama3",
+            model: selectedModel,
             messages: [
               { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
               { role: "user", content: message }
@@ -995,7 +996,7 @@ async function classifyWithOllama(message: string): Promise<{ intent: string; co
             response_format: { type: "json_object" },
           })
         : JSON.stringify({
-            model: Deno.env.get("LLM_MODEL") || "llama3",
+            model: selectedModel,
             messages: [
               { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
               { role: "user", content: message }
@@ -4049,7 +4050,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, mode, action, logId, accepted, feedback, previousIntent, previousEntities, projectId, conversationHistory } = body;
+    const { message, mode, action, logId, accepted, feedback, previousIntent, previousEntities, projectId, conversationHistory, ollamaModel, confidenceThreshold: userThreshold } = body;
 
     // Handle feedback logging
     if (action === "feedback" && logId) {
@@ -4197,9 +4198,10 @@ serve(async (req) => {
       label = classification.label;
 
       // ---- OLLAMA FALLBACK: boost with LLM when rules confidence is low ----
-      if (confidence < 0.6) {
-        console.log(`[Ollama Fallback] Rules confidence ${confidence} < 0.6, trying Ollama...`);
-        const ollamaResult = await classifyWithOllama(message);
+      const threshold = typeof userThreshold === "number" ? userThreshold : 0.6;
+      if (confidence < threshold) {
+        console.log(`[Ollama Fallback] Rules confidence ${confidence} < ${threshold}, trying Ollama...`);
+        const ollamaResult = await classifyWithOllama(message, ollamaModel);
         if (ollamaResult && ollamaResult.confidence > confidence) {
           console.log(`[Ollama Fallback] Ollama (${ollamaResult.intent}:${ollamaResult.confidence}) beats rules (${intent}:${confidence})`);
           intent = ollamaResult.intent;
