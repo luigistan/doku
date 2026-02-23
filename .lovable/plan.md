@@ -1,90 +1,79 @@
 
 
-## Plan: Arreglar preview, agregar templates en chat, y limpiar toda referencia al Gateway
+## Plan: Arreglar la generacion de HTML truncado por Ollama
 
-### 1. Arreglar duplicacion del preview al hacer click en menus
+### Problema raiz
 
-**Causa:** El iframe tiene `sandbox="allow-scripts allow-same-origin"`. Con `allow-same-origin`, los links `href="#menu"` pueden causar que el iframe cargue la app padre dentro de si mismo, duplicando la interfaz.
-
-**Solucion:** Quitar `allow-same-origin` del sandbox en `PreviewPanel.tsx` (linea 126).
-
-**Archivo:** `src/components/builder/PreviewPanel.tsx`
-
----
-
-### 2. Corregir defaults del modelo: eliminar "tinyllama" y "gateway"
-
-El codigo tiene 3 lugares donde el default es `"gateway"` o `"tinyllama"` en vez de `"ollama"` y `"llama3.1:8b"`:
-
-| Linea | Codigo actual | Correccion |
-|-------|--------------|------------|
-| 1879 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
-| 1881 | `Deno.env.get("LLM_MODEL") \|\| "tinyllama"` | `\|\| "llama3.1:8b"` |
-| 1960 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
-| 2028 | `Deno.env.get("LLM_PROVIDER") \|\| "gateway"` | `\|\| "ollama"` |
-
-Esto asegura que si los secrets no estan configurados, SIEMPRE se use Ollama como default.
-
-**Archivo:** `supabase/functions/builder-ai/index.ts`
-
----
-
-### 3. Selector de templates en el chat
-
-Crear un componente `TemplateSelector` que muestre tarjetas clickeables con los templates disponibles. Se muestra debajo del mensaje de bienvenida cuando el usuario no ha enviado mensajes aun.
-
-Templates a mostrar (12 tarjetas con icono y nombre):
-
-| Icono | Template | Prompt |
-|-------|----------|--------|
-| Rocket | Landing Page | "Crea una landing page profesional" |
-| UtensilsCrossed | Restaurante | "Crea un sitio para restaurante" |
-| Briefcase | Portfolio | "Crea un portfolio profesional" |
-| ShoppingCart | E-Commerce | "Crea una tienda online" |
-| FileText | Blog | "Crea un blog" |
-| LayoutDashboard | Dashboard | "Crea un dashboard administrativo" |
-| Dumbbell | Gimnasio | "Crea un sitio para gimnasio" |
-| Stethoscope | Clinica | "Crea un sitio para clinica medica" |
-| Building | Inmobiliaria | "Crea un sitio de bienes raices" |
-| Laptop | SaaS | "Crea una landing para producto SaaS" |
-| GraduationCap | Educacion | "Crea un sitio de cursos online" |
-| PawPrint | Veterinaria | "Crea un sitio para veterinaria" |
-
-Al hacer click, se envia el prompt automaticamente como si el usuario lo escribiera.
-
-**Archivos:**
-- Nuevo: `src/components/builder/TemplateSelector.tsx`
-- Modificar: `src/components/builder/ChatPanel.tsx`
-
----
-
-### 4. Persistencia: toast al recuperar progreso
-
-Cuando el usuario vuelve a un proyecto que tiene HTML guardado, mostrar un toast informativo: "Progreso recuperado. Tu sitio esta listo en el preview."
-
-**Archivo:** `src/pages/Builder.tsx`
-
----
-
-### 5. Confirmacion de Ollama
-
-Los logs muestran que Ollama SI funciona:
+Ollama esta funcionando correctamente. El log confirma:
 ```
-[Full LLM] HTML generated successfully (733 chars)
-[LLM] callLLMShort -> provider: ollama, url: https://ollama-doku.onrender.com, model: llama3.1:8b
+[Full LLM] HTML generated successfully (759 chars)
 ```
 
-A veces hace timeout por cold starts de Render, pero cuando el servidor esta caliente, responde correctamente. Con los defaults corregidos (punto 2), NUNCA se usara el gateway.
+Pero 759 caracteres es un HTML roto/incompleto (solo un fondo morado sin contenido). La causa es la linea 1979 en `callLLMShort`:
 
----
+```typescript
+num_predict: Math.min(maxTokens, 200),
+```
+
+Cuando el handler principal llama `callLLMShort(systemPrompt, 2000)` para generar HTML completo, el cap de 200 tokens trunca la respuesta. Un sitio completo necesita al menos 1500-2000 tokens.
+
+### Solucion
+
+#### 1. Quitar el cap de 200 en `callLLMShort` (linea 1979)
+
+Cambiar de:
+```typescript
+num_predict: Math.min(maxTokens, 200),
+```
+A:
+```typescript
+num_predict: maxTokens,
+```
+
+Esto permite que las llamadas de enrichment cortas sigan pidiendo 60-80 tokens (como antes), pero la llamada de generacion completa pueda pedir los 2000 que necesita.
+
+#### 2. Aumentar el timeout para llamadas largas (linea 1983)
+
+Para generar HTML completo con 2000 tokens, Ollama en Render necesita mas tiempo. Cambiar el timeout a ser proporcional:
+
+```typescript
+signal: AbortSignal.timeout(maxTokens > 500 ? 300000 : 150000),
+```
+
+- Enrichment (60-80 tokens): 150s (igual que ahora)
+- Full HTML (2000 tokens): 300s (5 min)
+
+Nota: El limite de Supabase Edge Functions es ~400s, asi que 300s esta dentro del margen.
+
+#### 3. Mejorar el fallback hibrido (linea 2384)
+
+Si la generacion completa falla o es demasiado corta, el sistema ya cae al fallback hibrido (`composeReactHtml`). Pero el threshold de 200 chars es muy bajo. Subirlo a 500:
+
+```typescript
+if (extractedHtml && extractedHtml.length > 500) {
+```
+
+Esto asegura que si Ollama genera HTML truncado, el sistema use el template local (que siempre funciona).
+
+#### 4. Actualizar el mensaje de espera en el frontend
+
+Cambiar el texto de "1-2 minutos" a "2-4 minutos" ya que la generacion completa tarda mas.
+
+**Archivo:** `src/hooks/useBuilderState.ts`
 
 ### Resumen de archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/builder/PreviewPanel.tsx` | Quitar `allow-same-origin` del sandbox |
-| `supabase/functions/builder-ai/index.ts` | Cambiar defaults de "gateway"/"tinyllama" a "ollama"/"llama3.1:8b" |
-| `src/components/builder/TemplateSelector.tsx` | NUEVO - Grid de templates clickeables |
-| `src/components/builder/ChatPanel.tsx` | Insertar TemplateSelector |
-| `src/pages/Builder.tsx` | Toast al recuperar progreso |
+| `supabase/functions/builder-ai/index.ts` linea 1979 | Quitar cap de 200 tokens: `num_predict: maxTokens` |
+| `supabase/functions/builder-ai/index.ts` linea 1983 | Timeout proporcional: 300s para HTML completo, 150s para enrichment |
+| `supabase/functions/builder-ai/index.ts` linea 2384 | Subir threshold de validacion de 200 a 500 chars |
+| `src/hooks/useBuilderState.ts` | Actualizar mensaje de espera a "2-4 minutos" |
+
+### Resultado esperado
+
+Con estos cambios:
+- Ollama genera HTML completo (~2000 tokens, ~6000+ chars)
+- Si Ollama tarda demasiado o genera HTML truncado, el fallback hibrido genera el sitio con templates locales (siempre funciona)
+- El usuario ve un mensaje de espera realista
 
