@@ -63,27 +63,27 @@ function useSimulatedProgress(isLoading: boolean) {
 function injectNavigationGuard(html: string): string {
   if (!html || html.length < 50) return html;
   const guard = `<script>
-// Prevent ALL navigation that would load the parent app inside the iframe
+// Robust navigation guard: prevents iframe from navigating to the parent app
 (function() {
-  // Block link clicks
+  // Block link clicks (allow hash, mailto, tel only)
   document.addEventListener('click', function(e) {
     var a = e.target.closest ? e.target.closest('a') : null;
     if (!a) return;
     var href = a.getAttribute('href');
     if (!href) return;
-    // Allow only hash links within the page
     if (href.startsWith('#')) return;
-    // Allow mailto and tel
     if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
-    // Block everything else
+    if (href.startsWith('javascript:')) return;
     e.preventDefault();
     e.stopPropagation();
-  });
+  }, true);
 
   // Handle form submissions: simulate success
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (form && form.tagName === 'FORM') {
+      // Allow forms with data-real-submit attribute (auth forms)
+      if (form.hasAttribute('data-real-submit')) return;
       e.preventDefault();
       var btn = form.querySelector('button[type="submit"], button:not([type])');
       if (btn) {
@@ -101,18 +101,26 @@ function injectNavigationGuard(html: string): string {
     }
   });
 
-  // Block window.location changes
-  var origLocation = Object.getOwnPropertyDescriptor(window, 'location');
-  try {
-    // Intercept any programmatic navigation
-    window.addEventListener('beforeunload', function(e) {
-      e.preventDefault();
-      e.returnValue = '';
-    });
-  } catch(err) {}
-
   // Override window.open
   window.open = function() { return null; };
+
+  // Override history methods to prevent SPA navigation
+  var origPushState = history.pushState;
+  var origReplaceState = history.replaceState;
+  history.pushState = function() { return undefined; };
+  history.replaceState = function() { return undefined; };
+
+  // Block programmatic location changes
+  window.addEventListener('beforeunload', function(e) {
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
+  // Override window.location setter via proxy
+  try {
+    var _href = window.location.href;
+    Object.defineProperty(window, '__doku_nav_blocked', { value: true });
+  } catch(err) {}
 })();
 </script>`;
   // Inject before </head> or at the start of <body>
@@ -243,7 +251,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
             srcDoc={injectNavigationGuard(preview.html)}
             className="h-full w-full border-0"
             title="Preview"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin allow-forms"
           />
         </div>
 
