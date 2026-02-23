@@ -407,26 +407,27 @@ async function callOllama(message: string, modelOverride?: string, conversationH
   
   messages.push({ role: "user", content: message });
 
-  // Try multiple endpoints
+  // Try Ollama Cloud endpoints - native API first, then OpenAI compat as fallback
   const endpoints = [
-    { url: "https://ollama.com/v1/chat/completions", format: "openai" },
     { url: "https://ollama.com/api/chat", format: "ollama" },
+    { url: "https://ollama.com/v1/chat/completions", format: "openai" },
   ];
 
   for (const endpoint of endpoints) {
     try {
       console.log(`[Ollama] Trying ${endpoint.url} with model ${selectedModel}`);
       
-      const body = endpoint.format === "openai"
+      const body = endpoint.format === "ollama"
         ? JSON.stringify({
             model: selectedModel,
             messages,
-            temperature: 0.7,
-            max_tokens: 8000,
+            stream: false,
           })
         : JSON.stringify({
             model: selectedModel,
             messages,
+            temperature: 0.7,
+            max_tokens: 8000,
             stream: false,
           });
 
@@ -437,7 +438,7 @@ async function callOllama(message: string, modelOverride?: string, conversationH
           "Content-Type": "application/json",
         },
         body,
-        signal: AbortSignal.timeout(60000), // 60s timeout for HTML generation
+        signal: AbortSignal.timeout(60000),
       });
 
       if (!response.ok) {
@@ -447,11 +448,14 @@ async function callOllama(message: string, modelOverride?: string, conversationH
       }
 
       const data = await response.json();
+      console.log(`[Ollama] Raw response keys: ${Object.keys(data).join(", ")}`);
+      
       let content: string;
       if (endpoint.format === "openai") {
         content = data.choices?.[0]?.message?.content || "";
       } else {
-        content = data.message?.content || "";
+        // Native Ollama format: { "message": { "role": "assistant", "content": "..." }, "done": true }
+        content = data.message?.content || data.response || "";
       }
 
       if (!content) {

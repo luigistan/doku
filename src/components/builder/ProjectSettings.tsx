@@ -57,7 +57,6 @@ export function ProjectSettings({
     return { enabled: true, model: "gemma3", confidenceThreshold: 0.6 };
   });
   const [ollamaModelInput, setOllamaModelInput] = useState(ollamaConfig.model);
-  const [ollamaThresholdInput, setOllamaThresholdInput] = useState(String(ollamaConfig.confidenceThreshold));
 
   useEffect(() => {
     setName(projectName);
@@ -344,94 +343,55 @@ export function ProjectSettings({
             {/* Status badge */}
             <div className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-brain" />
-              <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                ollamaConfig.enabled ? "bg-execute/10 text-execute" : "bg-muted text-muted-foreground"
-              )}>
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-execute/10 text-execute">
                 <Zap className="h-3 w-3" />
-                {ollamaConfig.enabled ? "Ollama activo" : "Solo motor de reglas"}
+                Ollama Cloud — Motor principal
               </span>
             </div>
 
-            {/* Toggle */}
-            <button
-              onClick={() => {
-                const updated = { ...ollamaConfig, enabled: !ollamaConfig.enabled };
-                setOllamaConfig(updated);
-                localStorage.setItem(ollamaStorageKey, JSON.stringify(updated));
-              }}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
-                ollamaConfig.enabled ? "border-brain/40 bg-brain/10" : "border-border bg-surface-2"
-              )}
-            >
+            {/* Info */}
+            <div className="flex w-full items-center gap-3 rounded-lg border border-brain/40 bg-brain/10 px-4 py-3">
               <Brain className="h-4 w-4 text-brain" />
               <div className="flex-1 text-left">
-                <div className="text-sm font-medium text-foreground">{ollamaConfig.enabled ? "Ollama Cloud habilitado" : "Ollama deshabilitado"}</div>
+                <div className="text-sm font-medium text-foreground">Ollama Cloud activo</div>
                 <div className="text-xs text-muted-foreground">
-                  {ollamaConfig.enabled ? "Ollama se activa cuando el motor de reglas tiene baja confianza" : "Solo se usa el motor de reglas para clasificar"}
+                  Todas las solicitudes se procesan vía Ollama Cloud (clasificación, conversación y generación HTML)
                 </div>
               </div>
-            </button>
+            </div>
 
-            {ollamaConfig.enabled && (
-              <div className="space-y-3 rounded-lg border border-border bg-surface-2 p-3">
-                {/* Model */}
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Modelo</label>
-                  <div className="flex gap-2">
-                    <input
-                      value={ollamaModelInput}
-                      onChange={e => setOllamaModelInput(e.target.value.replace(/:[^\s]*/g, ""))}
-                      placeholder="gemma3 (modelo por defecto)"
-                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
-                    />
-                    <button
-                      onClick={() => {
-                        if (!ollamaModelInput.trim()) return;
-                        const updated = { ...ollamaConfig, model: ollamaModelInput.trim() };
-                        setOllamaConfig(updated);
-                        localStorage.setItem(ollamaStorageKey, JSON.stringify(updated));
-                      }}
-                      className="rounded-lg bg-brain px-3 py-2 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors"
-                    >
-                      Guardar
-                    </button>
-                  </div>
-                </div>
-
-                {/* Threshold */}
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">
-                    Umbral de confianza: <span className="font-mono font-semibold text-foreground">{ollamaThresholdInput}</span>
-                  </label>
+            <div className="space-y-3 rounded-lg border border-border bg-surface-2 p-3">
+              {/* Model */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Modelo</label>
+                <div className="flex gap-2">
                   <input
-                    type="range"
-                    min="0.1"
-                    max="0.95"
-                    step="0.05"
-                    value={ollamaThresholdInput}
-                    onChange={e => {
-                      setOllamaThresholdInput(e.target.value);
-                      const updated = { ...ollamaConfig, confidenceThreshold: parseFloat(e.target.value) };
+                    value={ollamaModelInput}
+                    onChange={e => setOllamaModelInput(e.target.value.replace(/:[^\s]*/g, ""))}
+                    placeholder="gemma3 (modelo por defecto)"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!ollamaModelInput.trim()) return;
+                      const updated = { ...ollamaConfig, model: ollamaModelInput.trim() };
                       setOllamaConfig(updated);
                       localStorage.setItem(ollamaStorageKey, JSON.stringify(updated));
                     }}
-                    className="w-full accent-brain"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Ollama se activa si la confianza del motor de reglas es menor a este valor
-                  </p>
-                </div>
-
-                {/* Info note */}
-                <div className="rounded-md bg-brain/5 border border-brain/20 px-3 py-2">
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    💡 El motor de reglas es rápido y sin costo. Ollama Cloud se usa como respaldo inteligente para mensajes ambiguos o industrias no cubiertas.
-                  </p>
+                    className="rounded-lg bg-brain px-3 py-2 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors"
+                  >
+                    Guardar
+                  </button>
                 </div>
               </div>
-            )}
+
+              {/* Info note */}
+              <div className="rounded-md bg-brain/5 border border-brain/20 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  💡 Ollama Cloud es el motor principal. Usa modelos como <span className="font-mono">gemma3</span>, <span className="font-mono">llama3.1</span>, etc.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Delete */}
