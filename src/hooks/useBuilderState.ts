@@ -187,7 +187,7 @@ export function useBuilderState(projectId?: string) {
           previousEntities: result.entities,
         };
 
-        if (result.intent === "conversational") {
+        if (result.intent === "conversational" || result.intent === "data_operation") {
           setMessages((prev) => [
             ...prev,
             {
