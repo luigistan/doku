@@ -118,15 +118,15 @@ export function ProjectSettings({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-surface-1 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-xl border border-border bg-surface-1 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
           <h2 className="text-base font-semibold text-foreground">Configuración del proyecto</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="space-y-5 p-5">
+        <div className="space-y-5 p-5 overflow-y-auto flex-1">
           {/* Name */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nombre del proyecto</label>
