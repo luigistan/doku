@@ -1,168 +1,48 @@
 
 
-# Plan: Integrar Ollama en la Edge Function builder-ai
+## Problem: Preview Panel Shows Black/Empty Screen
 
-## Resumen
+The generated HTML uses React + Babel Standalone for in-browser JSX compilation, but the code contains **TypeScript syntax** (`React.FC`, `useState<boolean>`, `Feature` interface, non-null assertion `!`) that Babel Standalone cannot parse without the TypeScript preset.
 
-Modificar `supabase/functions/builder-ai/index.ts` para agregar una funcion `callLLM()` que llame a tu servidor Ollama en Render (`https://ollama-doku.onrender.com`) para generar HTML con IA real, manteniendo el motor TF-IDF actual como fallback.
+### Root Cause
 
-## Estado actual verificado
-
-- Render: servicio `ollama-doku` building correctamente con Docker
-- GitHub: repo `luigistan/ollama` con Dockerfile + start.sh
-- Supabase secrets: LLM_PROVIDER, LLM_BASE_URL, LLM_MODEL configurados
-- Edge function: 1968 lineas con TF-IDF, clasificador, entity extractor, templates HTML
-
-## Cambios en un solo archivo
-
-### `supabase/functions/builder-ai/index.ts`
-
-**1. Nueva funcion `callLLM()` (insertar antes del handler principal)**
-
-```text
-async function callLLM(systemPrompt: string, userPrompt: string): Promise<string | null> {
-  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
-  const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
-  
-  try {
-    if (provider === "ollama") {
-      // Ollama API format
-      const response = await fetch(`${baseUrl}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          prompt: `${systemPrompt}\n\nUsuario: ${userPrompt}`,
-          stream: false,
-        }),
-        signal: AbortSignal.timeout(60000), // 60s timeout
-      });
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.response || null;
-      
-    } else if (provider === "gateway") {
-      // Lovable AI Gateway (OpenAI-compatible format)
-      const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          stream: false,
-        }),
-      });
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || null;
-    }
-    
-    return null;
-  } catch (err) {
-    console.error("LLM call failed:", err);
-    return null;
-  }
-}
+In `supabase/functions/builder-ai/index.ts`, line 1453:
+```html
+<script type="text/babel" data-type="module">
 ```
 
-**2. Funcion para construir el system prompt**
+This tells Babel to compile JSX, but the generated code contains TypeScript constructs like:
+- `React.FC` type annotations
+- `useState<boolean>(false)` generic syntax
+- `interface Feature { ... }` declarations  
+- `document.getElementById('root')!` non-null assertion
 
-```text
-function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
-  return `Eres un generador de sitios web profesionales.
-Genera HTML completo (desde <!DOCTYPE html> hasta </html>), moderno, responsivo.
-Usa Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-Usa imagenes de https://images.unsplash.com para fondos y fotos relevantes.
-El diseno debe ser oscuro, moderno, profesional.
+Babel Standalone ignores these unless `data-presets="typescript"` is specified.
 
-Tipo de sitio: ${intent} (${label})
-Negocio: ${entities.businessName}
-Secciones requeridas: ${entities.sections.join(", ")}
-Esquema de colores: ${entities.colorScheme}
+### Fix
 
-IMPORTANTE: Responde SOLO con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
-El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
-}
-```
+**File: `supabase/functions/builder-ai/index.ts`**
 
-**3. Funcion para extraer HTML de la respuesta del LLM**
+1. **Change the script tag** (line ~1453) from:
+   ```html
+   <script type="text/babel" data-type="module">
+   ```
+   to:
+   ```html
+   <script type="text/babel" data-presets="react,typescript">
+   ```
 
-```text
-function extractHtmlFromResponse(response: string): string | null {
-  // Buscar HTML completo en la respuesta
-  const htmlMatch = response.match(/<!DOCTYPE html>[\s\S]*<\/html>/i);
-  if (htmlMatch) return htmlMatch[0];
-  
-  // Buscar dentro de bloques de codigo markdown
-  const codeMatch = response.match(/```(?:html)?\s*(<!DOCTYPE html>[\s\S]*<\/html>)\s*```/i);
-  if (codeMatch) return codeMatch[1];
-  
-  // Si la respuesta parece HTML (empieza con < ), usarla tal cual
-  if (response.trim().startsWith("<")) return response.trim();
-  
-  return null;
-}
-```
+2. **Also update the PreviewPanel iframe** (`src/components/builder/PreviewPanel.tsx`, line ~87) -- remove `sandbox` restriction or ensure it doesn't block CDN scripts. Current `sandbox="allow-scripts allow-same-origin"` should be fine, but we should verify.
 
-**4. Modificar el flujo principal (lineas ~1934-1951)**
+### Technical Details
 
-Cambiar la generacion de HTML para intentar LLM primero:
+- The `data-type="module"` attribute is not a valid Babel Standalone option; it does nothing useful.
+- Adding `data-presets="react,typescript"` tells Babel Standalone to use both the React (JSX) and TypeScript presets, which will correctly handle all the TS syntax in the generated components.
+- This is a single-line change in the edge function that fixes the entire preview rendering issue.
 
-```text
-// ANTES:
-const html = composeReactHtml({ name, colors, sections, intent });
+### Steps
 
-// DESPUES:
-let html: string;
-const llmProvider = Deno.env.get("LLM_PROVIDER") || "none";
-
-if (llmProvider !== "none") {
-  const systemPrompt = buildSystemPrompt(intent, label, entities);
-  const llmResponse = await callLLM(systemPrompt, message);
-  const llmHtml = llmResponse ? extractHtmlFromResponse(llmResponse) : null;
-  
-  if (llmHtml && llmHtml.length > 200) {
-    html = llmHtml;  // LLM genero HTML valido
-  } else {
-    html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });  // Fallback
-  }
-} else {
-  html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
-}
-```
-
-## Lo que NO cambia
-
-- Motor TF-IDF, clasificador, entity extractor: siguen funcionando para dar contexto
-- `ai_learning_logs`, feedback loop, negative learning: sin cambios
-- Memoria conversacional: sin cambios
-- Todos los archivos del cliente: sin cambios
-- `composeReactHtml()`: se mantiene como fallback
-
-## Flujo final
-
-```text
-1. Usuario envia mensaje
-2. TF-IDF clasifica intent + extrae entities (como hoy)
-3. Se construye prompt con el contexto (intent, entities, secciones)
-4. Se llama a Ollama via HTTP (https://ollama-doku.onrender.com/api/generate)
-5. Si Ollama responde con HTML valido -> se usa ese HTML
-6. Si Ollama falla o no hay HTML -> se usa composeReactHtml() (templates actuales)
-7. Se loggea y se devuelve al cliente
-```
-
-## Advertencias
-
-- El primer request despues de inactividad tardara 1-2 minutos (cold start de Render Starter)
-- tinyllama es un modelo basico: el HTML puede no ser perfecto siempre
-- El fallback a templates garantiza que siempre hay respuesta
-- Timeout de 60 segundos para la llamada al LLM
+1. Edit `supabase/functions/builder-ai/index.ts` line 1453: change `data-type="module"` to `data-presets="react,typescript"`
+2. Deploy the `builder-ai` edge function
+3. Test by generating a new site in the builder to confirm the preview renders correctly
 
