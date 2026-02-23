@@ -229,7 +229,7 @@ export function useBuilderState(projectId?: string) {
         const analysisMsg: Message = {
           id: (Date.now() + 3).toString(),
           role: "system",
-          content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Ejecuto o tienes aclaraciones adicionales?`,
+          content: `🧠 **Análisis completado**${result.provider === "ollama" ? " 🤖 *vía Ollama*" : ""}\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Ejecuto o tienes aclaraciones adicionales?`,
           timestamp: new Date(),
           awaitingConfirmation: true,
           analysisData: {

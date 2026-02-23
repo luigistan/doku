@@ -47,6 +47,8 @@ export interface ConversationalContext {
 
 export type ViewportSize = "desktop" | "tablet" | "mobile";
 
+export type AIProvider = "rules" | "ollama";
+
 export interface PreviewState {
   html: string;
   status: "idle" | "loading" | "updating" | "ready" | "error";
