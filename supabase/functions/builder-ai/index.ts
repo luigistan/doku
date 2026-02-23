@@ -353,7 +353,8 @@ const verbIntentMap: Record<string, string[]> = {
   programar: ["technology"], desarrollar: ["technology", "agency"],
   // Generic intent verbs
   publicar: ["blog"], escribir: ["blog"],
-  administrar: ["dashboard"], gestionar: ["dashboard"],
+  administrar: ["dashboard"], gestionar: ["dashboard", "crm"],
+  registrar: ["crm"], autenticar: ["crm"],
 };
 
 // ==================== PHRASE PATTERN MATCHING ====================
@@ -798,6 +799,11 @@ const semanticVocabulary: Record<string, string[]> = {
   music: ["musico", "banda", "dj", "grabacion", "disquera", "musica", "cantante", "productor", "compositor", "cancion", "album", "concierto", "sonido", "audio", "instrumento"],
   salon: ["salon", "peluqueria", "barberia", "spa", "estetica", "belleza", "cabello", "unas", "maquillaje", "corte", "barber", "nails", "peinado", "tinte", "tratamiento", "facial", "manicure"],
   technology: ["tech", "software", "app", "desarrollo", "programacion", "tecnologia", "sistemas", "informatica", "devops", "cloud", "saas", "plataforma", "codigo", "web", "aplicacion", "inteligencia", "artificial"],
+  billing: ["facturacion", "facturas", "invoice", "cobro", "cobros", "recibo", "recibos", "billing", "cuentas", "cotizacion", "notas", "emitir", "generar", "electronica"],
+  inventory: ["inventario", "almacen", "bodega", "stock", "existencias", "inventory", "warehouse", "productos", "control", "registro", "mercancia"],
+  crm: ["crm", "clientes", "prospectos", "leads", "contactos", "oportunidades", "pipeline", "seguimiento", "registro", "login", "sesion", "autenticacion", "usuarios", "base", "datos", "conectar", "gestion", "iniciar"],
+  pos: ["pos", "caja", "registradora", "terminal", "venta", "ventas", "ticket", "tickets", "cobrar", "efectivo", "tarjeta"],
+  booking: ["reservas", "citas", "agenda", "turnos", "booking", "appointments", "agendar", "programar", "calendario", "horario"],
   // === 6 NEW INDUSTRY SEMANTIC VOCABULARIES ===
   laundry: ["lavanderia", "tintoreria", "lavado", "planchado", "ropa", "limpieza", "lavadero", "seco", "sucia", "mancha", "detergente", "entrega", "recogida", "servicio", "prenda", "camisa", "pantalon", "traje", "cobija", "cortina", "almohada"],
   pharmacy: ["farmacia", "medicamentos", "recetas", "drogueria", "medicina", "pastillas", "remedios", "botica", "farmaceutico", "antibiotico", "jarabe", "vitamina", "suplemento", "dosis", "prescripcion", "salud", "cuidado", "bienestar"],
@@ -1273,7 +1279,7 @@ const bootstrapCorpus: { message: string; intent: string }[] = [
   { message: "bodega y almacen sistema", intent: "inventory" },
   { message: "inventario de productos", intent: "inventory" },
   { message: "registro de mercancia", intent: "inventory" },
-  // CRM (~15 variations)
+  // CRM (~20 variations)
   { message: "sistema de clientes", intent: "crm" },
   { message: "crm para mi empresa", intent: "crm" },
   { message: "gestion de prospectos", intent: "crm" },
@@ -1281,6 +1287,16 @@ const bootstrapCorpus: { message: string; intent: string }[] = [
   { message: "base de datos de contactos", intent: "crm" },
   { message: "pipeline de ventas", intent: "crm" },
   { message: "app de oportunidades de negocio", intent: "crm" },
+  { message: "sistema con registro de usuarios y login para crear clientes", intent: "crm" },
+  { message: "pagina de registro conectada a base de datos con login", intent: "crm" },
+  { message: "crear sistema de gestion de clientes con autenticacion", intent: "crm" },
+  { message: "registro de usuarios con base de datos y sistema de clientes", intent: "crm" },
+  { message: "login y registro para gestionar clientes", intent: "crm" },
+  { message: "sistema para crear clientes con login", intent: "crm" },
+  { message: "registro de usuarios y gestion de clientes", intent: "crm" },
+  { message: "creame una pagina de registro de usuarios con login y sistema de clientes", intent: "crm" },
+  { message: "app con autenticacion y base de datos de clientes", intent: "crm" },
+  { message: "sistema de usuarios con inicio de sesion", intent: "crm" },
   // POS (~15 variations)
   { message: "punto de venta", intent: "pos" },
   { message: "caja registradora digital", intent: "pos" },
