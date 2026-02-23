@@ -116,16 +116,24 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
           </div>
 
           {/* URL bar */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1 text-xs text-muted-foreground">
-            <Globe className="h-3 w-3" />
-            <span className="font-mono">
-              {isPublic && projectSlug
-                ? `doku.red/p/${projectSlug}`
-                : isPublic
-                  ? "doku.red/preview/..."
-                  : "🔒 Privado"}
-            </span>
-          </div>
+          {isPublic && projectSlug ? (
+            <a
+              href={`/p/${projectSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-brain transition-colors"
+            >
+              <Globe className="h-3 w-3" />
+              <span className="font-mono">doku.red/p/{projectSlug}</span>
+            </a>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1 text-xs text-muted-foreground">
+              <Globe className="h-3 w-3" />
+              <span className="font-mono">
+                {isPublic ? "doku.red/preview/..." : "🔒 Privado"}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -173,7 +181,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
                 backgroundClip: "text",
               }}
             >
-              DOKU
+              DOKU AI
             </div>
             <p className="mt-4 text-2xl font-bold text-foreground tabular-nums">
               {Math.round(progress)}%
