@@ -1,130 +1,168 @@
 
 
-# Plan: IA Autonoma Completa sin APIs Externas
+# Plan: Integrar Ollama en la Edge Function builder-ai
 
 ## Resumen
 
-Convertir el sistema actual de keywords en una IA autonoma real con 3 capacidades nuevas: **TF-IDF vectorial** (entender semantica sin embeddings externos), **memoria conversacional** (entender seguimiento), y **auto-entrenamiento funcional** (el feedback loop actual no esta grabando datos).
+Modificar `supabase/functions/builder-ai/index.ts` para agregar una funcion `callLLM()` que llame a tu servidor Ollama en Render (`https://ollama-doku.onrender.com`) para generar HTML con IA real, manteniendo el motor TF-IDF actual como fallback.
 
----
+## Estado actual verificado
 
-## Problema Actual
+- Render: servicio `ollama-doku` building correctamente con Docker
+- GitHub: repo `luigistan/ollama` con Dockerfile + start.sh
+- Supabase secrets: LLM_PROVIDER, LLM_BASE_URL, LLM_MODEL configurados
+- Edge function: 1968 lineas con TF-IDF, clasificador, entity extractor, templates HTML
 
-1. **El feedback loop no funciona**: Todos los registros en `ai_learning_logs` tienen `user_accepted = NULL` -- el sistema graba la interaccion pero nunca actualiza si el usuario acepto o rechazo
-2. **Sin comprension semantica**: "lugar para comer" no matchea con "restaurant" porque no hay relacion semantica, solo keywords
-3. **Sin memoria de conversacion**: Si el usuario dice "hazme un restaurante" y luego "cambia el color a azul", el sistema no entiende el contexto
-4. **Sin generalizacion**: No puede inferir que "negocio de comida callejera" es similar a "restaurant"
+## Cambios en un solo archivo
 
-## Solucion: 3 Modulos de IA Autonoma
+### `supabase/functions/builder-ai/index.ts`
 
-### Modulo 1: Motor TF-IDF Vectorial (Comprension Semantica)
-
-En vez de comparar keywords exactos, el sistema calculara vectores TF-IDF para cada mensaje y los comparara con vectores pre-calculados de cada intent. Esto permite entender que "lugar para comer algo rico" es semanticamente cercano a "restaurant" sin necesidad de que la palabra "restaurant" aparezca.
-
-**Como funciona:**
-- Se pre-calcula un "documento virtual" para cada intent usando sus keywords, bigrams, y descripciones
-- Cuando llega un mensaje, se calcula su vector TF-IDF
-- Se compara con coseno de similitud contra todos los intents
-- El intent con mayor similitud gana
-
-**Vocabulario expandido por intent:**
-- restaurant: "comida, comer, alimento, plato, gastronomia, sabor, cocina, chef, mesa, reserva, delivery..."
-- ecommerce: "vender, comprar, producto, precio, oferta, envio, tienda, catalogo, pago..."
-- Cada intent tendra 30-50 terminos semanticos relacionados
-
-### Modulo 2: Memoria Conversacional
-
-Agregar capacidad de entender mensajes de seguimiento en el contexto de una conversacion:
-
-- Almacenar el ultimo intent y entities detectados en la sesion
-- Si el usuario dice "cambia el color a azul" sin mencionar un tipo de sitio, el sistema usara el intent anterior
-- Patrones de seguimiento: "cambia X", "agrega Y", "quita Z", "ponle...", "hazlo mas..."
-- El cliente enviara `previousIntent` y `previousEntities` a la edge function
-
-### Modulo 3: Auto-entrenamiento Funcional
-
-Arreglar el feedback loop y agregar aprendizaje por refuerzo:
-
-- **Bug fix**: El `logInteraction()` del cliente esta enviando el `logId` correctamente pero la edge function necesita la ruta de feedback funcional -- verificar y arreglar el flujo completo
-- **Peso por feedback**: Interacciones con `user_accepted = true` tendran 3x mas peso en la clasificacion
-- **Negative learning**: Interacciones rechazadas (`user_accepted = false`) penalizaran ese intent para mensajes similares
-- **Auto-seed**: Pre-cargar 50+ interacciones base en `ai_learning_logs` con `user_accepted = true` para que el sistema tenga conocimiento inicial
-
----
-
-## Seccion Tecnica
-
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/builder-ai/index.ts` | Agregar motor TF-IDF, memoria conversacional, negative learning, expandir vocabulario semantico por intent |
-| `src/hooks/useBuilderState.ts` | Enviar `previousIntent`/`previousEntities` en cada request, arreglar flujo de feedback |
-| `src/services/builderService.ts` | Agregar parametro de contexto previo a `generateSite()` |
-| `src/types/builder.ts` | Agregar tipos para contexto conversacional |
-| `supabase/migrations/` | INSERT de seed data con 50+ interacciones base pre-aceptadas |
-
-### Motor TF-IDF - Detalle Tecnico
+**1. Nueva funcion `callLLM()` (insertar antes del handler principal)**
 
 ```text
-1. Construir vocabulario global (union de todos los terminos de todos los intents)
-2. Para cada intent, crear "documento virtual" con sus terminos semanticos
-3. Calcular IDF: log(N / df) donde N = num intents, df = cuantos intents contienen el termino
-4. Para mensaje del usuario:
-   a. Tokenizar
-   b. Calcular TF de cada token
-   c. Multiplicar TF * IDF = vector del mensaje
-   d. Calcular coseno de similitud con cada intent
-   e. El mayor coseno = intent mas probable
+async function callLLM(systemPrompt: string, userPrompt: string): Promise<string | null> {
+  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
+  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+  
+  try {
+    if (provider === "ollama") {
+      // Ollama API format
+      const response = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt: `${systemPrompt}\n\nUsuario: ${userPrompt}`,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(60000), // 60s timeout
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.response || null;
+      
+    } else if (provider === "gateway") {
+      // Lovable AI Gateway (OpenAI-compatible format)
+      const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          stream: false,
+        }),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || null;
+    }
+    
+    return null;
+  } catch (err) {
+    console.error("LLM call failed:", err);
+    return null;
+  }
+}
 ```
 
-Esto es la misma matematica que usan los motores de busqueda clasicos, implementada en TypeScript puro dentro de la edge function. Zero dependencias externas.
-
-### Memoria Conversacional - Flujo
+**2. Funcion para construir el system prompt**
 
 ```text
-Usuario: "hazme un restaurante mexicano"
-  -> intent: restaurant, entities: {businessName: "Mi Restaurante", colorScheme: "warm"}
-  -> Se guarda como previousContext
+function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
+  return `Eres un generador de sitios web profesionales.
+Genera HTML completo (desde <!DOCTYPE html> hasta </html>), moderno, responsivo.
+Usa Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+Usa imagenes de https://images.unsplash.com para fondos y fotos relevantes.
+El diseno debe ser oscuro, moderno, profesional.
 
-Usuario: "cambia el color a azul"
-  -> Detecta patron de seguimiento ("cambia...")
-  -> No encuentra intent nuevo fuerte
-  -> Usa previousContext.intent = restaurant
-  -> Modifica solo colorScheme = "blue"
-  -> Regenera el sitio con el cambio
+Tipo de sitio: ${intent} (${label})
+Negocio: ${entities.businessName}
+Secciones requeridas: ${entities.sections.join(", ")}
+Esquema de colores: ${entities.colorScheme}
+
+IMPORTANTE: Responde SOLO con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
+El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
+}
 ```
 
-### Seed Data - Ejemplos de Pre-carga
-
-Se insertaran 50+ registros en `ai_learning_logs` con patrones comunes ya aceptados:
+**3. Funcion para extraer HTML de la respuesta del LLM**
 
 ```text
-"quiero una pagina para mi negocio" -> landing (accepted)
-"hazme una tienda para vender ropa" -> ecommerce (accepted)
-"necesito un sitio para mi restaurante" -> restaurant (accepted)
-"pagina de mi barberia" -> salon (accepted)
-"sitio web para mi gimnasio" -> fitness (accepted)
-"quiero mostrar mis fotos" -> portfolio (accepted)
-"pagina para mi consultorio dental" -> clinic (accepted)
-...50+ mas cubriendo variaciones naturales
+function extractHtmlFromResponse(response: string): string | null {
+  // Buscar HTML completo en la respuesta
+  const htmlMatch = response.match(/<!DOCTYPE html>[\s\S]*<\/html>/i);
+  if (htmlMatch) return htmlMatch[0];
+  
+  // Buscar dentro de bloques de codigo markdown
+  const codeMatch = response.match(/```(?:html)?\s*(<!DOCTYPE html>[\s\S]*<\/html>)\s*```/i);
+  if (codeMatch) return codeMatch[1];
+  
+  // Si la respuesta parece HTML (empieza con < ), usarla tal cual
+  if (response.trim().startsWith("<")) return response.trim();
+  
+  return null;
+}
 ```
 
-### Negative Learning
+**4. Modificar el flujo principal (lineas ~1934-1951)**
+
+Cambiar la generacion de HTML para intentar LLM primero:
 
 ```text
-1. Al clasificar, consultar logs con user_accepted = false
-2. Si el mensaje actual es similar (Jaccard > 0.5) a uno rechazado:
-   a. Penalizar el intent que fue rechazado (-3 puntos)
-   b. Si el usuario dio feedback ("era para X"), boost al intent correcto
-3. Esto permite que el sistema corrija errores automaticamente
+// ANTES:
+const html = composeReactHtml({ name, colors, sections, intent });
+
+// DESPUES:
+let html: string;
+const llmProvider = Deno.env.get("LLM_PROVIDER") || "none";
+
+if (llmProvider !== "none") {
+  const systemPrompt = buildSystemPrompt(intent, label, entities);
+  const llmResponse = await callLLM(systemPrompt, message);
+  const llmHtml = llmResponse ? extractHtmlFromResponse(llmResponse) : null;
+  
+  if (llmHtml && llmHtml.length > 200) {
+    html = llmHtml;  // LLM genero HTML valido
+  } else {
+    html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });  // Fallback
+  }
+} else {
+  html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
+}
 ```
 
-### Sin APIs externas
+## Lo que NO cambia
 
-- TF-IDF: implementado en TypeScript puro (40 lineas de codigo)
-- Coseno de similitud: formula matematica basica
-- Memoria: estado en el cliente + parametro en la request
-- Auto-aprendizaje: queries SQL a `ai_learning_logs`
-- Costo: $0.00 -- todo corre en la edge function existente
+- Motor TF-IDF, clasificador, entity extractor: siguen funcionando para dar contexto
+- `ai_learning_logs`, feedback loop, negative learning: sin cambios
+- Memoria conversacional: sin cambios
+- Todos los archivos del cliente: sin cambios
+- `composeReactHtml()`: se mantiene como fallback
+
+## Flujo final
+
+```text
+1. Usuario envia mensaje
+2. TF-IDF clasifica intent + extrae entities (como hoy)
+3. Se construye prompt con el contexto (intent, entities, secciones)
+4. Se llama a Ollama via HTTP (https://ollama-doku.onrender.com/api/generate)
+5. Si Ollama responde con HTML valido -> se usa ese HTML
+6. Si Ollama falla o no hay HTML -> se usa composeReactHtml() (templates actuales)
+7. Se loggea y se devuelve al cliente
+```
+
+## Advertencias
+
+- El primer request despues de inactividad tardara 1-2 minutos (cold start de Render Starter)
+- tinyllama es un modelo basico: el HTML puede no ser perfecto siempre
+- El fallback a templates garantiza que siempre hay respuesta
+- Timeout de 60 segundos para la llamada al LLM
 
