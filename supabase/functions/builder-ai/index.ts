@@ -1368,15 +1368,127 @@ const BackToTop: React.FC = () => {
   return <button onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} style={{position:'fixed',bottom:'2rem',right:'2rem',width:44,height:44,borderRadius:'50%',background:'var(--gradient)',color:'#fff',border:'none',cursor:'pointer',fontSize:'1.2rem',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'var(--shadow-md)',zIndex:100}}>↑</button>;
 };`);
 
+  // Auth component
+  if (sections.includes("auth") || sections.includes("login")) {
+    components.push(`
+const AuthSection: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  return (
+    <section id="auth" className="section section-alt">
+      <div className="container" style={{maxWidth:480,margin:'0 auto'}}>
+        <div className="section-header"><h2>Accede a tu cuenta</h2><p>Inicia sesión o regístrate para disfrutar de todos los beneficios</p></div>
+        <div className="card" style={{padding:'var(--space-lg)'}}>
+          <div style={{display:'flex',gap:0,marginBottom:'var(--space-md)',borderRadius:'var(--radius-sm)',overflow:'hidden',border:'1px solid var(--border)'}}>
+            <button onClick={()=>setActiveTab('login')} style={{flex:1,padding:'0.75rem',background:activeTab==='login'?'var(--primary)':'transparent',color:activeTab==='login'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Iniciar Sesión</button>
+            <button onClick={()=>setActiveTab('register')} style={{flex:1,padding:'0.75rem',background:activeTab==='register'?'var(--primary)':'transparent',color:activeTab==='register'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Registrarse</button>
+          </div>
+          {activeTab === 'login' ? (
+            <form onSubmit={(e)=>e.preventDefault()} style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
+              <div>
+                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Email</label>
+                <input type="email" placeholder="tu@email.com" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
+              </div>
+              <div>
+                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Contraseña</label>
+                <input type="password" placeholder="••••••••" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
+              </div>
+              <button className="btn" style={{width:'100%',justifyContent:'center',marginTop:'var(--space-xs)'}}>Iniciar Sesión</button>
+              <p style={{textAlign:'center',fontSize:'0.82rem',color:'var(--text-muted)'}}>¿Olvidaste tu contraseña? <a href="#" style={{color:'var(--primary-light)'}}>Recupérala aquí</a></p>
+            </form>
+          ) : (
+            <form onSubmit={(e)=>e.preventDefault()} style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
+              <div>
+                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Nombre completo</label>
+                <input type="text" placeholder="Juan Pérez" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
+              </div>
+              <div>
+                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Email</label>
+                <input type="email" placeholder="tu@email.com" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
+              </div>
+              <div>
+                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Contraseña</label>
+                <input type="password" placeholder="Mínimo 8 caracteres" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
+              </div>
+              <button className="btn" style={{width:'100%',justifyContent:'center',marginTop:'var(--space-xs)'}}>Crear Cuenta</button>
+              <p style={{textAlign:'center',fontSize:'0.82rem',color:'var(--text-muted)'}}>Al registrarte aceptas nuestros <a href="#" style={{color:'var(--primary-light)'}}>términos y condiciones</a></p>
+            </form>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};`);
+  }
+
+  // User Panel component
+  if (sections.includes("user-panel")) {
+    components.push(`
+const UserPanel: React.FC = () => {
+  const orders = [
+    { date: '2024-01-15', items: 'Café Especialidad x2, Croissant', total: '$13.00' },
+    { date: '2024-01-12', items: 'Bowl Mediterráneo, Jugo Natural', total: '$15.50' },
+    { date: '2024-01-08', items: 'Tostada de Aguacate, Cappuccino', total: '$14.00' },
+    { date: '2024-01-05', items: 'Pasta al Pesto, Tarta de Temporada', total: '$20.50' },
+  ];
+  return (
+    <section id="user-panel" className="section">
+      <div className="container">
+        <div className="section-header"><h2>Mi Panel</h2><p>Consulta tu historial y resumen de actividad</p></div>
+        <div className="grid-3" style={{marginBottom:'var(--space-xl)'}}>
+          <div className="card" style={{textAlign:'center'}}>
+            <div style={{fontSize:'2rem',marginBottom:8}}>💰</div>
+            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">$63.00</div>
+            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Total consumido</p>
+          </div>
+          <div className="card" style={{textAlign:'center'}}>
+            <div style={{fontSize:'2rem',marginBottom:8}}>📋</div>
+            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">4</div>
+            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Pedidos realizados</p>
+          </div>
+          <div className="card" style={{textAlign:'center'}}>
+            <div style={{fontSize:'2rem',marginBottom:8}}>⭐</div>
+            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">Gold</div>
+            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Nivel de membresía</p>
+          </div>
+        </div>
+        <div className="card">
+          <h3 style={{marginBottom:'var(--space-md)',fontSize:'1.1rem'}}>📜 Historial de Consumo</h3>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid var(--border)'}}>
+                  <th style={{textAlign:'left',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Fecha</th>
+                  <th style={{textAlign:'left',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Items</th>
+                  <th style={{textAlign:'right',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o, i) => (
+                  <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                    <td style={{padding:'0.75rem',fontSize:'0.9rem'}}>{o.date}</td>
+                    <td style={{padding:'0.75rem',fontSize:'0.9rem',color:'var(--text-muted)'}}>{o.items}</td>
+                    <td style={{padding:'0.75rem',fontSize:'0.9rem',textAlign:'right',fontWeight:600,color:'var(--primary-light)'}}>{o.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};`);
+  }
+
   // App component
-  const componentOrder = ["navbar", "hero", "features", "about", "menu", "gallery", "pricing", "testimonials", "faq", "team", "contact", "footer"];
+  const componentOrder = ["navbar", "hero", "features", "about", "menu", "gallery", "pricing", "testimonials", "faq", "team", "auth", "user-panel", "contact", "footer"];
   const componentNames: Record<string, string> = {
     navbar: "Navbar", hero: "Hero", features: "Features", about: "About", menu: "Menu",
     gallery: "Gallery", pricing: "Pricing", testimonials: "Testimonials", faq: "FAQ",
-    team: "Team", contact: "Contact", footer: "Footer",
+    team: "Team", contact: "Contact", footer: "Footer", auth: "AuthSection", "user-panel": "UserPanel",
   };
   const renderedComponents = componentOrder
-    .filter(s => sections.includes(s))
+    .filter(s => sections.includes(s) && componentNames[s])
     .map(s => `<${componentNames[s]} />`)
     .join("\n      ");
 
@@ -1463,12 +1575,28 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 </head>
 <body>
 <div id="root"></div>
+<div id="loading-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:1rem">
+  <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+  <p style="color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body)">Cargando sitio...</p>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+<script>
+  // Timeout fallback: if React/Babel fail to load after 15s, show error
+  window.__loadTimeout = setTimeout(function() {
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.innerHTML = '<p style="color:var(--text);font-family:var(--font-body);text-align:center;padding:2rem">⚠️ El sitio tardó demasiado en cargar.<br><small style="color:var(--text-muted)">Prueba refrescando el preview.</small></p>';
+  }, 15000);
+</script>
 <script type="text/babel" data-presets="react,typescript">
 const { useState, useEffect, useRef } = React;
 ${components.join("\n")}
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 root.render(<App />);
+// Remove loading overlay once React renders
+const overlay = document.getElementById('loading-overlay');
+if (overlay) overlay.remove();
+clearTimeout(window.__loadTimeout);
 </script>
 </body>
 </html>`;
@@ -1480,6 +1608,7 @@ function sectionLabel(s: string): string {
     hero: "Inicio", features: "Servicios", about: "Nosotros", menu: "Menú",
     gallery: "Galería", pricing: "Precios", contact: "Contacto",
     testimonials: "Testimonios", blog: "Blog", faq: "FAQ", team: "Equipo",
+    auth: "Cuenta", login: "Acceder", "user-panel": "Mi Panel",
   };
   return labels[s] || s;
 }
@@ -1863,6 +1992,8 @@ function generatePlan(intent: string, entities: Entities): string[] {
   if (entities.sections.includes("testimonials")) steps.push("Agregar testimonios con ratings");
   if (entities.sections.includes("faq")) steps.push("Agregar sección de preguntas frecuentes");
   if (entities.sections.includes("team")) steps.push("Crear sección del equipo profesional");
+  if (entities.sections.includes("auth") || entities.sections.includes("login")) steps.push("Crear formulario de registro e inicio de sesión");
+  if (entities.sections.includes("user-panel")) steps.push("Agregar panel de usuario con historial de consumo");
   if (entities.sections.includes("contact")) steps.push("Agregar formulario de contacto");
   if (entities.sections.includes("footer")) steps.push("Crear footer con navegación y links");
   steps.push(`Aplicar paleta de colores: ${entities.colorScheme}`);
