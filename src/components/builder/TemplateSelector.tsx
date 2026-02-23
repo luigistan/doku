@@ -27,10 +27,11 @@ const categoryMeta: Record<string, { label: string; icon: string }> = {
 
 interface TemplateSelectorProps {
   onSelect: (prompt: string) => void;
+  initialCategory?: string;
 }
 
-export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
-  const [category, setCategory] = useState("all");
+export function TemplateSelector({ onSelect, initialCategory }: TemplateSelectorProps) {
+  const [category, setCategory] = useState(initialCategory || "all");
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
 
   // Get unique category IDs preserving order
