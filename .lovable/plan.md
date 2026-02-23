@@ -1,79 +1,50 @@
 
 
-## Plan: Arreglar la generacion de HTML truncado por Ollama
+## Plan: Loader animado "DOKU" con porcentaje en el preview
 
-### Problema raiz
+Cuando el preview esta en estado `loading`, en lugar de mostrar el iframe con el HTML por defecto, se mostrara una animacion de la palabra **DOKU** con un efecto de relleno progresivo y un porcentaje que simula el avance del analisis.
 
-Ollama esta funcionando correctamente. El log confirma:
-```
-[Full LLM] HTML generated successfully (759 chars)
-```
+### Cambios
 
-Pero 759 caracteres es un HTML roto/incompleto (solo un fondo morado sin contenido). La causa es la linea 1979 en `callLLMShort`:
+**Archivo: `src/components/builder/PreviewPanel.tsx`**
 
-```typescript
-num_predict: Math.min(maxTokens, 200),
-```
+1. Agregar un estado local `progress` (0-100) que se incrementa gradualmente mientras `preview.status === "loading"`
+   - Sube rapido al principio (0-30 en ~3s)
+   - Mas lento en el medio (30-70 en ~30s)
+   - Muy lento al final (70-95 en ~60s)
+   - Nunca llega a 100 hasta que el status cambie a "ready"
+   - Se resetea a 0 cuando cambia a "idle" o "ready"
 
-Cuando el handler principal llama `callLLMShort(systemPrompt, 2000)` para generar HTML completo, el cap de 200 tokens trunca la respuesta. Un sitio completo necesita al menos 1500-2000 tokens.
+2. Renderizar un overlay sobre el iframe cuando `status === "loading"`:
+   - Fondo oscuro (bg-background)
+   - La palabra **DOKU** en texto grande (~80px) con efecto de relleno usando CSS `background-clip: text` y un gradiente que avanza segun el porcentaje
+   - Debajo: porcentaje numerico (ej: "42%")
+   - Debajo: texto "Analizando con Ollama..."
+   - Animacion suave con CSS transitions
 
-### Solucion
+3. El efecto de relleno se logra con:
+   ```css
+   background: linear-gradient(to right, #8B5CF6 {progress}%, transparent {progress}%);
+   -webkit-background-clip: text;
+   -webkit-text-fill-color: transparent;
+   ```
+   Donde el color solido (morado/brain) "llena" las letras de izquierda a derecha.
 
-#### 1. Quitar el cap de 200 en `callLLMShort` (linea 1979)
+### Comportamiento del progreso simulado
 
-Cambiar de:
-```typescript
-num_predict: Math.min(maxTokens, 200),
-```
-A:
-```typescript
-num_predict: maxTokens,
-```
+| Rango | Velocidad | Duracion aprox |
+|-------|-----------|----------------|
+| 0-30% | Rapido | 3 segundos |
+| 30-60% | Medio | 20 segundos |
+| 60-85% | Lento | 40 segundos |
+| 85-95% | Muy lento | 60 segundos |
+| 95-100% | Solo al completar | Instantaneo |
 
-Esto permite que las llamadas de enrichment cortas sigan pidiendo 60-80 tokens (como antes), pero la llamada de generacion completa pueda pedir los 2000 que necesita.
+Esto da feedback visual constante al usuario mientras Ollama procesa.
 
-#### 2. Aumentar el timeout para llamadas largas (linea 1983)
-
-Para generar HTML completo con 2000 tokens, Ollama en Render necesita mas tiempo. Cambiar el timeout a ser proporcional:
-
-```typescript
-signal: AbortSignal.timeout(maxTokens > 500 ? 300000 : 150000),
-```
-
-- Enrichment (60-80 tokens): 150s (igual que ahora)
-- Full HTML (2000 tokens): 300s (5 min)
-
-Nota: El limite de Supabase Edge Functions es ~400s, asi que 300s esta dentro del margen.
-
-#### 3. Mejorar el fallback hibrido (linea 2384)
-
-Si la generacion completa falla o es demasiado corta, el sistema ya cae al fallback hibrido (`composeReactHtml`). Pero el threshold de 200 chars es muy bajo. Subirlo a 500:
-
-```typescript
-if (extractedHtml && extractedHtml.length > 500) {
-```
-
-Esto asegura que si Ollama genera HTML truncado, el sistema use el template local (que siempre funciona).
-
-#### 4. Actualizar el mensaje de espera en el frontend
-
-Cambiar el texto de "1-2 minutos" a "2-4 minutos" ya que la generacion completa tarda mas.
-
-**Archivo:** `src/hooks/useBuilderState.ts`
-
-### Resumen de archivos
+### Archivo unico a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/builder-ai/index.ts` linea 1979 | Quitar cap de 200 tokens: `num_predict: maxTokens` |
-| `supabase/functions/builder-ai/index.ts` linea 1983 | Timeout proporcional: 300s para HTML completo, 150s para enrichment |
-| `supabase/functions/builder-ai/index.ts` linea 2384 | Subir threshold de validacion de 200 a 500 chars |
-| `src/hooks/useBuilderState.ts` | Actualizar mensaje de espera a "2-4 minutos" |
-
-### Resultado esperado
-
-Con estos cambios:
-- Ollama genera HTML completo (~2000 tokens, ~6000+ chars)
-- Si Ollama tarda demasiado o genera HTML truncado, el fallback hibrido genera el sitio con templates locales (siempre funciona)
-- El usuario ve un mensaje de espera realista
+| `src/components/builder/PreviewPanel.tsx` | Agregar overlay de loading con animacion DOKU + porcentaje |
 
