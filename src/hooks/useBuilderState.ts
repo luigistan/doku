@@ -4,7 +4,7 @@ import { getDefaultHtml } from "@/lib/templates";
 import { generateSite, BuilderResponse, logInteraction } from "@/services/builderService";
 
 export function useBuilderState() {
-  const [mode, setMode] = useState<Mode>("brain");
+  const mode: Mode = "brain";
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -151,40 +151,25 @@ export function useBuilderState() {
           return;
         }
 
-        if (mode === "brain") {
-          // Brain mode: show analysis and ASK for confirmation
-          pendingResult.current = result;
-          const analysisMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "system",
-            content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Quieres que lo ejecute o prefieres ajustar algo?`,
-            timestamp: new Date(),
-            awaitingConfirmation: true,
-            analysisData: {
-              intent: result.intent,
-              confidence: result.confidence,
-              label: result.label,
-              entities: result.entities,
-              plan: result.plan || [],
-            },
-          };
-          setMessages((prev) => [...prev, analysisMsg]);
-          setIsTyping(false);
-          setPreview((p) => ({ ...p, status: "idle" }));
-        } else {
-          // Execute mode: generate directly
-          setPreview({ html: result.html, status: "ready", viewport: preview.viewport });
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: (Date.now() + 1).toString(),
-              role: "system",
-              content: `⚡ **${result.entities.businessName}** (${result.label}) generado al instante con ${result.entities.sections.length} secciones. ¡Revisa el preview!`,
-              timestamp: new Date(),
-            },
-          ]);
-          setIsTyping(false);
-        }
+        // Brain mode: always show analysis and ask for confirmation
+        pendingResult.current = result;
+        const analysisMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "system",
+          content: `🧠 **Análisis completado**\n\nHe identificado: **${result.label}** (confianza: ${Math.round(result.confidence * 100)}%)\n\n**Negocio:** ${result.entities.businessName}\n**Secciones:** ${result.entities.sections.join(", ")}\n**Color:** ${result.entities.colorScheme}\n\n**Plan de ejecución:**${result.plan ? "\n" + result.plan.map((s, i) => `${i + 1}. ${s}`).join("\n") : ""}\n\n¿Ejecuto o tienes aclaraciones adicionales?`,
+          timestamp: new Date(),
+          awaitingConfirmation: true,
+          analysisData: {
+            intent: result.intent,
+            confidence: result.confidence,
+            label: result.label,
+            entities: result.entities,
+            plan: result.plan || [],
+          },
+        };
+        setMessages((prev) => [...prev, analysisMsg]);
+        setIsTyping(false);
+        setPreview((p) => ({ ...p, status: "idle" }));
       } catch (err: unknown) {
         const errMsg = err instanceof Error && err.message === "NO_MATCH"
           ? "🤔 No logré identificar qué tipo de sitio quieres. Intenta con:\n\n• **Landing page** - página de presentación\n• **Restaurante** - con menú y contacto\n• **Portfolio** - muestra de trabajos\n• **Blog** - artículos y publicaciones\n• **Dashboard** - panel de administración\n• **E-commerce** - tienda online\n• **Gimnasio** - fitness y planes\n• **Agencia** - servicios digitales"
@@ -203,8 +188,8 @@ export function useBuilderState() {
         setIsTyping(false);
       }
     },
-    [mode, preview.viewport, executeFromResult]
+    [executeFromResult]
   );
 
-  return { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment };
+  return { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment };
 }

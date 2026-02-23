@@ -7,6 +7,8 @@ interface PreviewPanelProps {
   preview: PreviewState;
   onViewportChange: (viewport: ViewportSize) => void;
   onRefresh: () => void;
+  projectSlug?: string | null;
+  isPublic?: boolean;
 }
 
 const viewportWidths: Record<ViewportSize, string> = {
@@ -22,7 +24,7 @@ const statusConfig = {
   error: { icon: AlertCircle, label: "Error", color: "text-destructive" },
 };
 
-export function PreviewPanel({ preview, onViewportChange, onRefresh }: PreviewPanelProps) {
+export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug, isPublic }: PreviewPanelProps) {
   const StatusIcon = statusConfig[preview.status].icon;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -82,7 +84,13 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh }: PreviewPa
           {/* URL bar */}
           <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-1 text-xs text-muted-foreground">
             <Globe className="h-3 w-3" />
-            <span className="font-mono">preview.doku.ai</span>
+            <span className="font-mono">
+              {isPublic && projectSlug
+                ? `doku.ai/s/${projectSlug}`
+                : isPublic
+                  ? "doku.ai/preview/..."
+                  : "🔒 Privado"}
+            </span>
           </div>
         </div>
 

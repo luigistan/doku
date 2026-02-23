@@ -1,13 +1,11 @@
 import { useRef, useEffect } from "react";
-import { Message, Mode } from "@/types/builder";
-import { ModeToggle } from "./ModeToggle";
+import { Message } from "@/types/builder";
+import { Brain } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { ChatInput } from "./ChatInput";
 
 interface ChatPanelProps {
-  mode: Mode;
-  onModeChange: (mode: Mode) => void;
   messages: Message[];
   isTyping: boolean;
   onSend: (message: string) => void;
@@ -15,7 +13,7 @@ interface ChatPanelProps {
   onAskMore: () => void;
 }
 
-export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend, onExecute, onAskMore }: ChatPanelProps) {
+export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +29,10 @@ export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend, onEx
         <div className="flex items-center gap-2">
           <div className="text-lg font-bold text-foreground">💬 Chat</div>
         </div>
-        <ModeToggle mode={mode} onModeChange={onModeChange} />
+        <div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-1.5 text-sm font-medium text-brain">
+          <Brain className="h-4 w-4" />
+          Brain
+        </div>
       </div>
 
       {/* Messages */}
@@ -48,7 +49,7 @@ export function ChatPanel({ mode, onModeChange, messages, isTyping, onSend, onEx
       </div>
 
       {/* Input */}
-      <ChatInput onSend={onSend} mode={mode} disabled={isTyping} />
+      <ChatInput onSend={onSend} mode="brain" disabled={isTyping} />
     </div>
   );
 }
