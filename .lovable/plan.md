@@ -1,63 +1,67 @@
 
 
-# Plan: Corregir modelo Ollama - llama3.1 no existe en Cloud
+# Plan: Usar modelo real de Ollama Cloud
 
 ## Problema
 
-La normalizacion anterior quita el tag de version (`:8b`), pero el modelo resultante `llama3.1` tampoco existe en Ollama Cloud. Los logs confirman:
-
-```
-[Ollama] Normalizing model "llama3.1:8b" -> "llama3.1"
-[Ollama] ollama.com/v1/chat/completions returned 404: model "llama3.1" not found
-[Ollama] ollama.com/api/chat returned 404: model 'llama3.1' not found
-```
+`llama3` no existe en Ollama Cloud. Los logs siguen mostrando 404 porque estamos mapeando todo a un modelo inexistente. La lista de modelos cloud disponibles incluye: `qwen3`, `gemma3`, `deepseek-v3.1`, `qwen3-coder`, entre otros.
 
 ## Solucion
 
-### Archivo: `supabase/functions/builder-ai/index.ts` (lineas 998-1004)
+Cambiar el modelo default a `gemma3` (ligero, gratuito, multilenguaje) y actualizar el mapa de aliases para que todas las variantes de llama apunten a un modelo que si existe.
 
-Mejorar la normalizacion del modelo para mapear variantes conocidas al modelo base correcto:
+## Cambios
+
+### 1. `supabase/functions/builder-ai/index.ts` (linea 998-1014)
 
 ```typescript
+// Antes
 let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
-
-// Normalizar modelo para Ollama Cloud
-// 1. Quitar tags de version (:8b, :70b, :latest)
-if (selectedModel.includes(":")) {
-  const baseModel = selectedModel.split(":")[0];
-  console.log(`[Ollama] Normalizing model "${selectedModel}" -> "${baseModel}"`);
-  selectedModel = baseModel;
-}
-// 2. Mapear variantes que no existen en Ollama Cloud
 const modelAliases: Record<string, string> = {
   "llama3.1": "llama3",
   "llama3.2": "llama3",
   "llama3.3": "llama3",
   "llama2": "llama3",
 };
-if (modelAliases[selectedModel]) {
-  console.log(`[Ollama] Mapping model "${selectedModel}" -> "${modelAliases[selectedModel]}"`);
-  selectedModel = modelAliases[selectedModel];
-}
+
+// Despues
+let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gemma3";
+const modelAliases: Record<string, string> = {
+  "llama3": "gemma3",
+  "llama3.1": "gemma3",
+  "llama3.2": "gemma3",
+  "llama3.3": "gemma3",
+  "llama2": "gemma3",
+};
 ```
 
-Esto convierte la cadena completa `llama3.1:8b` -> `llama3.1` -> `llama3`.
+### 2. `src/components/builder/ProjectSettings.tsx`
 
-### Deploy
+Actualizar el default del estado de `ollamaConfig` de `"llama3"` a `"gemma3"` y actualizar el placeholder del input.
+
+### 3. `src/types/builder.ts`
+
+Sin cambios (la interfaz `OllamaConfig` no necesita modificacion).
+
+### 4. Deploy
 
 Redesplegar edge function `builder-ai`.
 
 ## Seccion tecnica
 
-| Archivo | Lineas | Cambio |
-|---------|--------|--------|
-| `supabase/functions/builder-ai/index.ts` | 998-1004 | Agregar mapa de aliases de modelos para Ollama Cloud |
-| Deploy | - | Redesplegar `builder-ai` |
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/builder-ai/index.ts` | Default `gemma3`, aliases de llama -> `gemma3` |
+| `src/components/builder/ProjectSettings.tsx` | Default config `gemma3`, placeholder actualizado |
+| Deploy | Redesplegar `builder-ai` |
+
+## Modelos alternativos disponibles en Ollama Cloud
+
+Si `gemma3` no funciona, se puede probar con `qwen3` o `qwen3-coder` como respaldo.
 
 ## Resultado esperado
 
-- `llama3.1:8b` se normaliza a `llama3` (que si existe en Ollama Cloud)
-- `llama3.1` se normaliza a `llama3`
-- Ollama Cloud responde correctamente con el modelo `llama3`
-- El fallback a rules-only ya no sera necesario cuando Ollama este configurado
+- Ollama Cloud responde correctamente con `gemma3` (modelo real y disponible)
+- Usuarios con `llama3.1:8b` en localStorage se normalizan automaticamente a `gemma3`
+- El clasificador AI funciona como fallback cuando el motor de reglas tiene baja confianza
 
