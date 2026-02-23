@@ -1,18 +1,23 @@
 
 
-## Plan: Parametros de produccion para Ollama + llama3.1:8b
+## Plan: Agregar `num_thread: 4` a los parametros de Ollama
 
-### Cambios en `supabase/functions/builder-ai/index.ts`
+### Contexto
 
-**1. Actualizar opciones del modelo Ollama (lineas 1963-1971)**
+Los parametros de produccion ya estan casi todos aplicados (`temperature: 0.3`, `top_p: 0.9`, `num_ctx: 4096`, `repeat_penalty: 1.12`). Solo falta **`num_thread: 4`** para aprovechar los 4 CPU del servidor Render.
 
-Reemplazar las opciones actuales con los parametros de produccion optimizados:
+### Cambio en `supabase/functions/builder-ai/index.ts`
+
+**Linea 1972 - Agregar `num_thread: 4` a las opciones de Ollama:**
 
 ```typescript
 // ANTES
 options: {
+  temperature: 0.3,
+  top_p: 0.9,
+  num_ctx: 4096,
+  repeat_penalty: 1.12,
   num_predict: maxTokens,
-  temperature: 0.7,
 }
 
 // DESPUES
@@ -22,39 +27,26 @@ options: {
   num_ctx: 4096,
   repeat_penalty: 1.12,
   num_predict: maxTokens,
+  num_thread: 4,
 }
 ```
 
-- `temperature: 0.3` - menos inventos, mas consistente
-- `top_p: 0.9` - muestreo nucleus controlado
-- `num_ctx: 4096` - buen contexto sin saturar RAM
-- `repeat_penalty: 1.12` - evita respuestas repetitivas
-- `num_predict` se mantiene dinamico via `maxTokens`
+### Sobre la arquitectura
 
-**2. Actualizar maxTokens default (linea 1953)**
+La arquitectura que describes ya esta implementada correctamente:
 
-Cambiar de `300` a `512` para alinearse con `num_predict: 512` recomendado:
+- **Frontend (React+TS)** nunca llama a Ollama directo
+- **Frontend -> Supabase Edge Function (builder-ai) -> Ollama** es el flujo actual
+- La edge function valida, arma el prompt con contexto, llama a Ollama y devuelve la respuesta
+- El modelo se lee de `OLLAMA_MODEL` env var con fallback a `llama3.1:8b`
 
-```typescript
-async function callLLMShort(prompt: string, maxTokens = 512)
-```
-
-**3. Variable de entorno del modelo (linea 1956)**
-
-Cambiar `LLM_MODEL` a `OLLAMA_MODEL` como variable de entorno principal, con fallback:
-
-```typescript
-const model = Deno.env.get("OLLAMA_MODEL") || Deno.env.get("LLM_MODEL") || "llama3.1:8b";
-```
-
-Asi se alinea con la variable `OLLAMA_MODEL` configurada en Render.
+No se necesita crear un endpoint `/api/ai` separado porque la edge function `builder-ai` ya cumple ese rol exacto.
 
 ### Resumen
 
-| Linea | Cambio |
-|-------|--------|
-| 1953 | maxTokens default: 300 -> 512 |
-| 1956 | Variable de entorno: `OLLAMA_MODEL` con fallback a `LLM_MODEL` |
-| 1963-1971 | Opciones de produccion: temperature 0.3, top_p 0.9, num_ctx 4096, repeat_penalty 1.12 |
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/builder-ai/index.ts` linea 1972 | Agregar `num_thread: 4` |
 
-Redesplegar edge function `builder-ai` despues de los cambios.
+Redesplegar edge function despues del cambio.
+
