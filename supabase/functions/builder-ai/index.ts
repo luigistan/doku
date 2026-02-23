@@ -512,8 +512,117 @@ function applyNegativeLearning(
   }
 }
 
+// ==================== OLLAMA INTENT REFINEMENT (SIGNAL 8) ====================
+async function ollamaIntentRefinement(message: string): Promise<{ intent?: string; businessName?: string; sections?: string[]; color?: string } | null> {
+  try {
+    const validIntents = Object.keys(intentMap).join(", ");
+    const prompt = `Analiza este mensaje de un usuario que quiere crear un sitio web.
+Extrae en formato JSON (sin explicaciones, SOLO el JSON): {"intent": "...", "businessName": "...", "sections": ["..."], "color": "..."}
+Intents validos: ${validIntents}
+Si no puedes determinar un campo, usa null.
+Mensaje: "${message}"`;
+    
+    const result = await callLLMShort(prompt, 150);
+    if (!result) return null;
+    
+    // Extract JSON from response
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (parsed.intent && Object.keys(intentMap).includes(parsed.intent)) {
+      console.log(`[Signal 8] Ollama refinement: intent=${parsed.intent}, name=${parsed.businessName}`);
+      return parsed;
+    }
+    return null;
+  } catch (err) {
+    console.warn("[Signal 8] Ollama refinement failed:", err);
+    return null;
+  }
+}
+
+// ==================== WEIGHTED LEARNING (SIGNAL 8.5) ====================
+function computeWeightedBoosts(patterns: LearningLog[]): Record<string, number> {
+  const intentStats: Record<string, { accepted: number; total: number }> = {};
+  
+  for (const p of patterns) {
+    if (!intentStats[p.detected_intent]) {
+      intentStats[p.detected_intent] = { accepted: 0, total: 0 };
+    }
+    intentStats[p.detected_intent].total++;
+    if (p.user_accepted === true) {
+      intentStats[p.detected_intent].accepted++;
+    }
+  }
+  
+  const boosts: Record<string, number> = {};
+  for (const [intent, stats] of Object.entries(intentStats)) {
+    if (stats.total > 0) {
+      const acceptanceRate = stats.accepted / stats.total;
+      boosts[intent] = Math.log(stats.accepted + 1) * acceptanceRate;
+    }
+  }
+  
+  return boosts;
+}
+
+// ==================== HTML QUALITY VALIDATION ====================
+interface HtmlValidationResult {
+  passed: boolean;
+  failCount: number;
+  issues: string[];
+}
+
+function validateHtmlQuality(html: string, businessName: string): HtmlValidationResult {
+  const issues: string[] = [];
+  
+  if (!/<header/i.test(html)) issues.push("missing_header");
+  if (!/<main/i.test(html) && !/<section/i.test(html)) issues.push("missing_main");
+  if (businessName && businessName !== "Mi Sitio" && !html.includes(businessName)) issues.push("missing_business_name");
+  if (/lorem ipsum/i.test(html)) issues.push("has_lorem_ipsum");
+  const sectionCount = (html.match(/<section/gi) || []).length;
+  if (sectionCount < 2) issues.push("insufficient_sections");
+  if (/\bundefined\b|>null</i.test(html)) issues.push("has_undefined_null");
+  
+  const failCount = issues.length;
+  return { passed: failCount < 2, failCount, issues };
+}
+
+// ==================== ENTITY MEMORY (per project) ====================
+async function loadEntityMemory(projectId: string): Promise<{ intent: string; business_name: string; sections: string[]; color_scheme: string } | null> {
+  try {
+    const sb = getSupabaseClient();
+    const { data, error } = await sb
+      .from("user_entity_memory")
+      .select("intent, business_name, sections, color_scheme")
+      .eq("project_id", projectId)
+      .single();
+    if (error || !data) return null;
+    return data as { intent: string; business_name: string; sections: string[]; color_scheme: string };
+  } catch {
+    return null;
+  }
+}
+
+async function saveEntityMemory(projectId: string, intent: string, entities: Entities): Promise<void> {
+  try {
+    const sb = getSupabaseClient();
+    await sb
+      .from("user_entity_memory")
+      .upsert({
+        project_id: projectId,
+        intent,
+        business_name: entities.businessName,
+        sections: entities.sections,
+        color_scheme: entities.colorScheme,
+      }, { onConflict: "project_id" });
+  } catch (err) {
+    console.warn("[Entity Memory] Failed to save:", err);
+  }
+}
+
 // ==================== ENHANCED CLASSIFIER (Multi-Signal Fusion + TF-IDF) ====================
-function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[]): IntentMatch {
+async function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[], ollamaRefinement?: { intent?: string; businessName?: string; sections?: string[]; color?: string } | null): Promise<IntentMatch> {
   const scores: Record<string, number> = {};
 
   // Initialize all intents
@@ -602,6 +711,20 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
 
   // ---- SIGNAL 7: Negative learning (penalize rejected, boost accepted) ----
   applyNegativeLearning(scores, tokens, patterns);
+
+  // ---- SIGNAL 8: Ollama Intent Refinement ----
+  if (ollamaRefinement?.intent && scores[ollamaRefinement.intent] !== undefined) {
+    scores[ollamaRefinement.intent] = (scores[ollamaRefinement.intent] || 0) + 6;
+    console.log(`[Signal 8] Boosted "${ollamaRefinement.intent}" by +6 from Ollama refinement`);
+  }
+
+  // ---- SIGNAL 8.5: Weighted Learning (adaptive boosts) ----
+  const weightedBoosts = computeWeightedBoosts(patterns);
+  for (const [intent, boost] of Object.entries(weightedBoosts)) {
+    if (scores[intent] !== undefined && boost > 0) {
+      scores[intent] = scores[intent] * (1 + boost * 0.3);
+    }
+  }
 
   // Find best scoring intent
   let bestIntent = "landing";
@@ -2276,7 +2399,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, mode, action, logId, accepted, feedback, previousIntent, previousEntities } = body;
+    const { message, mode, action, logId, accepted, feedback, previousIntent, previousEntities, projectId, conversationHistory } = body;
 
     // Handle feedback logging
     if (action === "feedback" && logId) {
@@ -2311,25 +2434,41 @@ serve(async (req) => {
       );
     }
 
+    // 0. Load entity memory if projectId provided
+    let entityMemory: { intent: string; business_name: string; sections: string[]; color_scheme: string } | null = null;
+    if (projectId) {
+      entityMemory = await loadEntityMemory(projectId);
+      if (entityMemory) {
+        console.log(`[Entity Memory] Loaded for project ${projectId}: ${entityMemory.business_name} (${entityMemory.intent})`);
+      }
+    }
+
     // 1. Query learning patterns (includes accepted + rejected for negative learning)
     const patterns = await queryLearningPatterns();
 
     // 2. Tokenize and classify with enhanced NLP + TF-IDF
     const tokens = tokenize(message);
 
+    // 2.5. Run Ollama intent refinement in parallel with classification prep
+    // Include conversation history for better context
+    const contextualMessage = conversationHistory && conversationHistory.length > 0
+      ? `Contexto previo:\n${conversationHistory.map((h: { role: string; content: string }) => `${h.role}: ${h.content}`).join("\n")}\n\nMensaje actual: ${message}`
+      : message;
+    const ollamaRefinement = await ollamaIntentRefinement(contextualMessage);
+
     // 3. Check for conversational follow-up
     let intent: string;
     let confidence: number;
     let label: string;
 
-    if (isFollowUp(message) && previousIntent && previousEntities) {
-      // Follow-up message: use previous context
-      intent = previousIntent;
+    if (isFollowUp(message) && (previousIntent || entityMemory?.intent) && (previousEntities || entityMemory)) {
+      // Follow-up message: use previous context or entity memory
+      intent = previousIntent || entityMemory!.intent;
       confidence = 0.85;
-      label = intentMap[previousIntent]?.label || "Sitio Web";
+      label = intentMap[intent]?.label || "Sitio Web";
     } else {
-      // New message: full classification with TF-IDF + all signals
-      const classification = classifyIntent(tokens, message, patterns);
+      // New message: full classification with TF-IDF + all signals + Ollama refinement
+      const classification = await classifyIntent(tokens, message, patterns, ollamaRefinement);
       intent = classification.intent;
       confidence = classification.confidence;
       label = classification.label;
@@ -2351,22 +2490,43 @@ serve(async (req) => {
       );
     }
 
-    // 4. Extract entities (merging with previous context for follow-ups)
+    // 4. Extract entities (merging with previous context, entity memory, and Ollama refinement)
     let entities = extractEntities(message, tokens, intent);
 
-    if (previousEntities && isFollowUp(message)) {
-      // Merge: keep previous values where current extraction has defaults
+    // Merge Ollama refinement entities
+    if (ollamaRefinement) {
+      const defaultName = getDefaultName(intent);
+      if (ollamaRefinement.businessName && entities.businessName === defaultName) {
+        entities.businessName = ollamaRefinement.businessName;
+      }
+      if (ollamaRefinement.sections && ollamaRefinement.sections.length > 0) {
+        entities.sections = [...new Set([...entities.sections, ...ollamaRefinement.sections])];
+      }
+      if (ollamaRefinement.color && entities.colorScheme === "default") {
+        entities.colorScheme = colorMap[ollamaRefinement.color.toLowerCase()] || ollamaRefinement.color;
+      }
+    }
+
+    // Merge with entity memory for follow-ups
+    const mergeEntities = previousEntities || (entityMemory ? {
+      businessName: entityMemory.business_name,
+      sections: entityMemory.sections,
+      colorScheme: entityMemory.color_scheme,
+      industry: entityMemory.intent,
+    } : null);
+
+    if (mergeEntities && isFollowUp(message)) {
       const defaultName = getDefaultName(intent);
       entities = {
-        businessName: entities.businessName !== defaultName ? entities.businessName : (previousEntities.businessName || defaultName),
-        sections: entities.sections.length > 3 ? entities.sections : [...new Set([...previousEntities.sections || [], ...entities.sections])],
+        businessName: entities.businessName !== defaultName ? entities.businessName : (mergeEntities.businessName || defaultName),
+        sections: entities.sections.length > 3 ? entities.sections : [...new Set([...(mergeEntities.sections || []), ...entities.sections])],
         colorScheme: entities.colorScheme !== "default" && entities.colorScheme !== (({
           restaurant: "warm", fitness: "green", agency: "modern", portfolio: "purple",
           ecommerce: "blue", blog: "cool", clinic: "blue", realestate: "elegant",
           education: "blue", veterinary: "green", hotel: "elegant", lawyer: "dark",
           accounting: "cool", photography: "dark", music: "purple", salon: "pink",
           technology: "modern",
-        } as Record<string, string>)[intent] || "purple") ? entities.colorScheme : (previousEntities.colorScheme || entities.colorScheme),
+        } as Record<string, string>)[intent] || "purple") ? entities.colorScheme : (mergeEntities.colorScheme || entities.colorScheme),
         industry: intent,
       };
     }
@@ -2376,29 +2536,52 @@ serve(async (req) => {
     // 5. Generate HTML - Try FULL LLM generation first, fallback to hybrid
     let html: string;
 
-    // Step A: Attempt full HTML generation with llama3.1:8b (60s timeout, 2000 tokens)
+    // Step A: Attempt full HTML generation with LLM (60s timeout, 2000 tokens)
     const systemPrompt = buildSystemPrompt(intent, label, entities);
     const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
     const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
 
     if (extractedHtml && extractedHtml.length > 500) {
-      // Full LLM generation succeeded
-      html = extractedHtml;
-      console.log(`[Full LLM] HTML generated successfully (${extractedHtml.length} chars)`);
+      // Validate HTML quality before accepting
+      const validation = validateHtmlQuality(extractedHtml, entities.businessName);
+      if (validation.passed) {
+        html = extractedHtml;
+        console.log(`[Full LLM] HTML generated and validated (${extractedHtml.length} chars)`);
+      } else {
+        console.log(`[Full LLM] HTML failed validation (${validation.failCount} issues: ${validation.issues.join(", ")}), falling back`);
+        // Try to fix minor issues
+        let fixedHtml = extractedHtml;
+        if (validation.issues.includes("missing_business_name") && entities.businessName) {
+          fixedHtml = fixedHtml.replace(/<title>[^<]*<\/title>/, `<title>${entities.businessName}</title>`);
+        }
+        if (validation.issues.includes("has_undefined_null")) {
+          fixedHtml = fixedHtml.replace(/\bundefined\b/g, "").replace(/>null</g, "><");
+        }
+        // Re-validate
+        const reValidation = validateHtmlQuality(fixedHtml, entities.businessName);
+        if (reValidation.passed) {
+          html = fixedHtml;
+          console.log(`[Full LLM] HTML fixed and validated after cleanup`);
+        } else {
+          // Fallback to hybrid
+          console.log(`[Hybrid] Full LLM still failing, using hybrid`);
+          const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
+          html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent, enriched: enrichedContent });
+        }
+      }
     } else {
-      // Step B: Fallback to hybrid approach (Template + LLM content enrichment)
+      // Step B: Fallback to hybrid approach
       console.log(`[Hybrid] Full LLM generation insufficient, falling back to hybrid approach`);
       const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
-      html = composeReactHtml({
-        name: entities.businessName,
-        colors,
-        sections: entities.sections,
-        intent,
-        enriched: enrichedContent,
-      });
+      html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent, enriched: enrichedContent });
     }
 
-    // 6. Log interaction for learning
+    // 6. Save entity memory for this project
+    if (projectId) {
+      await saveEntityMemory(projectId, intent, entities);
+    }
+
+    // 7. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
 
     const response: Record<string, unknown> = {

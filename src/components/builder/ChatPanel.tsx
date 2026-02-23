@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Message } from "@/types/builder";
+import { Message, FeedbackData } from "@/types/builder";
 import { Brain } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
@@ -12,9 +12,10 @@ interface ChatPanelProps {
   onSend: (message: string) => void;
   onExecute: () => void;
   onAskMore: () => void;
+  onFeedback?: (feedback: FeedbackData) => void;
 }
 
-export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore }: ChatPanelProps) {
+export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore, onFeedback }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore }: 
             message={msg}
             onExecute={msg.awaitingConfirmation ? onExecute : undefined}
             onAskMore={msg.awaitingConfirmation ? onAskMore : undefined}
+            onFeedback={msg.showFeedbackOptions ? onFeedback : undefined}
           />
         ))}
         {/* Show templates when only the welcome message exists */}

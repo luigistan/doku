@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { findTemplate } from "@/lib/templates";
-import { ConversationalContext } from "@/types/builder";
+import { ConversationalContext, FeedbackData } from "@/types/builder";
 
 export interface BuilderResponse {
   intent: string;
@@ -21,11 +21,20 @@ export interface BuilderResponse {
 export async function generateSite(
   message: string,
   mode: "brain" | "execute",
-  context?: ConversationalContext
+  context?: ConversationalContext,
+  projectId?: string,
+  conversationHistory?: { role: string; content: string }[]
 ): Promise<BuilderResponse> {
   try {
     const { data, error } = await supabase.functions.invoke("builder-ai", {
-      body: { message, mode, previousIntent: context?.previousIntent, previousEntities: context?.previousEntities },
+      body: {
+        message,
+        mode,
+        previousIntent: context?.previousIntent,
+        previousEntities: context?.previousEntities,
+        projectId,
+        conversationHistory,
+      },
     });
 
     if (error) throw error;
@@ -39,11 +48,12 @@ export async function generateSite(
 export async function logInteraction(
   logId: string,
   accepted: boolean,
-  feedback?: string
+  feedback?: string | FeedbackData
 ): Promise<void> {
   try {
+    const feedbackStr = typeof feedback === "object" ? JSON.stringify(feedback) : feedback;
     await supabase.functions.invoke("builder-ai", {
-      body: { action: "feedback", logId, accepted, feedback },
+      body: { action: "feedback", logId, accepted, feedback: feedbackStr },
     });
   } catch (err) {
     console.warn("Failed to log interaction feedback:", err);

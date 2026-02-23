@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from "react";
-import { Message, Mode, PreviewState, AnalysisData, ConversationalContext } from "@/types/builder";
+import { Message, Mode, PreviewState, ConversationalContext, FeedbackData } from "@/types/builder";
 import { getDefaultHtml } from "@/lib/templates";
 import { generateSite, BuilderResponse, logInteraction } from "@/services/builderService";
 
-export function useBuilderState() {
+export function useBuilderState(projectId?: string) {
   const mode: Mode = "brain";
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -21,6 +21,15 @@ export function useBuilderState() {
   const [isTyping, setIsTyping] = useState(false);
   const pendingResult = useRef<BuilderResponse | null>(null);
   const conversationalContext = useRef<ConversationalContext>({});
+
+  // Build conversation history from last 3 turns
+  const getConversationHistory = useCallback(() => {
+    const relevant = messages
+      .filter(m => m.id !== "welcome")
+      .slice(-6) // last 3 turns (user + system each)
+      .map(m => ({ role: m.role, content: m.content.substring(0, 200) }));
+    return relevant;
+  }, [messages]);
 
   const executeFromResult = useCallback((result: BuilderResponse) => {
     const planMsgId = (Date.now() + 10).toString();
@@ -81,11 +90,9 @@ export function useBuilderState() {
 
   const confirmExecution = useCallback(() => {
     if (!pendingResult.current) return;
-    // Log acceptance for machine learning
     if (pendingResult.current.logId) {
       logInteraction(pendingResult.current.logId, true);
     }
-    // Remove awaiting state from the message
     setMessages((prev) =>
       prev.map((msg) =>
         msg.awaitingConfirmation ? { ...msg, awaitingConfirmation: false } : msg
@@ -96,10 +103,10 @@ export function useBuilderState() {
   }, [executeFromResult]);
 
   const requestAdjustment = useCallback(() => {
-    // Log rejection for machine learning
     if (pendingResult.current?.logId) {
       logInteraction(pendingResult.current.logId, false, "Usuario pidió ajustes");
     }
+    // Show feedback options instead of generic message
     setMessages((prev) => [
       ...prev.map((msg) =>
         msg.awaitingConfirmation ? { ...msg, awaitingConfirmation: false } : msg
@@ -107,11 +114,42 @@ export function useBuilderState() {
       {
         id: (Date.now() + 5).toString(),
         role: "system",
-        content: "🔧 ¡Perfecto! Dime qué quieres ajustar. Puedes cambiar:\n\n• **Nombre** del negocio\n• **Secciones** (agregar/quitar)\n• **Colores** (rojo, azul, verde, oscuro, elegante...)\n• **Tipo** de sitio\n• Cualquier otro detalle\n\nEscribe los cambios y volveré a analizar.",
+        content: "🔧 **¿Qué quieres ajustar?** Selecciona una opción o escribe lo que necesitas:",
         timestamp: new Date(),
+        showFeedbackOptions: true,
       },
     ]);
     pendingResult.current = null;
+  }, []);
+
+  const submitFeedback = useCallback((feedbackData: FeedbackData) => {
+    // Remove feedback options from message
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.showFeedbackOptions ? { ...msg, showFeedbackOptions: false } : msg
+      )
+    );
+    
+    // Add the feedback as context and prompt user
+    const feedbackMessages: Record<string, string> = {
+      "wrong_intent": "🔄 Entendido, el tipo de sitio no era correcto. **¿Qué tipo de sitio necesitas?** (restaurante, tienda, portfolio, blog, etc.)",
+      "wrong_name": "📝 El nombre no era correcto. **¿Cuál es el nombre correcto de tu negocio?**",
+      "missing_sections": "📋 Faltan secciones. **¿Qué secciones necesitas?** (menú, galería, precios, contacto, testimonios, etc.)",
+      "wrong_colors": "🎨 Los colores no eran los correctos. **¿Qué colores prefieres?** (rojo, azul, verde, oscuro, elegante, moderno, cálido, etc.)",
+      "other": feedbackData.detail 
+        ? `📝 Entendido: "${feedbackData.detail}". Haré los ajustes necesarios. Describe los cambios que quieres.`
+        : "📝 Cuéntame qué cambios necesitas y lo ajustaré.",
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: (Date.now() + 6).toString(),
+        role: "system",
+        content: feedbackMessages[feedbackData.reason] || feedbackMessages.other,
+        timestamp: new Date(),
+      },
+    ]);
   }, []);
 
   const sendMessage = useCallback(
@@ -126,32 +164,28 @@ export function useBuilderState() {
       setIsTyping(true);
       setPreview((p) => ({ ...p, status: "loading" }));
 
-      // Show wait message for open source AI
       const waitMsgId = (Date.now() + 99).toString();
       setMessages((prev) => [
         ...prev,
         {
           id: waitMsgId,
           role: "system",
-          content: "🔍 Analizando tu solicitud con Ollama...",
+          content: "🔍 Analizando tu solicitud con IA...",
           timestamp: new Date(),
         },
       ]);
-      setPreview((p) => ({ ...p, status: "loading" }));
 
       try {
-        const result = await generateSite(content, mode, conversationalContext.current);
+        const history = getConversationHistory();
+        const result = await generateSite(content, mode, conversationalContext.current, projectId, history);
 
-        // Remove wait message
         setMessages((prev) => prev.filter((msg) => msg.id !== waitMsgId));
 
-        // Update conversational context for next message
         conversationalContext.current = {
           previousIntent: result.intent,
           previousEntities: result.entities,
         };
 
-        // Handle conversational responses (not site generation)
         if (result.intent === "conversational") {
           setMessages((prev) => [
             ...prev,
@@ -167,7 +201,6 @@ export function useBuilderState() {
           return;
         }
 
-        // Brain mode: always show analysis and ask for confirmation
         pendingResult.current = result;
         const analysisMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -187,7 +220,6 @@ export function useBuilderState() {
         setIsTyping(false);
         setPreview((p) => ({ ...p, status: "idle" }));
       } catch (err: unknown) {
-        // Remove wait message on error
         setMessages((prev) => prev.filter((msg) => msg.id !== waitMsgId));
         
         const errMsg = err instanceof Error && err.message === "NO_MATCH"
@@ -207,8 +239,8 @@ export function useBuilderState() {
         setIsTyping(false);
       }
     },
-    [executeFromResult]
+    [executeFromResult, projectId, getConversationHistory]
   );
 
-  return { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment };
+  return { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment, submitFeedback };
 }
