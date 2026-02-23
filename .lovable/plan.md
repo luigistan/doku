@@ -1,84 +1,42 @@
 
 
-# Plan: Prueba del Motor Hibrido + UI de Configuracion Ollama
+# Plan: Indicadores de Estado de Ollama y Base de Datos en el Header del Builder
 
-## Resultado de las Pruebas
+## Objetivo
 
-### Test 1: "quiero algo para vender pasteles artesanales"
-- **Resultado:** `ecommerce` con 85.5% de confianza
-- **Provider:** `rules` (motor de reglas)
-- **Ollama no se activo:** Correcto, la confianza supera el umbral del 60%
+Agregar badges/indicadores visuales en el header del Builder para que el usuario vea de un vistazo si Ollama y la base de datos estan activos, sin necesidad de abrir la configuracion.
 
-### Test 2: "necesito algo bonito para mi negocio de costura"
-- **Resultado:** `landing` con 99% de confianza
-- **Provider:** `rules`
-- **Ollama no se activo:** El motor de reglas es muy seguro
+## Ubicacion
 
-### Conclusion
-El motor de reglas es lo suficientemente robusto para estos mensajes. Ollama se activara automaticamente solo cuando el motor tenga menos del 60% de confianza (mensajes muy ambiguos o industrias no cubiertas). El codigo de `classifyWithOllama()` esta implementado correctamente en `builder-ai/index.ts` y listo para funcionar.
-
----
-
-## UI de Configuracion de Ollama en ProjectSettings
-
-### Cambios a implementar
-
-#### 1. `src/components/builder/ProjectSettings.tsx`
-
-Agregar una nueva seccion "Motor de IA" entre la seccion de Base de Datos y la de Eliminar proyecto:
-
-- **Icono Brain** con titulo "Motor de IA"
-- **Indicador de estado**: Badge verde "Ollama configurado" si hay API key, o gris "Solo reglas"
-- **Campo "Modelo"**: Input editable con el modelo actual (default: `llama3`), con boton Guardar
-- **Campo "Umbral de confianza"**: Slider o input numerico (default: 0.6) que define cuando se activa Ollama
-- **Indicador del ultimo proveedor usado**: Muestra "rules" u "ollama" segun la ultima clasificacion
-- **Nota informativa**: Texto explicando que Ollama se activa automaticamente cuando el motor de reglas tiene baja confianza
-
-La seccion usa el mismo estilo visual que las secciones existentes (labels uppercase, inputs con border-border, badges con colores execute/muted).
-
-Los valores de modelo y umbral se guardan en localStorage por proyecto para persistencia simple sin necesidad de cambios en la base de datos.
-
-#### 2. `src/types/builder.ts`
-
-Agregar interface `OllamaConfig`:
-```text
-interface OllamaConfig {
-  enabled: boolean
-  model: string
-  confidenceThreshold: number
-}
-```
-
-#### 3. `src/services/builderService.ts`
-
-Pasar `ollamaModel` y `confidenceThreshold` como parametros al edge function para que use el modelo y umbral configurados por el usuario.
-
-#### 4. `supabase/functions/builder-ai/index.ts`
-
-Leer `ollamaModel` y `confidenceThreshold` del body del request en lugar de usar valores hardcodeados. Si no vienen, usar defaults (`llama3` y `0.6`).
-
-### Estructura visual de la seccion
+En el header, junto al nombre del proyecto y el badge "BETA", se agregaran dos badges compactos:
 
 ```text
-+--------------------------------------------+
-| MOTOR DE IA                                |
-| [Brain icon] Ollama configurado  [verde]   |
-|                                            |
-| Modelo: [llama3            ] [Guardar]     |
-|                                            |
-| Umbral: [0.6] (Ollama se activa si la      |
-|          confianza es menor a este valor)   |
-|                                            |
-| Info: Ollama Cloud se usa como respaldo    |
-| cuando el motor de reglas no esta seguro.  |
-+--------------------------------------------+
+[<-] [logo] Proyecto  BETA  [DB activa]  [Ollama]     [Exportar ZIP] [Codigo] [Settings]
 ```
 
-### Orden de implementacion
+## Cambios
 
-1. Agregar `OllamaConfig` a `src/types/builder.ts`
-2. Agregar seccion "Motor de IA" en `ProjectSettings.tsx` con estado en localStorage
-3. Actualizar `builderService.ts` para enviar modelo y umbral al edge function
-4. Actualizar `builder-ai/index.ts` para leer modelo y umbral del request body
-5. Deploy del edge function
+### 1. `src/components/builder/Header.tsx`
+
+Agregar dos nuevas props:
+- `dbEnabled: boolean` - si la base de datos esta activa
+- `ollamaEnabled: boolean` - si Ollama esta habilitado (leido desde localStorage)
+
+Renderizar badges compactos junto al nombre del proyecto:
+- **DB**: Badge verde con icono Database y texto "DB" cuando `dbEnabled = true`. Oculto si no esta activo.
+- **Ollama**: Badge morado/brain con icono Brain y texto "Ollama" cuando `ollamaEnabled = true`. Oculto si no esta activo.
+
+Estilo de los badges: similar al badge "BETA" existente pero con colores semanticos:
+- DB activa: `bg-execute/15 text-execute` (verde)
+- Ollama activo: `bg-brain/15 text-brain` (morado)
+
+### 2. `src/pages/Builder.tsx`
+
+- Leer la config de Ollama desde `localStorage` usando la key `doku_ollama_{projectId}`
+- Pasar `dbEnabled` y `ollamaEnabled` como props al Header
+- Escuchar cambios en `settingsOpen` para refrescar el estado de Ollama cuando el usuario cierre settings (por si cambio el toggle)
+
+## Detalle Visual
+
+Los badges seran pequenos (misma altura que "BETA"), con iconos de 10-12px y texto de 10px, para no saturar el header. Solo aparecen cuando la feature esta activa, manteniendo el header limpio cuando no hay nada configurado.
 
