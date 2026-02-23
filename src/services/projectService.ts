@@ -116,3 +116,48 @@ export async function getChatMessages(projectId: string) {
   if (error) throw error;
   return data;
 }
+
+// ── App Database (multi-tenant) ──
+
+export async function enableProjectDb(projectId: string): Promise<void> {
+  const { error } = await supabase
+    .from("projects")
+    .update({ db_enabled: true } as Record<string, unknown>)
+    .eq("id", projectId);
+  if (error) throw error;
+}
+
+export interface AppTable {
+  id: string;
+  project_id: string;
+  name: string;
+  created_at: string;
+}
+
+export async function getAppTables(projectId: string): Promise<AppTable[]> {
+  const { data, error } = await supabase
+    .from("app_tables" as any)
+    .select("*")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []) as unknown as AppTable[];
+}
+
+export async function createAppTable(projectId: string, name: string): Promise<AppTable> {
+  const { data, error } = await supabase
+    .from("app_tables" as any)
+    .insert({ project_id: projectId, name } as any)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as unknown as AppTable;
+}
+
+export async function deleteAppTable(tableId: string): Promise<void> {
+  const { error } = await supabase
+    .from("app_tables" as any)
+    .delete()
+    .eq("id", tableId);
+  if (error) throw error;
+}

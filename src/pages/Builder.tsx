@@ -20,6 +20,7 @@ const Builder = () => {
   const [projectName, setProjectName] = useState("Cargando...");
   const [projectSlug, setProjectSlug] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
+  const [dbEnabled, setDbEnabled] = useState(false);
   const [loadingProject, setLoadingProject] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
@@ -36,6 +37,7 @@ const Builder = () => {
         setProjectName(project.name);
         setProjectSlug(project.slug || null);
         setIsPublic(project.is_public);
+        setDbEnabled((project as any).db_enabled || false);
 
         if (project.html) {
           setPreview(prev => ({ ...prev, html: project.html!, status: "ready" }));
@@ -153,6 +155,8 @@ const Builder = () => {
         projectId={projectId}
         slug={projectSlug}
         isPublic={isPublic}
+        dbEnabled={dbEnabled}
+        onDbEnabledChange={setDbEnabled}
         onUpdateName={handleUpdateName}
         onUpdateSlug={(s) => {
           if (!projectId) return;
