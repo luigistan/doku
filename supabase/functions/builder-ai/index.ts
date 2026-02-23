@@ -1976,11 +1976,11 @@ async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | n
             top_p: 0.9,
             num_ctx: 2048,
             repeat_penalty: 1.12,
-            num_predict: Math.min(maxTokens, 200),
+            num_predict: maxTokens,
             num_thread: 4,
           },
         }),
-        signal: AbortSignal.timeout(150000),
+        signal: AbortSignal.timeout(maxTokens > 500 ? 300000 : 150000),
       });
       if (!response.ok) {
         const errBody = await response.text().catch(() => "");
@@ -2381,7 +2381,7 @@ serve(async (req) => {
     const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
     const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
 
-    if (extractedHtml && extractedHtml.length > 200) {
+    if (extractedHtml && extractedHtml.length > 500) {
       // Full LLM generation succeeded
       html = extractedHtml;
       console.log(`[Full LLM] HTML generated successfully (${extractedHtml.length} chars)`);
