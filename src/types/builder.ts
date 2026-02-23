@@ -55,7 +55,9 @@ export interface PreviewState {
 
 export interface Template {
   id: string;
+  styleId: string;
   name: string;
+  styleName: string;
   keywords: string[];
   description: string;
   html: string;
