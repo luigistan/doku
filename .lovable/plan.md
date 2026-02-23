@@ -1,125 +1,109 @@
 
 
-# Plan: Hacer que los formularios del preview guarden datos automaticamente en la base de datos
+# Plan: Corregir el error de formularios y hacer que la base de datos sea completamente automatica
 
-## Problema detectado
+## Problema diagnosticado
 
-Cuando un usuario genera un sitio (ej. CRM, restaurante, etc.), el sistema crea correctamente las tablas en la base de datos (`app_tables`, `app_columns`), pero los formularios del HTML generado **no guardan datos** por dos razones:
+Se encontraron 3 problemas encadenados que causan el "Error - Reintentar":
 
-1. El "navigation guard" en `PreviewPanel.tsx` intercepta TODOS los form submit y solo muestra "Enviado correctamente" sin guardar nada
-2. El HTML generado no incluye ningun script para comunicarse con el `crud-api`
+1. **Tablas existentes bloquean la creacion de nuevas**: El proyecto ya tenia tablas `contacts` y `deals` (de una generacion anterior). Cuando se detecto el intent `billing`, AutoDB vio que ya habia tablas y no creo las nuevas (`clients`, `invoices`, `users`).
 
-## Confirmacion del stack tecnologico
+2. **El LLM no sabe que tablas existen**: El system prompt le dice al LLM que use ciertos nombres de tabla, pero no le informa cuales ya estan creadas en el proyecto. El HTML generado referencia `users`, `clients`, `invoices` pero esas tablas no existen.
 
-Si, el proyecto esta construido con **TypeScript + React** (Vite + Tailwind CSS + shadcn/ui + Supabase). Los sitios generados se renderizan como HTML puro dentro de un iframe.
+3. **El crud-api falla silenciosamente**: Cuando recibe `tableName="users"` y la tabla no existe, devuelve 404 sin intentar crearla.
 
-## Solucion
+## Solucion (3 cambios)
 
-Inyectar un "DOKU CRUD SDK" en el HTML del preview que permita a los formularios guardar datos automaticamente en la base de datos del proyecto.
+### 1. `supabase/functions/crud-api/index.ts` - Auto-crear tablas que no existen
 
-## Cambios por archivo
-
-### 1. `src/components/builder/PreviewPanel.tsx`
-
-Modificar la funcion `injectNavigationGuard` para:
-- Detectar formularios con el atributo `data-doku-table` (ej. `<form data-doku-table="contacts">`)
-- Esos formularios SI se envian al `crud-api` via `fetch`
-- Formularios SIN ese atributo siguen siendo interceptados como antes (comportamiento actual)
-- Inyectar un script SDK que:
-  - Solicita el `projectId` al parent via `postMessage`
-  - Al hacer submit de un form con `data-doku-table`, recoge los campos del formulario, los empaqueta como JSON, y los envia a la edge function `crud-api`
-  - Muestra feedback visual al usuario (exito o error)
+Cuando el action es `create` y la tabla no se encuentra, en vez de devolver 404, crearla automaticamente con las columnas extraidas del `data` enviado.
 
 ```text
-Flujo:
-[Usuario llena form] -> [submit] -> [SDK detecta data-doku-table]
-  -> [fetch POST /crud-api { action:"create", projectId, tableName, data }]
-  -> [Muestra "Guardado" o "Error"]
+Flujo actual:
+  form submit -> crud-api -> "Table not found" -> ERROR
+
+Flujo corregido:
+  form submit -> crud-api -> tabla no existe? -> crearla con columnas del data -> insertar row -> OK
 ```
 
-### 2. `supabase/functions/builder-ai/index.ts`
+Cambios especificos:
+- En la seccion `action === "create"`, si la tabla no existe:
+  1. Crear registro en `app_tables` con el nombre recibido
+  2. Crear columnas en `app_columns` basadas en las keys del objeto `data`
+  3. Insertar el row normalmente en `app_rows`
 
-Actualizar el `OLLAMA_SYSTEM_PROMPT` para instruir al LLM que:
-- Los formularios de contacto/registro/reservas deben incluir `data-doku-table="nombre_tabla"`
-- Los campos del formulario deben usar `name="nombre_columna"` que coincida con las columnas de la tabla
-- Ejemplo: `<form data-doku-table="contacts"><input name="name"><input name="email">...</form>`
+### 2. `supabase/functions/builder-ai/index.ts` - Pasar tablas existentes al LLM
 
-Tambien actualizar la funcion `generateFallbackHtml` para incluir el atributo `data-doku-table="contacts"` en el formulario de contacto del fallback.
+Antes de llamar a Ollama, consultar las tablas existentes del proyecto y agregarlas al prompt para que el LLM use los nombres correctos.
 
-### 3. `supabase/functions/crud-api/index.ts`
+Cambios especificos:
+- Cargar tablas existentes con sus columnas antes de llamar a `callOllama`
+- Agregar al mensaje del usuario un contexto como: `[TABLAS EXISTENTES: contacts(name,email,phone,company,status,notes), deals(title,contact_name,value,stage,expected_close,notes)]`
+- Asi el LLM generara `data-doku-table="contacts"` en vez de inventar nombres
 
-No necesita cambios significativos. Ya soporta `action: "create"` con `tableName` y `data`. Solo verificar que `verify_jwt = false` esta configurado (ya lo esta en `config.toml`).
+### 3. `supabase/functions/builder-ai/index.ts` - AutoDB no debe bloquear por tablas de otro intent
 
-## Seccion tecnica - Script SDK inyectado
+Modificar `autoCreateProjectTables` para que en vez de verificar "si hay alguna tabla, skip", verifique tabla por tabla si ya existe.
 
-El SDK se inyectara automaticamente en el HTML del preview:
+Cambios especificos:
+- En vez de `if (existingTables.length > 0) return`, consultar las tablas existentes por nombre
+- Solo crear las tablas del schema que NO existan aun
+- Asi si el proyecto tenia `contacts`/`deals` y ahora necesita `clients`/`invoices`, se crean las que faltan
+
+### 4. Deploy
+
+Redesplegar `builder-ai` y `crud-api`.
+
+## Seccion tecnica
+
+| Archivo | Cambio |
+|---|---|
+| `supabase/functions/crud-api/index.ts` | Auto-crear tabla + columnas cuando no existe (en action "create") |
+| `supabase/functions/builder-ai/index.ts` | Pasar tablas existentes al LLM como contexto; AutoDB crea solo tablas faltantes |
+
+### Auto-creacion de tabla en crud-api (pseudocodigo)
 
 ```text
-(function() {
-  var projectId = null;
-  var SUPABASE_URL = "[URL del proyecto]";
-  var SUPABASE_KEY = "[anon key]";
+if (action === "create") {
+  // Intentar resolver tabla
+  let table = buscar en app_tables por nombre y projectId
 
-  // Solicitar projectId al parent
-  window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'doku:projectId') {
-      projectId = e.data.projectId;
+  if (!table) {
+    // Auto-crear tabla
+    table = INSERT en app_tables (project_id, name)
+    
+    // Crear columnas basadas en las keys del data
+    for (key in data) {
+      INSERT en app_columns (table_id, name, column_type: inferir_tipo(data[key]))
     }
-  });
-  parent.postMessage({ type: 'doku:requestProjectId' }, '*');
+    
+    // Habilitar db_enabled en el proyecto
+    UPDATE projects SET db_enabled = true WHERE id = projectId
+  }
 
-  // Interceptar forms con data-doku-table
-  document.addEventListener('submit', function(e) {
-    var form = e.target;
-    if (!form.hasAttribute('data-doku-table')) return;
-    e.preventDefault();
-
-    var tableName = form.getAttribute('data-doku-table');
-    var formData = new FormData(form);
-    var data = {};
-    formData.forEach(function(v, k) { data[k] = v; });
-
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
-
-    fetch(SUPABASE_URL + '/functions/v1/crud-api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY
-      },
-      body: JSON.stringify({
-        action: 'create',
-        projectId: projectId,
-        tableName: tableName,
-        data: data
-      })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(result) {
-      if (btn) { btn.textContent = 'Enviado!'; }
-      form.reset();
-      setTimeout(function() {
-        if (btn) { btn.textContent = 'Enviar'; btn.disabled = false; }
-      }, 2500);
-    })
-    .catch(function() {
-      if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
-    });
-  });
-})();
+  // Insertar row normalmente
+  INSERT en app_rows (table_id, data)
+}
 ```
 
-### 4. Variables de entorno
+### Contexto de tablas para el LLM
 
-El SDK necesita la URL de Supabase y la anon key. Estas ya estan disponibles como variables de entorno (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`), se pasaran al script desde el componente React.
+```text
+// Antes de llamar a callOllama:
+const existingTables = await cargar tablas y columnas del proyecto
+const tableContext = existingTables.map(t => 
+  t.name + "(" + t.columns.join(",") + ")"
+).join(", ");
+
+// Agregar al mensaje:
+message += "\n[TABLAS BD: " + tableContext + "]"
+```
 
 ## Resultado esperado
 
-1. El usuario dice "Crea un CRM para mi empresa"
-2. Ollama genera HTML con formularios que incluyen `data-doku-table="contacts"`
-3. Se crean automaticamente las tablas `contacts` y `deals` en la BD
-4. El usuario llena un formulario en el preview
-5. Los datos se guardan automaticamente en `app_rows` vinculados a la tabla correcta
-6. El usuario puede ver los datos en Configuracion > Base de Datos
+1. El usuario dice "crea un sistema de facturacion"
+2. El LLM ve las tablas existentes y las usa, o usa nombres nuevos
+3. Si las tablas no existen, se crean automaticamente al primer envio del formulario
+4. El registro de "hola@hola.com" se guarda correctamente en la BD
+5. No mas errores "Table not found"
 
