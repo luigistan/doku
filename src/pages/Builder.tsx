@@ -24,6 +24,19 @@ const Builder = () => {
   const [loadingProject, setLoadingProject] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
+  const [ollamaEnabled, setOllamaEnabled] = useState(false);
+
+  // Read Ollama config from localStorage
+  useEffect(() => {
+    if (!projectId) return;
+    const stored = localStorage.getItem(`doku_ollama_${projectId}`);
+    if (stored) {
+      try {
+        const config = JSON.parse(stored);
+        setOllamaEnabled(!!config.enabled);
+      } catch { setOllamaEnabled(false); }
+    }
+  }, [projectId, settingsOpen]);
 
   const { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment, submitFeedback } = useBuilderState(projectId);
 
@@ -132,6 +145,8 @@ const Builder = () => {
       <Header
         projectName={projectName}
         projectId={projectId}
+        dbEnabled={dbEnabled}
+        ollamaEnabled={ollamaEnabled}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenCode={() => setCodeOpen(true)}
       />
