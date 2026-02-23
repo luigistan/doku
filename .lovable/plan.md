@@ -1,161 +1,161 @@
 
 
-# Plan: Entrenamiento Avanzado del Motor de IA de DOKU - Fase 2
+# Plan: Integrar Ollama (Solo Ollama) con DOKU
 
-## Problemas Detectados en las Pruebas
+## Contexto
 
-### BUG CRITICO: Saludos clasificados como intents
-- "hola como estas" se clasifica como `billing` al 78% de confianza
-- El patron de deteccion conversacional requiere que "hola" este al FINAL del mensaje: `/hola\s*[!?.]*$/`
-- "hola como estas" no coincide porque tiene texto despues de "hola"
+Tienes Ollama instalado localmente Y una API key de Ollama Cloud (`2451a3e...`). Esto simplifica mucho la arquitectura porque Ollama Cloud tiene una API accesible desde cualquier lugar, incluyendo Edge Functions de Supabase.
 
-### Industrias faltantes
-- "lavanderia con sistema de entregas" obtiene 36% de confianza (no hay intent de lavanderia)
-- Faltan: lavanderia, farmacia, constructora, floristeria, taller mecanico, imprenta, etc.
+## Arquitectura Simple (Solo Ollama)
 
-### Feedback no recolectado
-- 32 de 102 logs tienen `user_accepted = NULL` (31% de datos perdidos para entrenamiento)
+```text
+Usuario escribe mensaje
+       |
+       v
+[Motor de reglas DOKU] --> confianza >= 60% --> Generar sitio
+       |
+       v  (confianza < 60%)
+[Ollama Cloud API] --> clasificar con LLM --> Generar sitio
+  https://ollama.com/api/chat
+  Authorization: Bearer OLLAMA_API_KEY
+```
 
-### Conversational patterns incompletos
-- Solo detecta patrones muy especificos de saludo
-- No detecta preguntas generales como "hola que tal", "buenas", "hey"
+No se necesita bridge del navegador ni Lovable AI Gateway. El Edge Function llama directamente a la API de Ollama Cloud con tu API key.
 
----
+## Cambios a Implementar
 
-## Mejoras Propuestas
+### 1. NUEVO: `supabase/functions/doku-ollama/index.ts`
 
-### 1. Corregir deteccion de saludos y mensajes conversacionales
+Edge function dedicada para la integracion con Ollama Cloud:
+- Recibe `{ message, context, intents }` via POST
+- Llama a `https://ollama.com/api/chat` con `Authorization: Bearer OLLAMA_API_KEY`
+- System prompt especifico de DOKU con la lista de 30 intents y formato de respuesta JSON
+- Usa el modelo que tengas disponible en tu cuenta Ollama (ej: `llama3`, `gpt-oss:120b-cloud`, `mistral`)
+- Retorna `{ intent, confidence, entities }` compatible con BuilderResponse
+- Maneja timeouts y errores
 
-Modificar `conversationalPatterns` en `builder-ai/index.ts` para detectar correctamente:
-- Saludos con cualquier texto adicional: "hola como estas", "hola que tal", "hey que onda"
-- Despedidas: "adios", "nos vemos", "bye"
-- Agradecimientos extendidos: "muchas gracias por todo"
-- Preguntas sobre DOKU: "que eres", "quien eres", "como funcionas"
+### 2. Guardar la API key como secret de Supabase
 
-Cambio especifico: el patron de hola debe ser `/^(?:hola|hey|oye|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?)|que\s+tal|que\s+onda)/i` (al INICIO, sin requerir fin de linea).
+- Almacenar `OLLAMA_API_KEY` como secret seguro en Supabase
+- La edge function la lee con `Deno.env.get("OLLAMA_API_KEY")`
 
-### 2. Agregar 6 nuevos intents de industria
+### 3. MODIFICAR: `supabase/functions/builder-ai/index.ts`
 
-Agregar a `intentMap`, `semanticVocabulary`, `bootstrapCorpus`, y templates de secciones:
+Agregar logica para llamar a Ollama cuando la confianza del motor de reglas es baja:
+- Despues de clasificar con el motor de reglas, si `confidence < 0.6`, llamar internamente a la API de Ollama Cloud
+- Combinar la clasificacion del LLM con los templates HTML existentes
+- El LLM solo clasifica y sugiere entidades; el HTML sigue saliendo del motor de reglas
 
-- **laundry** (Lavanderia): keywords como lavanderia, tintoreria, lavado, planchado, ropa sucia
-- **pharmacy** (Farmacia): keywords como farmacia, medicamentos, recetas, drogueria
-- **construction** (Constructora): keywords como constructora, arquitecto, obra, remodelacion
-- **florist** (Floristeria): keywords como floristeria, flores, arreglos florales, ramos
-- **mechanic** (Taller Mecanico): keywords como taller, mecanico, reparacion, auto, carro
-- **printing** (Imprenta): keywords como imprenta, impresion, papeleria, copias, rotulacion
+Alternativa: en lugar de crear una edge function separada, integrar la llamada a Ollama directamente dentro de `builder-ai/index.ts` para mantener todo en un solo lugar.
 
-Tambien agregar `intentDatabaseSchema` para cada uno y `phrasePatterns` correspondientes.
+### 4. MODIFICAR: `supabase/config.toml`
 
-### 3. Expandir el corpus de bootstrapping con 200+ mensajes nuevos
+Registrar la nueva edge function (si se crea separada):
+```text
+[functions.doku-ollama]
+verify_jwt = false
+```
 
-Agregar variaciones para:
-- Los 6 nuevos intents (15-20 mensajes cada uno)
-- Casos ambiguos entre intents cercanos (ej: salon vs spa, billing vs accounting)
-- Mensajes con errores ortograficos mas variados
-- Mensajes en Spanglish ("quiero un beauty salon", "necesito un food delivery")
-- Mensajes muy cortos ("gym", "tienda", "doctor")
-- Mensajes muy largos y descriptivos
+### 5. MODIFICAR: `src/services/builderService.ts`
 
-### 4. Mejorar la respuesta conversacional inteligente
+Actualizar `generateSite()` para manejar el flujo hibrido:
+- El motor de reglas sigue siendo la primera linea
+- Si confianza < 60%, el mismo edge function llama a Ollama Cloud internamente
+- Agregar campo `provider` al response para indicar que motor se uso ("rules" | "ollama")
 
-En lugar de una respuesta generica cuando el mensaje es conversacional, dar respuestas contextuales:
-- Saludos: responder con saludo + pregunta sobre que quieren crear
-- Preguntas sobre capacidades: listar los tipos de sitios que puede crear
-- Agradecimientos: agradecer y preguntar si necesitan algo mas
-- Mensajes de error del usuario: ofrecer ayuda especifica
+### 6. MODIFICAR: `src/components/builder/ProjectSettings.tsx`
 
-### 5. Agregar "anti-patterns" al clasificador
+Agregar seccion "Motor de IA" con:
+- Campo para seleccionar modelo de Ollama (ej: llama3, mistral, gpt-oss)
+- Indicador de estado: "Ollama conectado" / "Solo motor de reglas"
+- Toggle para habilitar/deshabilitar el boost con Ollama
 
-Crear una lista de palabras que NUNCA deberian activar generacion:
-- Saludos puros: "hola", "hey", "buenas"
-- Emociones: "estoy bien", "genial", "perfecto"  
-- Meta-preguntas: "que puedes hacer", "como funciono"
+### 7. MODIFICAR: `src/types/builder.ts`
 
-Si el mensaje SOLO contiene anti-patterns, forzar `conversational` sin pasar por el clasificador.
-
-### 6. Sistema de confusion tracking
-
-Agregar una tabla o campo que registre cuando el clasificador produce resultados ambiguos (top 2 intents con menos de 2 puntos de diferencia). Esto permite identificar pares de intents que se confunden frecuentemente y agregar mas datos de entrenamiento especificos.
-
----
+Agregar tipo `AIProvider` al BuilderResponse:
+```text
+provider?: "rules" | "ollama"
+```
 
 ## Detalles Tecnicos
 
-### Archivo: `supabase/functions/builder-ai/index.ts`
-
-#### A. Fix de conversational patterns (linea ~3495)
+### Prompt de Clasificacion para Ollama
 
 ```text
-Antes:
-  /(?:hola|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?))\s*[!?.]*$/i
+Eres el clasificador de intents de DOKU, un generador de sitios web en espanol.
+Dado el mensaje del usuario, clasifica en uno de estos intents:
+- landing: Pagina de presentacion general
+- restaurant: Restaurante o cafeteria
+- ecommerce: Tienda online
+- portfolio: Portfolio de trabajos
+- blog: Blog o revista
+- fitness: Gimnasio o centro fitness
+- clinic: Clinica o consultorio medico
+- billing: Facturacion o sistema contable
+- laundry: Lavanderia o tintoreria
+- pharmacy: Farmacia
+- construction: Constructora
+- florist: Floristeria
+- mechanic: Taller mecanico
+- printing: Imprenta
+[... todos los intents]
 
-Despues:
-  /^(?:hola|hey|oye|buenas?|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?)|que\s+tal|que\s+onda|saludos)/i
-  
-Agregar nuevos patrones:
-  /^(?:adios|bye|nos\s+vemos|hasta\s+luego|chao)/i
-  /^(?:quien|que)\s+eres/i
-  /^(?:estoy\s+bien|todo\s+bien|genial|perfecto|ok)\s*[!?.]*$/i
+Responde SOLO con JSON valido, sin texto adicional:
+{"intent":"nombre","confidence":0.0-1.0,"entities":{"businessName":"","sections":[],"colorScheme":"","industry":""}}
 ```
 
-#### B. Anti-pattern gate (antes del clasificador, linea ~3575)
+### Llamada a Ollama Cloud desde Edge Function
 
 ```text
-Funcion: isGreetingOnly(message)
-- Tokeniza el mensaje
-- Si TODOS los tokens son saludos/emociones/meta-palabras → return conversational
-- Si tiene < 2 tokens semanticos → return conversational
-- Solo entonces pasar al clasificador
+const response = await fetch("https://ollama.com/api/chat", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${Deno.env.get("OLLAMA_API_KEY")}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "llama3",  // o el modelo que tenga el usuario
+    messages: [
+      { role: "system", content: classificationPrompt },
+      { role: "user", content: userMessage }
+    ],
+    stream: false,
+    format: "json"
+  })
+});
 ```
 
-#### C. Nuevos intents (en intentMap, linea ~388)
+### Integracion en builder-ai/index.ts (opcion recomendada)
+
+En lugar de crear una edge function separada, agregar la llamada a Ollama directamente dentro de la funcion `classifyIntent()`:
 
 ```text
-laundry: { 
-  keywords: ["lavanderia", "tintoreria", "lavado", "planchado", "ropa", "limpieza"],
-  bigrams: ["lavado seco", "ropa sucia", "servicio lavanderia"],
-  label: "Lavanderia / Tintoreria"
+// Despues de calcular scores con el motor de reglas:
+if (bestScore.confidence < 0.6) {
+  const ollamaResult = await classifyWithOllama(message, intentList);
+  if (ollamaResult && ollamaResult.confidence > bestScore.confidence) {
+    // Usar la clasificacion de Ollama
+    return { ...ollamaResult, provider: "ollama" };
+  }
 }
-// + pharmacy, construction, florist, mechanic, printing
 ```
 
-#### D. Nuevos esquemas de DB (en intentDatabaseSchema, linea ~17)
+## Orden de Implementacion
 
-```text
-laundry: [
-  { name: "orders", columns: [client_name, phone, service_type, items, pickup_date, delivery_date, status, total] },
-  { name: "services", columns: [name, description, price, duration, category] },
-]
-// + esquemas para los otros 5 nuevos intents
-```
+1. Guardar `OLLAMA_API_KEY` como secret de Supabase
+2. Agregar funcion `classifyWithOllama()` en `builder-ai/index.ts`
+3. Integrar en el flujo de `classifyIntent()` cuando confianza < 60%
+4. Actualizar tipos en `builder.ts`
+5. Agregar indicador de proveedor en la respuesta
+6. Agregar seccion de configuracion de Ollama en ProjectSettings
+7. Deploy y pruebas
 
-#### E. Respuestas conversacionales contextuales (en isConversational, linea ~3516)
+## Beneficios
 
-```text
-Saludos → "Hola! Soy DOKU, tu asistente de creacion web. Que tipo de sitio quieres crear hoy? 
-           Puedo hacer restaurantes, tiendas online, portfolios, sistemas de facturacion y mas."
-Quien eres → "Soy DOKU AI, un motor de inteligencia artificial propio que clasifica tu mensaje 
-              y genera sitios web completos con React y base de datos. Sin APIs externas."
-Gracias → "De nada! Si necesitas algo mas, solo dimelo. Puedo crear nuevos sitios, 
-           agregar paginas, o modificar lo existente."
-```
-
-### Orden de implementacion
-
-1. Fix critico: conversational patterns + anti-pattern gate (corrige el bug de "hola como estas")
-2. Respuestas conversacionales inteligentes
-3. 6 nuevos intents con keywords, vocabulario semantico, phrase patterns
-4. Schemas de base de datos para nuevos intents
-5. Expansion del bootstrap corpus (+200 mensajes)
-6. Phrase patterns y bigrams para nuevos intents
-7. Deploy y pruebas con los casos de prueba fallidos
-
-### Impacto Esperado
-
-- Eliminar falsos positivos en saludos y mensajes no-generativos
-- Cubrir 30 intents (de 24 actuales) = mas industrias soportadas
-- Corpus de bootstrapping: de ~280 a ~500 mensajes sinteticos
-- Mejor experiencia conversacional con respuestas contextuales
-- "lavanderia", "farmacia", "constructora" etc. ahora generan sitios reales
+- Solo Ollama, sin dependencia de otros proveedores
+- Tu API key accede a modelos cloud de Ollama directamente desde el Edge Function
+- Sin bridge del navegador, sin complejidad extra
+- Motor de reglas sigue siendo primera linea (rapido, sin costo)
+- Ollama solo se invoca cuando el motor de reglas tiene baja confianza
+- Degradacion elegante: si Ollama falla, el motor de reglas sigue funcionando
 
