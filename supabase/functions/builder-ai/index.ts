@@ -964,7 +964,7 @@ function getImageId(query: string, idx: number): string {
   return ids[idx % ids.length];
 }
 
-// ==================== REACT/TSX COMPOSER ====================
+// ==================== PURE HTML COMPOSER (No React/Babel) ====================
 interface BlockConfig {
   name: string;
   colors: ColorScheme;
@@ -976,534 +976,339 @@ interface BlockConfig {
 function composeReactHtml(config: BlockConfig): string {
   const { name, colors: c, sections, intent, enriched } = config;
 
-  // Build React component code
-  const components: string[] = [];
+  // Build pure HTML sections
+  const htmlSections: string[] = [];
 
-  // Navbar component
+  // Navbar
   if (sections.includes("navbar")) {
     const links = sections.filter(s => !["navbar", "footer"].includes(s)).slice(0, 6);
-    components.push(`
-const Navbar: React.FC = () => {
-  const [scrolled, setScrolled] = useState<boolean>(false);
-  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 80);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const navLinks: { label: string; href: string }[] = [
-    ${links.map(s => `{ label: "${sectionLabel(s)}", href: "#${s}" }`).join(",\n    ")}
-  ];
-
-  return (
-    <header style={{position:'sticky',top:0,zIndex:50,transition:'all 0.3s ease',background:scrolled?'var(--bg-card)':'transparent',borderBottom:scrolled?'1px solid var(--border)':'none',backdropFilter:scrolled?'blur(12px)':'none'}}>
-      <nav style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1rem var(--space-lg)',maxWidth:'1200px',margin:'0 auto'}}>
-        <a href="#" style={{fontFamily:'var(--font-display)',fontSize:'1.4rem',fontWeight:700,letterSpacing:'-0.02em'}} className="gradient-text">${name}</a>
-        <div className="nav-links" style={{display:'flex',gap:'2rem',alignItems:'center'}}>
-          {navLinks.map(l => <a key={l.href} href={l.href} style={{color:'var(--text-muted)',fontSize:'0.9rem',fontWeight:500}}>{l.label}</a>)}
-          <a href="#${sections.includes("contact") ? "contact" : "hero"}" className="btn" style={{padding:'0.6rem 1.5rem',fontSize:'0.85rem'}}>${getNavCTA(intent)}</a>
-        </div>
-        <button className="mobile-menu-btn" onClick={()=>setMobileOpen(!mobileOpen)} style={{background:'none',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'0.5rem 0.7rem',color:'var(--text)',cursor:'pointer',display:'none',flexDirection:'column',gap:'4px'}}>
-          <span style={{width:18,height:2,background:'currentColor',display:'block',borderRadius:2}}/>
-          <span style={{width:18,height:2,background:'currentColor',display:'block',borderRadius:2}}/>
-          <span style={{width:14,height:2,background:'currentColor',display:'block',borderRadius:2}}/>
-        </button>
-      </nav>
-      {mobileOpen && <div style={{display:'flex',flexDirection:'column',gap:'1rem',padding:'1rem var(--space-lg)',borderTop:'1px solid var(--border)',background:'var(--bg-card)'}}>
-        {navLinks.map(l => <a key={l.href} href={l.href} onClick={()=>setMobileOpen(false)} style={{color:'var(--text-muted)',fontSize:'0.95rem',padding:'0.5rem 0'}}>{l.label}</a>)}
-      </div>}
-    </header>
-  );
-};`);
+    htmlSections.push(`
+  <header id="site-header" style="position:sticky;top:0;z-index:50;transition:all 0.3s ease;background:transparent">
+    <nav style="display:flex;justify-content:space-between;align-items:center;padding:1rem 2.5rem;max-width:1200px;margin:0 auto">
+      <a href="#" class="gradient-text" style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;letter-spacing:-0.02em">${name}</a>
+      <div class="nav-links" style="display:flex;gap:2rem;align-items:center">
+        ${links.map(s => `<a href="#${s}" style="color:var(--text-muted);font-size:0.9rem;font-weight:500;transition:color var(--transition)">${sectionLabel(s)}</a>`).join("\n        ")}
+        <a href="#${sections.includes("contact") ? "contact" : "hero"}" class="btn" style="padding:0.6rem 1.5rem;font-size:0.85rem">${getNavCTA(intent)}</a>
+      </div>
+      <button id="mobile-menu-btn" class="mobile-menu-btn" style="background:none;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:0.5rem 0.7rem;color:var(--text);cursor:pointer;display:none;flex-direction:column;gap:4px">
+        <span style="width:18px;height:2px;background:currentColor;display:block;border-radius:2px"></span>
+        <span style="width:18px;height:2px;background:currentColor;display:block;border-radius:2px"></span>
+        <span style="width:14px;height:2px;background:currentColor;display:block;border-radius:2px"></span>
+      </button>
+    </nav>
+    <div id="mobile-menu" style="display:none;flex-direction:column;gap:1rem;padding:1rem 2.5rem;border-top:1px solid var(--border);background:var(--bg-card)">
+      ${links.map(s => `<a href="#${s}" class="mobile-link" style="color:var(--text-muted);font-size:0.95rem;padding:0.5rem 0">${sectionLabel(s)}</a>`).join("\n      ")}
+    </div>
+  </header>`);
   }
 
-  // Hero component
+  // Hero
   if (sections.includes("hero")) {
     const heroImg = getUnsplashImage(intent, "hero", 0);
-    components.push(`
-const Hero: React.FC = () => {
-  const ref = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState<boolean>(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.1 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, []);
-
-  return (
-    <section ref={ref} id="hero" style={{minHeight:'90vh',display:'flex',alignItems:'center',position:'relative',overflow:'hidden',background:'var(--gradient-subtle)'}}>
-      <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse at 30% 50%,color-mix(in srgb,var(--primary) 8%,transparent),transparent 70%)'}}/>
-      <div className="container" style={{position:'relative',zIndex:1}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'var(--space-xl)',alignItems:'center'}}>
-          <div style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(30px)',transition:'all 0.6s ease'}}>
-            <div style={{display:'inline-block',background:'color-mix(in srgb,var(--primary) 12%,transparent)',color:'var(--primary-light)',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.8rem',fontWeight:600,marginBottom:'var(--space-md)',letterSpacing:'0.05em'}}>${getHeroBadge(intent)}</div>
-            <h1 style={{marginBottom:'var(--space-md)'}}><span className="gradient-text">${name}</span></h1>
-            <p style={{color:'var(--text-muted)',fontSize:'clamp(1rem,1.8vw,1.15rem)',marginBottom:'var(--space-lg)',maxWidth:500,lineHeight:1.8}}>${enriched?.heroSubtitle ? enriched.heroSubtitle.replace(/'/g, "\\'") : getHeroSubtitle(intent, name)}</p>
-            <div style={{display:'flex',gap:'var(--space-sm)',flexWrap:'wrap'}}>
-              <button className="btn">${getHeroCTA(intent)}</button>
-              <button className="btn btn-outline">${getHeroSecondaryCTA(intent)}</button>
-            </div>
+    htmlSections.push(`
+  <section id="hero" style="min-height:90vh;display:flex;align-items:center;position:relative;overflow:hidden;background:var(--gradient-subtle)">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,color-mix(in srgb,var(--primary) 8%,transparent),transparent 70%)"></div>
+    <div class="container" style="position:relative;z-index:1">
+      <div class="hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center">
+        <div class="fade-in">
+          <div style="display:inline-block;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary-light);padding:0.4rem 1rem;border-radius:99px;font-size:0.8rem;font-weight:600;margin-bottom:1.5rem;letter-spacing:0.05em">${getHeroBadge(intent)}</div>
+          <h1 style="margin-bottom:1.5rem"><span class="gradient-text">${name}</span></h1>
+          <p style="color:var(--text-muted);font-size:clamp(1rem,1.8vw,1.15rem);margin-bottom:2.5rem;max-width:500px;line-height:1.8">${enriched?.heroSubtitle ? enriched.heroSubtitle.replace(/"/g, '&quot;') : getHeroSubtitle(intent, name)}</p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button class="btn">${getHeroCTA(intent)}</button>
+            <button class="btn btn-outline">${getHeroSecondaryCTA(intent)}</button>
           </div>
-          <div style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(30px)',transition:'all 0.6s ease 0.2s'}}>
-            <div style={{borderRadius:'var(--radius)',overflow:'hidden',boxShadow:'var(--shadow-lg)',border:'1px solid var(--border)',aspectRatio:'4/3'}}>
-              <img src="${heroImg}" alt="${name}" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-            </div>
+        </div>
+        <div class="fade-in" style="animation-delay:0.2s">
+          <div style="border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-lg);border:1px solid var(--border);aspect-ratio:4/3">
+            <img src="${heroImg}" alt="${name}" style="width:100%;height:100%;object-fit:cover" loading="lazy"/>
           </div>
         </div>
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // Features component
+  // Features
   if (sections.includes("features")) {
     let feats = getFeatures(intent);
-    // Enrich feature descriptions with LLM content if available
     if (enriched?.featuresDescriptions && enriched.featuresDescriptions.length > 0) {
-      feats = feats.map((f, i) => ({
-        ...f,
-        desc: enriched.featuresDescriptions![i] || f.desc,
-      }));
+      feats = feats.map((f, i) => ({ ...f, desc: enriched.featuresDescriptions![i] || f.desc }));
     }
-    components.push(`
-const Features: React.FC = () => {
-  interface Feature { icon: string; title: string; desc: string; }
-  const features: Feature[] = ${JSON.stringify(feats)};
-
-  return (
-    <section id="features" className="section section-alt">
-      <div className="container">
-        <div className="section-header"><h2>${intent === "agency" ? "Nuestros Servicios" : "Características"}</h2><p>${getFeaturesSubtitle(intent)}</p></div>
-        <div className="grid-3">
-          {features.map((f, i) => (
-            <div key={i} className="card" style={{transition:\`transform 0.3s ease \${i*0.1}s\`}}>
-              <div style={{width:48,height:48,display:'flex',alignItems:'center',justifyContent:'center',background:'color-mix(in srgb,var(--primary) 12%,transparent)',borderRadius:'var(--radius-sm)',fontSize:'1.5rem',marginBottom:'var(--space-sm)'}}>{f.icon}</div>
-              <h3 style={{marginBottom:'var(--space-xs)',color:'var(--text)'}}>{f.title}</h3>
-              <p style={{color:'var(--text-muted)',lineHeight:1.7,fontSize:'0.95rem'}}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
+    htmlSections.push(`
+  <section id="features" class="section">
+    <div class="container">
+      <div class="section-header"><h2>Nuestros Servicios</h2><p>${getFeaturesSubtitle(intent)}</p></div>
+      <div class="grid-3">
+        ${feats.map((f, i) => `<div class="card fade-in" style="animation-delay:${i * 0.1}s">
+          <div style="width:56px;height:56px;border-radius:14px;background:color-mix(in srgb,var(--primary) 12%,transparent);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1rem">${f.icon}</div>
+          <h3 style="margin-bottom:0.5rem">${f.title}</h3>
+          <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.7">${f.desc}</p>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // About component
+  // About
   if (sections.includes("about")) {
     const aboutImg = getUnsplashImage(intent, "about", 0);
+    const aboutText = enriched?.aboutText || getAboutText(intent, name);
     const stats = getAboutStats(intent);
-    components.push(`
-const About: React.FC = () => (
-  <section id="about" className="section">
-    <div className="container">
-      <div className="grid-2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'var(--space-xl)',alignItems:'center'}}>
-        <div style={{borderRadius:'var(--radius)',overflow:'hidden',boxShadow:'var(--shadow-md)',border:'1px solid var(--border)',aspectRatio:'4/3'}}>
-          <img src="${aboutImg}" alt="Sobre ${name}" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+    htmlSections.push(`
+  <section id="about" class="section section-alt">
+    <div class="container">
+      <div class="section-header"><h2>Sobre Nosotros</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center">
+        <div class="fade-in">
+          <div style="border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border)">
+            <img src="${aboutImg}" alt="Sobre ${name}" style="width:100%;height:auto;object-fit:cover" loading="lazy"/>
+          </div>
         </div>
-        <div>
-          <h2 style={{marginBottom:'var(--space-md)'}}>Sobre <span className="gradient-text">Nosotros</span></h2>
-          <p style={{color:'var(--text-muted)',lineHeight:1.8,fontSize:'1.02rem',marginBottom:'var(--space-md)'}}>${enriched?.aboutText ? enriched.aboutText.replace(/'/g, "\\'") : getAboutText(intent, name)}</p>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'var(--space-sm)',textAlign:'center'}}>
-            ${stats.map(s => `<div style={{padding:'var(--space-sm)',borderRadius:'var(--radius-sm)',background:'var(--bg-card)',border:'1px solid var(--border)'}}><div className="gradient-text" style={{fontSize:'1.6rem',fontWeight:800,fontFamily:'var(--font-display)'}}>${s.value}</div><div style={{color:'var(--text-muted)',fontSize:'0.8rem',marginTop:2}}>${s.label}</div></div>`).join("\n            ")}
+        <div class="fade-in" style="animation-delay:0.15s">
+          <p style="color:var(--text-muted);font-size:1.05rem;line-height:1.8;margin-bottom:2rem">${aboutText}</p>
+          <div style="display:flex;gap:2rem;flex-wrap:wrap">
+            ${stats.map(s => `<div><div class="gradient-text" style="font-size:2rem;font-weight:800;font-family:var(--font-display)">${s.value}</div><div style="color:var(--text-muted);font-size:0.85rem">${s.label}</div></div>`).join("\n            ")}
           </div>
         </div>
       </div>
     </div>
-  </section>
-);`);
+  </section>`);
   }
 
-  // Menu component (restaurant)
+  // Menu
   if (sections.includes("menu")) {
-    const items = getMenuItems(intent);
-    components.push(`
-const Menu: React.FC = () => {
-  interface MenuItem { name: string; desc: string; price: string; }
-  const items: MenuItem[] = ${JSON.stringify(items)};
-
-  return (
-    <section id="menu" className="section section-alt">
-      <div className="container" style={{maxWidth:750}}>
-        <div className="section-header"><h2>Nuestro Menú</h2><p>Ingredientes frescos, sabores auténticos</p></div>
-        <div style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
-          {items.map((item, i) => (
-            <div key={i} className="card" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'var(--space-md) var(--space-lg)'}}>
-              <div><h3 style={{marginBottom:4,fontSize:'1.05rem'}}>{item.name}</h3><p style={{color:'var(--text-muted)',fontSize:'0.88rem'}}>{item.desc}</p></div>
-              <span style={{color:'var(--primary-light)',fontWeight:700,fontSize:'1.2rem',whiteSpace:'nowrap',fontFamily:'var(--font-display)'}}>{item.price}</span>
-            </div>
-          ))}
-        </div>
+    const menuItems = getMenuItems(intent);
+    htmlSections.push(`
+  <section id="menu" class="section">
+    <div class="container">
+      <div class="section-header"><h2>Nuestro Menú</h2><p>Descubre nuestras deliciosas opciones</p></div>
+      <div class="grid-2">
+        ${menuItems.map((item, i) => `<div class="card fade-in" style="display:flex;justify-content:space-between;align-items:center;animation-delay:${i * 0.05}s">
+          <div>
+            <h3 style="margin-bottom:4px">${item.name}</h3>
+            <p style="color:var(--text-muted);font-size:0.88rem">${item.desc}</p>
+          </div>
+          <span class="gradient-text" style="font-weight:700;font-size:1.1rem;white-space:nowrap">${item.price}</span>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // Gallery component
+  // Gallery
   if (sections.includes("gallery")) {
-    components.push(`
-const Gallery: React.FC = () => {
-  const images: string[] = [${Array.from({ length: 6 }, (_, i) => `"${getUnsplashImage(intent, "gallery", i)}"`).join(",")}];
-  const [hovered, setHovered] = useState<number>(-1);
-
-  return (
-    <section id="gallery" className="section section-alt">
-      <div className="container">
-        <div className="section-header"><h2>Galería</h2><p>Una muestra de nuestro trabajo y dedicación</p></div>
-        <div className="grid-3">
-          {images.map((src, i) => (
-            <div key={i} style={{borderRadius:'var(--radius)',overflow:'hidden',border:'1px solid var(--border)',aspectRatio:'4/3'}} onMouseEnter={()=>setHovered(i)} onMouseLeave={()=>setHovered(-1)}>
-              <img src={src} alt={\`${name} - \${i+1}\`} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform 0.5s ease',transform:hovered===i?'scale(1.05)':'scale(1)'}} loading="lazy"/>
-            </div>
-          ))}
-        </div>
+    htmlSections.push(`
+  <section id="gallery" class="section section-alt">
+    <div class="container">
+      <div class="section-header"><h2>Galería</h2><p>Nuestro trabajo habla por sí mismo</p></div>
+      <div class="grid-3">
+        ${[0,1,2,3,4,5].map(i => `<div class="card fade-in" style="padding:0;overflow:hidden;animation-delay:${i * 0.08}s">
+          <img src="${getUnsplashImage(intent, "gallery", i)}" alt="Galería ${i+1}" style="width:100%;height:250px;object-fit:cover;transition:transform var(--transition)" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" loading="lazy"/>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // Pricing component
+  // Pricing
   if (sections.includes("pricing")) {
     const plans = getPricingPlans(intent);
-    components.push(`
-const Pricing: React.FC = () => {
-  interface Plan { name: string; price: string; features: string[]; }
-  const plans: Plan[] = ${JSON.stringify(plans)};
-
-  return (
-    <section id="pricing" className="section">
-      <div className="container">
-        <div className="section-header"><h2>Planes y Precios</h2><p>Elige el plan que mejor se adapte a tus necesidades</p></div>
-        <div className="grid-3">
-          {plans.map((p, i) => {
-            const highlighted = i === 1;
-            return (
-              <div key={i} className="card" style={{position:'relative',textAlign:'center',...(highlighted?{borderColor:'var(--primary)',boxShadow:'0 0 40px -10px color-mix(in srgb,var(--primary) 25%,transparent)'}:{})}}>
-                {highlighted && <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'var(--gradient)',color:'#fff',padding:'0.35rem 1.25rem',borderRadius:99,fontSize:'0.78rem',fontWeight:700,letterSpacing:'0.05em'}}>POPULAR</div>}
-                <h3 style={{color:'var(--primary-light)',fontSize:'1.2rem',marginBottom:'var(--space-xs)'}}>{p.name}</h3>
-                <div style={{fontSize:'2.8rem',fontWeight:800,fontFamily:'var(--font-display)',marginBottom:'var(--space-md)'}}>{p.price}</div>
-                <ul style={{listStyle:'none',marginBottom:'var(--space-lg)',textAlign:'left'}}>{p.features.map((f,j)=><li key={j} style={{color:'var(--text-muted)',padding:'0.5rem 0',borderBottom:'1px solid var(--border)',fontSize:'0.92rem',display:'flex',alignItems:'center',gap:'0.5rem'}}><span style={{color:'var(--primary-light)',fontWeight:700}}>✓</span> {f}</li>)}</ul>
-                <button className={highlighted?'btn':'btn btn-outline'} style={{width:'100%'}}>Elegir Plan</button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-};`);
-  }
-
-  // Testimonials component
-  if (sections.includes("testimonials")) {
-    const testimonials = enriched?.testimonials && enriched.testimonials.length > 0
-      ? enriched.testimonials
-      : getTestimonials();
-    components.push(`
-const Testimonials: React.FC = () => {
-  interface Testimonial { name: string; text: string; role: string; }
-  const items: Testimonial[] = ${JSON.stringify(testimonials)};
-
-  return (
-    <section id="testimonials" className="section section-alt">
-      <div className="container">
-        <div className="section-header"><h2>Lo que dicen nuestros clientes</h2><p>La satisfacción de nuestros clientes es nuestra mejor carta de presentación</p></div>
-        <div className="grid-3">
-          {items.map((t, i) => (
-            <div key={i} className="card" style={{textAlign:'center'}}>
-              <div style={{width:56,height:56,borderRadius:'50%',background:'var(--gradient)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto var(--space-sm)',fontSize:'1.3rem',fontWeight:700,color:'#fff'}}>{t.name[0]}</div>
-              <p style={{color:'var(--text-muted)',fontStyle:'italic',marginBottom:'var(--space-sm)',lineHeight:1.7,fontSize:'0.95rem'}}>"{t.text}"</p>
-              <strong style={{fontSize:'0.95rem'}}>{t.name}</strong><br/>
-              <span style={{color:'var(--text-muted)',fontSize:'0.82rem'}}>{t.role}</span>
-              <div style={{marginTop:'var(--space-xs)',color:'var(--primary-light)',letterSpacing:2}}>★★★★★</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};`);
-  }
-
-  // Contact component
-  if (sections.includes("contact")) {
-    components.push(`
-const Contact: React.FC = () => {
-  const [sent, setSent] = useState<boolean>(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSent(true);
-  };
-
-  return (
-    <section id="contact" className="section section-alt">
-      <div className="container" style={{maxWidth:640}}>
-        <div className="section-header"><h2>Contáctanos</h2><p>Estamos listos para ayudarte. Escríbenos y te responderemos pronto.</p></div>
-        <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'var(--space-sm)'}}>
-            <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} placeholder="Tu nombre" required/>
-            <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} type="email" placeholder="Tu email" required/>
+    htmlSections.push(`
+  <section id="pricing" class="section">
+    <div class="container">
+      <div class="section-header"><h2>Planes y Precios</h2><p>Elige el plan que mejor se adapte a ti</p></div>
+      <div class="grid-3">
+        ${plans.map((plan, i) => `<div class="card fade-in" style="text-align:center;position:relative;${plan.featured ? 'border-color:var(--primary);box-shadow:0 0 30px color-mix(in srgb,var(--primary) 20%,transparent)' : ''};animation-delay:${i * 0.1}s">
+          ${plan.featured ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gradient);padding:4px 16px;border-radius:99px;font-size:0.75rem;font-weight:700;color:#fff;letter-spacing:0.05em">POPULAR</div>' : ''}
+          <h3 style="margin-bottom:0.5rem">${plan.name}</h3>
+          <div class="gradient-text" style="font-size:2.5rem;font-weight:800;font-family:var(--font-display);margin-bottom:0.5rem">${plan.price}</div>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem">${plan.period}</p>
+          <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:2rem;text-align:left">
+            ${plan.features.map(f => `<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-muted);font-size:0.9rem"><span style="color:var(--primary-light)">✓</span> ${f}</div>`).join("\n            ")}
           </div>
-          <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} placeholder="Asunto"/>
-          <textarea style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none',minHeight:140,resize:'vertical'}} placeholder="Tu mensaje" required/>
-          <button className="btn" type="submit" style={{alignSelf:'stretch',justifyContent:'center'}}>{sent ? '¡Enviado! ✓' : 'Enviar Mensaje →'}</button>
-        </form>
+          <button class="btn${plan.featured ? '' : ' btn-outline'}" style="width:100%;justify-content:center">Elegir Plan</button>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // FAQ component
+  // Testimonials
+  if (sections.includes("testimonials")) {
+    const testimonials = enriched?.testimonials && enriched.testimonials.length > 0 ? enriched.testimonials : getTestimonials();
+    htmlSections.push(`
+  <section id="testimonials" class="section section-alt">
+    <div class="container">
+      <div class="section-header"><h2>Lo que dicen nuestros clientes</h2><p>La satisfacción de nuestros clientes es nuestra mejor carta de presentación</p></div>
+      <div class="grid-3">
+        ${testimonials.map((t, i) => `<div class="card fade-in" style="text-align:center;animation-delay:${i * 0.1}s">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.3rem;font-weight:700;color:#fff">${t.name[0]}</div>
+          <p style="color:var(--text-muted);font-style:italic;margin-bottom:1rem;line-height:1.7;font-size:0.95rem">"${t.text}"</p>
+          <strong style="font-size:0.95rem">${t.name}</strong><br/>
+          <span style="color:var(--text-muted);font-size:0.82rem">${t.role}</span>
+          <div style="margin-top:0.5rem;color:var(--primary-light);letter-spacing:2px">★★★★★</div>
+        </div>`).join("\n        ")}
+      </div>
+    </div>
+  </section>`);
+  }
+
+  // Contact
+  if (sections.includes("contact")) {
+    htmlSections.push(`
+  <section id="contact" class="section section-alt">
+    <div class="container" style="max-width:640px">
+      <div class="section-header"><h2>Contáctanos</h2><p>Estamos listos para ayudarte. Escríbenos y te responderemos pronto.</p></div>
+      <form id="contact-form" style="display:flex;flex-direction:column;gap:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <input style="padding:0.9rem 1.25rem;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none" placeholder="Tu nombre" required/>
+          <input style="padding:0.9rem 1.25rem;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none" type="email" placeholder="Tu email" required/>
+        </div>
+        <input style="padding:0.9rem 1.25rem;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none" placeholder="Asunto"/>
+        <textarea style="padding:0.9rem 1.25rem;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none;min-height:140px;resize:vertical" placeholder="Tu mensaje" required></textarea>
+        <button class="btn" type="submit" style="width:100%;justify-content:center">Enviar Mensaje →</button>
+      </form>
+    </div>
+  </section>`);
+  }
+
+  // FAQ
   if (sections.includes("faq")) {
     const faqs = getFAQs(intent);
-    components.push(`
-const FAQ: React.FC = () => {
-  interface FAQItem { q: string; a: string; }
-  const [openIdx, setOpenIdx] = useState<number>(-1);
-  const faqs: FAQItem[] = ${JSON.stringify(faqs)};
-
-  return (
-    <section id="faq" className="section">
-      <div className="container" style={{maxWidth:750}}>
-        <div className="section-header"><h2>Preguntas Frecuentes</h2><p>Respuestas a las dudas más comunes</p></div>
-        <div style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
-          {faqs.map((f, i) => (
-            <div key={i} className="card" style={{cursor:'pointer'}} onClick={()=>setOpenIdx(openIdx===i?-1:i)}>
-              <div style={{fontWeight:600,fontSize:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem'}}>
-                {f.q}
-                <span style={{color:'var(--primary-light)',fontSize:'1.2rem',transition:'transform 0.3s',transform:openIdx===i?'rotate(45deg)':'none'}}>+</span>
-              </div>
-              {openIdx===i && <p style={{color:'var(--text-muted)',marginTop:'var(--space-sm)',lineHeight:1.7,fontSize:'0.95rem'}}>{f.a}</p>}
-            </div>
-          ))}
-        </div>
+    htmlSections.push(`
+  <section id="faq" class="section">
+    <div class="container" style="max-width:750px">
+      <div class="section-header"><h2>Preguntas Frecuentes</h2><p>Respuestas a las dudas más comunes</p></div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        ${faqs.map((f, i) => `<div class="card faq-item" data-idx="${i}" style="cursor:pointer">
+          <div style="font-weight:600;font-size:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem">
+            ${f.q}
+            <span class="faq-icon" style="color:var(--primary-light);font-size:1.2rem;transition:transform 0.3s">+</span>
+          </div>
+          <p class="faq-answer" style="color:var(--text-muted);margin-top:1rem;line-height:1.7;font-size:0.95rem;display:none">${f.a}</p>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // Team component
+  // Team
   if (sections.includes("team")) {
     const members = getTeamMembers(intent);
-    components.push(`
-const Team: React.FC = () => {
-  interface Member { name: string; role: string; bio: string; avatar: string; }
-  const members: Member[] = ${JSON.stringify(members)};
-
-  return (
-    <section id="team" className="section section-alt">
-      <div className="container">
-        <div className="section-header"><h2>Nuestro Equipo</h2><p>Profesionales comprometidos con la excelencia</p></div>
-        <div className="grid-3">
-          {members.map((m, i) => (
-            <div key={i} className="card" style={{textAlign:'center'}}>
-              <div style={{width:80,height:80,borderRadius:'50%',background:'var(--gradient)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto var(--space-sm)',fontSize:'2rem',color:'#fff'}}>{m.avatar}</div>
-              <h3 style={{marginBottom:4}}>{m.name}</h3>
-              <p style={{color:'var(--primary-light)',fontSize:'0.85rem',fontWeight:500,marginBottom:'var(--space-xs)'}}>{m.role}</p>
-              <p style={{color:'var(--text-muted)',fontSize:'0.88rem',lineHeight:1.6}}>{m.bio}</p>
-            </div>
-          ))}
-        </div>
+    htmlSections.push(`
+  <section id="team" class="section section-alt">
+    <div class="container">
+      <div class="section-header"><h2>Nuestro Equipo</h2><p>Profesionales comprometidos con la excelencia</p></div>
+      <div class="grid-3">
+        ${members.map((m, i) => `<div class="card fade-in" style="text-align:center;animation-delay:${i * 0.1}s">
+          <div style="width:80px;height:80px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:2rem;color:#fff">${m.avatar}</div>
+          <h3 style="margin-bottom:4px">${m.name}</h3>
+          <p style="color:var(--primary-light);font-size:0.85rem;font-weight:500;margin-bottom:0.5rem">${m.role}</p>
+          <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.6">${m.bio}</p>
+        </div>`).join("\n        ")}
       </div>
-    </section>
-  );
-};`);
+    </div>
+  </section>`);
   }
 
-  // Footer component
+  // Auth
+  if (sections.includes("auth") || sections.includes("login")) {
+    htmlSections.push(`
+  <section id="auth" class="section section-alt">
+    <div class="container" style="max-width:480px;margin:0 auto">
+      <div class="section-header"><h2>Accede a tu cuenta</h2><p>Inicia sesión o regístrate para disfrutar de todos los beneficios</p></div>
+      <div class="card" style="padding:2.5rem">
+        <div style="display:flex;gap:0;margin-bottom:1.5rem;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border)">
+          <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:0.75rem;background:var(--primary);color:#fff;border:none;cursor:pointer;font-weight:600;font-family:var(--font-body);font-size:0.9rem;transition:all var(--transition)">Iniciar Sesión</button>
+          <button id="tab-register" onclick="switchAuthTab('register')" style="flex:1;padding:0.75rem;background:transparent;color:var(--text-muted);border:none;cursor:pointer;font-weight:600;font-family:var(--font-body);font-size:0.9rem;transition:all var(--transition)">Registrarse</button>
+        </div>
+        <form id="login-form" onsubmit="event.preventDefault()" style="display:flex;flex-direction:column;gap:1rem">
+          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Email</label><input type="email" placeholder="tu@email.com" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
+          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Contraseña</label><input type="password" placeholder="••••••••" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
+          <button class="btn" style="width:100%;justify-content:center;margin-top:0.5rem">Iniciar Sesión</button>
+          <p style="text-align:center;font-size:0.82rem;color:var(--text-muted)">¿Olvidaste tu contraseña? <a href="#" style="color:var(--primary-light)">Recupérala aquí</a></p>
+        </form>
+        <form id="register-form" onsubmit="event.preventDefault()" style="display:none;flex-direction:column;gap:1rem">
+          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Nombre completo</label><input type="text" placeholder="Juan Pérez" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
+          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Email</label><input type="email" placeholder="tu@email.com" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
+          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Contraseña</label><input type="password" placeholder="Mínimo 8 caracteres" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
+          <button class="btn" style="width:100%;justify-content:center;margin-top:0.5rem">Crear Cuenta</button>
+          <p style="text-align:center;font-size:0.82rem;color:var(--text-muted)">Al registrarte aceptas nuestros <a href="#" style="color:var(--primary-light)">términos y condiciones</a></p>
+        </form>
+      </div>
+    </div>
+  </section>`);
+  }
+
+  // User Panel
+  if (sections.includes("user-panel")) {
+    htmlSections.push(`
+  <section id="user-panel" class="section">
+    <div class="container">
+      <div class="section-header"><h2>Mi Panel</h2><p>Consulta tu historial y resumen de actividad</p></div>
+      <div class="grid-3" style="margin-bottom:4rem">
+        <div class="card" style="text-align:center"><div style="font-size:2rem;margin-bottom:8px">💰</div><div class="gradient-text" style="font-size:1.8rem;font-weight:800;font-family:var(--font-display)">$63.00</div><p style="color:var(--text-muted);font-size:0.85rem">Total consumido</p></div>
+        <div class="card" style="text-align:center"><div style="font-size:2rem;margin-bottom:8px">📋</div><div class="gradient-text" style="font-size:1.8rem;font-weight:800;font-family:var(--font-display)">4</div><p style="color:var(--text-muted);font-size:0.85rem">Pedidos realizados</p></div>
+        <div class="card" style="text-align:center"><div style="font-size:2rem;margin-bottom:8px">⭐</div><div class="gradient-text" style="font-size:1.8rem;font-weight:800;font-family:var(--font-display)">Gold</div><p style="color:var(--text-muted);font-size:0.85rem">Nivel de membresía</p></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:1.5rem;font-size:1.1rem">📜 Historial de Consumo</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:0.75rem;color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">Fecha</th>
+              <th style="text-align:left;padding:0.75rem;color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">Items</th>
+              <th style="text-align:right;padding:0.75rem;color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">Total</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.75rem;font-size:0.9rem">2024-01-15</td><td style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted)">Café Especialidad x2, Croissant</td><td style="padding:0.75rem;font-size:0.9rem;text-align:right;font-weight:600;color:var(--primary-light)">$13.00</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.75rem;font-size:0.9rem">2024-01-12</td><td style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted)">Bowl Mediterráneo, Jugo Natural</td><td style="padding:0.75rem;font-size:0.9rem;text-align:right;font-weight:600;color:var(--primary-light)">$15.50</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.75rem;font-size:0.9rem">2024-01-08</td><td style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted)">Tostada de Aguacate, Cappuccino</td><td style="padding:0.75rem;font-size:0.9rem;text-align:right;font-weight:600;color:var(--primary-light)">$14.00</td></tr>
+              <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.75rem;font-size:0.9rem">2024-01-05</td><td style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted)">Pasta al Pesto, Tarta de Temporada</td><td style="padding:0.75rem;font-size:0.9rem;text-align:right;font-weight:600;color:var(--primary-light)">$20.50</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>`);
+  }
+
+  // Footer
   if (sections.includes("footer")) {
     const footerLinks = sections.filter(s => !["navbar", "footer", "cta", "stats"].includes(s)).slice(0, 5);
-    components.push(`
-const Footer: React.FC = () => (
-  <footer style={{borderTop:'1px solid var(--border)',padding:'var(--space-xl) var(--space-lg) var(--space-lg)',background:'var(--bg-card)'}}>
-    <div className="container">
-      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:'var(--space-xl)',marginBottom:'var(--space-lg)'}}>
+    htmlSections.push(`
+  <footer style="border-top:1px solid var(--border);padding:4rem 2.5rem 2.5rem;background:var(--bg-card)">
+    <div class="container">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:4rem;margin-bottom:2.5rem">
         <div>
-          <div className="gradient-text" style={{fontFamily:'var(--font-display)',fontSize:'1.3rem',fontWeight:700,marginBottom:'var(--space-sm)'}}>${name}</div>
-          <p style={{color:'var(--text-muted)',fontSize:'0.88rem',lineHeight:1.7,maxWidth:320}}>${getMetaDescription(intent, name)}</p>
+          <div class="gradient-text" style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:1rem">${name}</div>
+          <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;max-width:320px">${getMetaDescription(intent, name)}</p>
         </div>
         <div>
-          <h4 style={{fontSize:'0.85rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',marginBottom:'var(--space-sm)'}}>Navegación</h4>
-          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-            ${footerLinks.map(s => `<a href="#${s}" style={{color:'var(--text-muted)',fontSize:'0.88rem'}}>${sectionLabel(s)}</a>`).join("\n            ")}
+          <h4 style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:1rem">Navegación</h4>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            ${footerLinks.map(s => `<a href="#${s}" style="color:var(--text-muted);font-size:0.88rem">${sectionLabel(s)}</a>`).join("\n            ")}
           </div>
         </div>
         <div>
-          <h4 style={{fontSize:'0.85rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',marginBottom:'var(--space-sm)'}}>Legal</h4>
-          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-            <a href="#" style={{color:'var(--text-muted)',fontSize:'0.88rem'}}>Privacidad</a>
-            <a href="#" style={{color:'var(--text-muted)',fontSize:'0.88rem'}}>Términos</a>
-            <a href="#" style={{color:'var(--text-muted)',fontSize:'0.88rem'}}>Cookies</a>
+          <h4 style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:1rem">Legal</h4>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <a href="#" style="color:var(--text-muted);font-size:0.88rem">Privacidad</a>
+            <a href="#" style="color:var(--text-muted);font-size:0.88rem">Términos</a>
+            <a href="#" style="color:var(--text-muted);font-size:0.88rem">Cookies</a>
           </div>
         </div>
       </div>
-      <div style={{borderTop:'1px solid var(--border)',paddingTop:'var(--space-md)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'var(--space-sm)'}}>
-        <p style={{color:'var(--text-muted)',fontSize:'0.78rem'}}>© ${new Date().getFullYear()} ${name}. Todos los derechos reservados.</p>
-        <p style={{color:'var(--text-muted)',fontSize:'0.78rem'}}>Hecho con ❤️ por <span className="gradient-text" style={{fontWeight:600}}>DOKU AI</span></p>
+      <div style="border-top:1px solid var(--border);padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem">
+        <p style="color:var(--text-muted);font-size:0.78rem">© ${new Date().getFullYear()} ${name}. Todos los derechos reservados.</p>
+        <p style="color:var(--text-muted);font-size:0.78rem">Hecho con ❤️ por <span class="gradient-text" style="font-weight:600">DOKU AI</span></p>
       </div>
     </div>
-  </footer>
-);`);
+  </footer>`);
   }
 
-  // BackToTop component
-  components.push(`
-const BackToTop: React.FC = () => {
-  const [show, setShow] = useState<boolean>(false);
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 400);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  if (!show) return null;
-  return <button onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} style={{position:'fixed',bottom:'2rem',right:'2rem',width:44,height:44,borderRadius:'50%',background:'var(--gradient)',color:'#fff',border:'none',cursor:'pointer',fontSize:'1.2rem',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'var(--shadow-md)',zIndex:100}}>↑</button>;
-};`);
-
-  // Auth component
-  if (sections.includes("auth") || sections.includes("login")) {
-    components.push(`
-const AuthSection: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  return (
-    <section id="auth" className="section section-alt">
-      <div className="container" style={{maxWidth:480,margin:'0 auto'}}>
-        <div className="section-header"><h2>Accede a tu cuenta</h2><p>Inicia sesión o regístrate para disfrutar de todos los beneficios</p></div>
-        <div className="card" style={{padding:'var(--space-lg)'}}>
-          <div style={{display:'flex',gap:0,marginBottom:'var(--space-md)',borderRadius:'var(--radius-sm)',overflow:'hidden',border:'1px solid var(--border)'}}>
-            <button onClick={()=>setActiveTab('login')} style={{flex:1,padding:'0.75rem',background:activeTab==='login'?'var(--primary)':'transparent',color:activeTab==='login'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Iniciar Sesión</button>
-            <button onClick={()=>setActiveTab('register')} style={{flex:1,padding:'0.75rem',background:activeTab==='register'?'var(--primary)':'transparent',color:activeTab==='register'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Registrarse</button>
-          </div>
-          {activeTab === 'login' ? (
-            <form onSubmit={(e)=>e.preventDefault()} style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
-              <div>
-                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Email</label>
-                <input type="email" placeholder="tu@email.com" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
-              </div>
-              <div>
-                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Contraseña</label>
-                <input type="password" placeholder="••••••••" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
-              </div>
-              <button className="btn" style={{width:'100%',justifyContent:'center',marginTop:'var(--space-xs)'}}>Iniciar Sesión</button>
-              <p style={{textAlign:'center',fontSize:'0.82rem',color:'var(--text-muted)'}}>¿Olvidaste tu contraseña? <a href="#" style={{color:'var(--primary-light)'}}>Recupérala aquí</a></p>
-            </form>
-          ) : (
-            <form onSubmit={(e)=>e.preventDefault()} style={{display:'flex',flexDirection:'column',gap:'var(--space-sm)'}}>
-              <div>
-                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Nombre completo</label>
-                <input type="text" placeholder="Juan Pérez" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
-              </div>
-              <div>
-                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Email</label>
-                <input type="email" placeholder="tu@email.com" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
-              </div>
-              <div>
-                <label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:4,display:'block'}}>Contraseña</label>
-                <input type="password" placeholder="Mínimo 8 caracteres" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}} />
-              </div>
-              <button className="btn" style={{width:'100%',justifyContent:'center',marginTop:'var(--space-xs)'}}>Crear Cuenta</button>
-              <p style={{textAlign:'center',fontSize:'0.82rem',color:'var(--text-muted)'}}>Al registrarte aceptas nuestros <a href="#" style={{color:'var(--primary-light)'}}>términos y condiciones</a></p>
-            </form>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-};`);
-  }
-
-  // User Panel component
-  if (sections.includes("user-panel")) {
-    components.push(`
-const UserPanel: React.FC = () => {
-  const orders = [
-    { date: '2024-01-15', items: 'Café Especialidad x2, Croissant', total: '$13.00' },
-    { date: '2024-01-12', items: 'Bowl Mediterráneo, Jugo Natural', total: '$15.50' },
-    { date: '2024-01-08', items: 'Tostada de Aguacate, Cappuccino', total: '$14.00' },
-    { date: '2024-01-05', items: 'Pasta al Pesto, Tarta de Temporada', total: '$20.50' },
-  ];
-  return (
-    <section id="user-panel" className="section">
-      <div className="container">
-        <div className="section-header"><h2>Mi Panel</h2><p>Consulta tu historial y resumen de actividad</p></div>
-        <div className="grid-3" style={{marginBottom:'var(--space-xl)'}}>
-          <div className="card" style={{textAlign:'center'}}>
-            <div style={{fontSize:'2rem',marginBottom:8}}>💰</div>
-            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">$63.00</div>
-            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Total consumido</p>
-          </div>
-          <div className="card" style={{textAlign:'center'}}>
-            <div style={{fontSize:'2rem',marginBottom:8}}>📋</div>
-            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">4</div>
-            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Pedidos realizados</p>
-          </div>
-          <div className="card" style={{textAlign:'center'}}>
-            <div style={{fontSize:'2rem',marginBottom:8}}>⭐</div>
-            <div style={{fontSize:'1.8rem',fontWeight:800,fontFamily:'var(--font-display)'}} className="gradient-text">Gold</div>
-            <p style={{color:'var(--text-muted)',fontSize:'0.85rem'}}>Nivel de membresía</p>
-          </div>
-        </div>
-        <div className="card">
-          <h3 style={{marginBottom:'var(--space-md)',fontSize:'1.1rem'}}>📜 Historial de Consumo</h3>
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{borderBottom:'1px solid var(--border)'}}>
-                  <th style={{textAlign:'left',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Fecha</th>
-                  <th style={{textAlign:'left',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Items</th>
-                  <th style={{textAlign:'right',padding:'0.75rem',color:'var(--text-muted)',fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.05em'}}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o, i) => (
-                  <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
-                    <td style={{padding:'0.75rem',fontSize:'0.9rem'}}>{o.date}</td>
-                    <td style={{padding:'0.75rem',fontSize:'0.9rem',color:'var(--text-muted)'}}>{o.items}</td>
-                    <td style={{padding:'0.75rem',fontSize:'0.9rem',textAlign:'right',fontWeight:600,color:'var(--primary-light)'}}>{o.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};`);
-  }
-
-  // App component
-  const componentOrder = ["navbar", "hero", "features", "about", "menu", "gallery", "pricing", "testimonials", "faq", "team", "auth", "user-panel", "contact", "footer"];
-  const componentNames: Record<string, string> = {
-    navbar: "Navbar", hero: "Hero", features: "Features", about: "About", menu: "Menu",
-    gallery: "Gallery", pricing: "Pricing", testimonials: "Testimonials", faq: "FAQ",
-    team: "Team", contact: "Contact", footer: "Footer", auth: "AuthSection", "user-panel": "UserPanel",
-  };
-  const renderedComponents = componentOrder
-    .filter(s => sections.includes(s) && componentNames[s])
-    .map(s => `<${componentNames[s]} />`)
-    .join("\n      ");
-
-  components.push(`
-const App: React.FC = () => (
-  <>
-    <a href="#main-content" className="skip-link">Ir al contenido principal</a>
-    <div id="main-content">
-      ${renderedComponents}
-    </div>
-    <BackToTop />
-  </>
-);`);
-
-  // Wrap in HTML with React CDN + Babel standalone
+  // Build complete HTML document (pure HTML + CSS, NO React/Babel)
   return `<!DOCTYPE html>
 <html lang="es" dir="ltr">
 <head>
@@ -1517,9 +1322,6 @@ const App: React.FC = () => (
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -1560,11 +1362,14 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--space-md)}
 .skip-link{position:absolute;top:-100%;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:0.75rem 1.5rem;border-radius:0 0 var(--radius-sm) var(--radius-sm);z-index:1000;font-weight:600;transition:top 0.2s}
 .skip-link:focus{top:0}
+.fade-in{opacity:0;transform:translateY(20px);animation:fadeInUp 0.6s ease forwards}
+@keyframes fadeInUp{to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){
   .container{padding:0 var(--space-sm)}
   .section{padding:var(--space-xl) var(--space-sm)}
   .grid-2{grid-template-columns:1fr}
   .grid-3{grid-template-columns:1fr}
+  .hero-grid{grid-template-columns:1fr!important}
   .nav-links{display:none!important}
   .mobile-menu-btn{display:flex!important}
   h1{font-size:2.2rem}
@@ -1574,29 +1379,95 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 </style>
 </head>
 <body>
-<div id="root"></div>
-<div id="loading-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:1rem">
-  <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite"></div>
-  <p style="color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body)">Cargando sitio...</p>
-  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<a href="#main-content" class="skip-link">Ir al contenido principal</a>
+<div id="main-content">
+${htmlSections.join("\n")}
 </div>
-<script>
-  // Timeout fallback: if React/Babel fail to load after 15s, show error
-  window.__loadTimeout = setTimeout(function() {
-    var overlay = document.getElementById('loading-overlay');
-    if (overlay) overlay.innerHTML = '<p style="color:var(--text);font-family:var(--font-body);text-align:center;padding:2rem">⚠️ El sitio tardó demasiado en cargar.<br><small style="color:var(--text-muted)">Prueba refrescando el preview.</small></p>';
-  }, 15000);
-</script>
-<script type="text/babel" data-presets="react,typescript">
-const { useState, useEffect, useRef } = React;
-${components.join("\n")}
 
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);
-// Remove loading overlay once React renders
-const overlay = document.getElementById('loading-overlay');
-if (overlay) overlay.remove();
-clearTimeout(window.__loadTimeout);
+<!-- Back to top -->
+<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;border-radius:50%;background:var(--gradient);color:#fff;border:none;cursor:pointer;font-size:1.2rem;display:none;align-items:center;justify-content:center;box-shadow:var(--shadow-md);z-index:100">↑</button>
+
+<script>
+// Navbar scroll effect
+window.addEventListener('scroll',function(){
+  var header=document.getElementById('site-header');
+  if(header){
+    if(window.scrollY>80){
+      header.style.background='var(--bg-card)';
+      header.style.borderBottom='1px solid var(--border)';
+      header.style.backdropFilter='blur(12px)';
+    }else{
+      header.style.background='transparent';
+      header.style.borderBottom='none';
+      header.style.backdropFilter='none';
+    }
+  }
+  var btn=document.getElementById('back-to-top');
+  if(btn) btn.style.display=window.scrollY>400?'flex':'none';
+});
+
+// Mobile menu
+var menuBtn=document.getElementById('mobile-menu-btn');
+var mobileMenu=document.getElementById('mobile-menu');
+if(menuBtn&&mobileMenu){
+  menuBtn.addEventListener('click',function(){
+    mobileMenu.style.display=mobileMenu.style.display==='flex'?'none':'flex';
+  });
+  document.querySelectorAll('.mobile-link').forEach(function(link){
+    link.addEventListener('click',function(){mobileMenu.style.display='none';});
+  });
+}
+
+// FAQ accordion
+document.querySelectorAll('.faq-item').forEach(function(item){
+  item.addEventListener('click',function(){
+    var answer=this.querySelector('.faq-answer');
+    var icon=this.querySelector('.faq-icon');
+    var isOpen=answer.style.display==='block';
+    document.querySelectorAll('.faq-answer').forEach(function(a){a.style.display='none';});
+    document.querySelectorAll('.faq-icon').forEach(function(i){i.style.transform='none';});
+    if(!isOpen){answer.style.display='block';icon.style.transform='rotate(45deg)';}
+  });
+});
+
+// Auth tab switching
+function switchAuthTab(tab){
+  var loginForm=document.getElementById('login-form');
+  var registerForm=document.getElementById('register-form');
+  var tabLogin=document.getElementById('tab-login');
+  var tabRegister=document.getElementById('tab-register');
+  if(!loginForm||!registerForm) return;
+  if(tab==='login'){
+    loginForm.style.display='flex';registerForm.style.display='none';
+    tabLogin.style.background='var(--primary)';tabLogin.style.color='#fff';
+    tabRegister.style.background='transparent';tabRegister.style.color='var(--text-muted)';
+  }else{
+    loginForm.style.display='none';registerForm.style.display='flex';
+    tabRegister.style.background='var(--primary)';tabRegister.style.color='#fff';
+    tabLogin.style.background='transparent';tabLogin.style.color='var(--text-muted)';
+  }
+}
+
+// Contact form
+var contactForm=document.getElementById('contact-form');
+if(contactForm){
+  contactForm.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=this.querySelector('button[type=submit]');
+    btn.textContent='¡Enviado! ✓';btn.style.opacity='0.7';
+  });
+}
+
+// Intersection Observer for fade-in
+var observer=new IntersectionObserver(function(entries){
+  entries.forEach(function(entry){
+    if(entry.isIntersecting) entry.target.style.animationPlayState='running';
+  });
+},{threshold:0.1});
+document.querySelectorAll('.fade-in').forEach(function(el){
+  el.style.animationPlayState='paused';
+  observer.observe(el);
+});
 </script>
 </body>
 </html>`;
@@ -2304,6 +2175,57 @@ function extractHtmlFromResponse(response: string): string | null {
   return null;
 }
 
+// ==================== CONVERSATIONAL DETECTION ====================
+const conversationalPatterns = [
+  /(?:no\s+(?:se\s+)?(?:muestra|carga|ve|aparece|funciona|renderiza))/i,
+  /(?:por\s*que|porque)\s+(?:no|el|la|se)/i,
+  /(?:revisa|revisar|checa|checar|verifica|verificar)\s/i,
+  /(?:ayuda|help|problema|error|bug|falla)/i,
+  /(?:como\s+(?:hago|uso|funciona|puedo))/i,
+  /(?:hola|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?))\s*[!?.]*$/i,
+  /(?:gracias|thanks|ok|vale|listo|entendido)\s*[!?.]*$/i,
+  /(?:que\s+(?:es|hace|puedo|significa))/i,
+  /(?:no\s+(?:entiendo|se|puedo))/i,
+  /(?:screenshot|captura|pantallazo)/i,
+];
+
+const generationKeywords = [
+  "landing", "restaurante", "cafeteria", "cafe", "tienda", "ecommerce", "portfolio",
+  "blog", "dashboard", "gimnasio", "gym", "agencia", "clinica", "inmobiliaria",
+  "hotel", "abogado", "contador", "fotografo", "musica", "salon", "peluqueria",
+  "barberia", "veterinaria", "escuela", "academia", "pagina", "sitio", "web",
+  "crea", "crear", "hazme", "genera", "quiero", "necesito", "diseña",
+];
+
+function isConversational(message: string): string | null {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  const matchesConversational = conversationalPatterns.some(p => p.test(normalized));
+  if (!matchesConversational) return null;
+  
+  // Check if it also contains generation keywords
+  const hasGenerationKeyword = generationKeywords.some(kw => normalized.includes(kw));
+  if (hasGenerationKeyword) return null;
+  
+  // Determine contextual response
+  if (/no\s+(?:se\s+)?(?:muestra|carga|ve|aparece|funciona|renderiza)/i.test(normalized)) {
+    return "🔧 Entiendo que hay un problema con la visualización. Te recomiendo:\n\n1. **Refrescar el preview** usando el botón de refresh (↻)\n2. **Verificar** que el sitio se haya generado correctamente\n3. Si el problema persiste, **descríbeme qué sitio quieres** y lo regeneraré\n\nRecuerda que primero debes pedirme crear un sitio, por ejemplo: *\"Crea una cafetería llamada El Buen Café con menú y contacto\"*";
+  }
+  if (/(?:revisa|revisar|checa|checar|verifica|verificar)/i.test(normalized)) {
+    return "👀 Estoy aquí para ayudarte. Si algo no se ve bien, dime:\n\n• **Qué esperabas ver** vs qué ves actualmente\n• **Qué cambios** quieres hacer al sitio\n\nPuedo modificar colores, secciones, nombre del negocio, o regenerar el sitio completo. Solo descríbeme qué necesitas.";
+  }
+  if (/(?:hola|buenos?\s+dias?|buenas?\s+(?:tardes?|noches?))/i.test(normalized)) {
+    return "¡Hola! 👋 Soy **DOKU AI**, tu asistente para crear sitios web profesionales.\n\nDime qué quieres crear, por ejemplo:\n• *\"Quiero una landing para mi cafetería El Buen Café\"*\n• *\"Crea un portfolio con galería y contacto\"*\n• *\"Hazme una tienda online de ropa\"*";
+  }
+  if (/(?:gracias|thanks|ok|vale|listo|entendido)/i.test(normalized)) {
+    return "¡De nada! 😊 Si necesitas algo más, solo dime. Puedo:\n\n• Crear un nuevo sitio\n• Modificar el sitio actual (colores, secciones, contenido)\n• Cambiar el nombre del negocio\n\n¿En qué más te puedo ayudar?";
+  }
+  if (/(?:como\s+(?:hago|uso|funciona|puedo))/i.test(normalized)) {
+    return "📖 **¿Cómo usar DOKU AI?**\n\n1. **Describe** el sitio que quieres (tipo, nombre, secciones)\n2. **Revisa** el análisis y plan de ejecución\n3. **Confirma** o pide ajustes\n4. ¡**Listo**! Tu sitio aparece en el preview\n\n**Ejemplo:** *\"Quiero un restaurante llamado La Casa del Chef con menú, galería y contacto en colores cálidos\"*";
+  }
+  return "🤔 No estoy seguro de qué necesitas. Soy un generador de sitios web.\n\nPara crear un sitio, descríbeme:\n• **Tipo** (restaurante, tienda, portfolio, blog...)\n• **Nombre** del negocio\n• **Secciones** que quieres (menú, contacto, galería...)\n\n**Ejemplo:** *\"Crea una landing para mi agencia digital TechFlow\"*";
+}
+
 // ==================== MAIN HANDLER ====================
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -2330,6 +2252,23 @@ serve(async (req) => {
       );
     }
 
+    // ---- CONVERSATIONAL DETECTION (before classification pipeline) ----
+    const conversationalResponse = isConversational(message);
+    if (conversationalResponse) {
+      console.log(`[Conversational] Message detected as non-generative: "${message.substring(0, 50)}..."`);
+      return new Response(
+        JSON.stringify({
+          intent: "conversational",
+          confidence: 1.0,
+          label: "Conversación",
+          entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
+          html: "",
+          conversationalResponse,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 1. Query learning patterns (includes accepted + rejected for negative learning)
     const patterns = await queryLearningPatterns();
 
@@ -2352,6 +2291,22 @@ serve(async (req) => {
       intent = classification.intent;
       confidence = classification.confidence;
       label = classification.label;
+    }
+
+    // ---- CONFIDENCE THRESHOLD: if too low, ask for clarification ----
+    if (confidence < 0.3 && !isFollowUp(message)) {
+      console.log(`[Low Confidence] ${confidence} for intent "${intent}" - asking clarification`);
+      return new Response(
+        JSON.stringify({
+          intent: "conversational",
+          confidence,
+          label: "Conversación",
+          entities: { businessName: "", sections: [], colorScheme: "", industry: "" },
+          html: "",
+          conversationalResponse: `🤔 No estoy seguro de qué tipo de sitio quieres crear (confianza: ${Math.round(confidence * 100)}%).\n\nPuedes ser más específico? Por ejemplo:\n• *\"Crea un restaurante llamado La Casa del Chef\"*\n• *\"Hazme una landing page para mi startup\"*\n• *\"Quiero un portfolio con galería y contacto\"*\n\nMientras más detalles me des, mejor será el resultado.`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // 4. Extract entities (merging with previous context for follow-ups)

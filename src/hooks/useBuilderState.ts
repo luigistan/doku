@@ -135,6 +135,22 @@ export function useBuilderState() {
           previousEntities: result.entities,
         };
 
+        // Handle conversational responses (not site generation)
+        if (result.intent === "conversational") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: "system",
+              content: result.conversationalResponse || "No entendí tu mensaje. Descríbeme qué sitio quieres crear.",
+              timestamp: new Date(),
+            },
+          ]);
+          setIsTyping(false);
+          setPreview((p) => ({ ...p, status: "idle" }));
+          return;
+        }
+
         if (mode === "brain") {
           // Brain mode: show analysis and ASK for confirmation
           pendingResult.current = result;
