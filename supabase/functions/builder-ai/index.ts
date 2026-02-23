@@ -108,6 +108,62 @@ const intentDatabaseSchema: Record<string, { name: string; columns: { name: stri
       { name: "reason", type: "text" }, { name: "status", type: "select" },
     ]},
   ],
+  billing: [
+    { name: "clients", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "address", type: "text" }, { name: "tax_id", type: "text" }, { name: "notes", type: "text" },
+    ]},
+    { name: "invoices", columns: [
+      { name: "invoice_number", type: "text" }, { name: "client_name", type: "text" }, { name: "issue_date", type: "date" },
+      { name: "due_date", type: "date" }, { name: "subtotal", type: "number" }, { name: "tax", type: "number" },
+      { name: "total", type: "number" }, { name: "status", type: "select" }, { name: "notes", type: "text" },
+    ]},
+    { name: "invoice_items", columns: [
+      { name: "invoice_number", type: "text" }, { name: "description", type: "text" }, { name: "quantity", type: "number" },
+      { name: "unit_price", type: "number" }, { name: "total", type: "number" },
+    ]},
+  ],
+  inventory: [
+    { name: "products", columns: [
+      { name: "name", type: "text" }, { name: "sku", type: "text" }, { name: "category", type: "text" },
+      { name: "stock", type: "number" }, { name: "min_stock", type: "number" }, { name: "price", type: "number" },
+      { name: "location", type: "text" },
+    ]},
+    { name: "movements", columns: [
+      { name: "product_name", type: "text" }, { name: "type", type: "select" }, { name: "quantity", type: "number" },
+      { name: "date", type: "date" }, { name: "notes", type: "text" },
+    ]},
+  ],
+  crm: [
+    { name: "contacts", columns: [
+      { name: "name", type: "text" }, { name: "email", type: "email" }, { name: "phone", type: "text" },
+      { name: "company", type: "text" }, { name: "status", type: "select" }, { name: "notes", type: "text" },
+    ]},
+    { name: "deals", columns: [
+      { name: "title", type: "text" }, { name: "contact_name", type: "text" }, { name: "value", type: "number" },
+      { name: "stage", type: "select" }, { name: "expected_close", type: "date" }, { name: "notes", type: "text" },
+    ]},
+  ],
+  pos: [
+    { name: "products", columns: [
+      { name: "name", type: "text" }, { name: "price", type: "number" }, { name: "category", type: "text" },
+      { name: "stock", type: "number" }, { name: "barcode", type: "text" }, { name: "active", type: "boolean" },
+    ]},
+    { name: "sales", columns: [
+      { name: "sale_number", type: "text" }, { name: "total", type: "number" }, { name: "payment_method", type: "select" },
+      { name: "date", type: "date" }, { name: "cashier", type: "text" },
+    ]},
+  ],
+  booking: [
+    { name: "services", columns: [
+      { name: "name", type: "text" }, { name: "description", type: "text" }, { name: "duration", type: "text" },
+      { name: "price", type: "number" }, { name: "available", type: "boolean" },
+    ]},
+    { name: "bookings", columns: [
+      { name: "client_name", type: "text" }, { name: "client_email", type: "email" }, { name: "service", type: "text" },
+      { name: "date", type: "date" }, { name: "time", type: "text" }, { name: "status", type: "select" },
+    ]},
+  ],
 };
 
 // ==================== AUTO CREATE PROJECT TABLES ====================
@@ -221,7 +277,9 @@ const verbIntentMap: Record<string, string[]> = {
   // Professional verbs
   defender: ["lawyer"], litigar: ["lawyer"], demandar: ["lawyer"],
   diagnosticar: ["clinic"], operar: ["clinic"], curar: ["clinic", "veterinary"],
-  contar: ["accounting"], facturar: ["accounting"], auditar: ["accounting"],
+  contar: ["accounting"], facturar: ["billing", "accounting"], auditar: ["accounting"],
+  inventariar: ["inventory"], almacenar: ["inventory"],
+  cotizar: ["billing"], cobrar: ["billing", "pos"],
   ensenar: ["education"], capacitar: ["education"], formar: ["education"],
   entrenar: ["fitness"], ejercitar: ["fitness"],
   hospedar: ["hotel"], alojar: ["hotel"],
@@ -271,6 +329,21 @@ const phrasePatterns: { pattern: RegExp; intent: string; boost: number }[] = [
   { pattern: /(?:agencia)\s+(?:de\s+)?(?:marketing|digital|publicidad|diseno|creativa)/i, intent: "agency", boost: 5 },
   // Veterinary
   { pattern: /(?:veterinaria|clinica\s+veterinaria|pet\s*shop)/i, intent: "veterinary", boost: 5 },
+  // Billing / Facturacion
+  { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:facturacion|facturas|cobros|cobro)/i, intent: "billing", boost: 6 },
+  { pattern: /(?:facturar|generar\s+facturas|emitir\s+facturas)/i, intent: "billing", boost: 5 },
+  { pattern: /(?:cuentas\s+por\s+cobrar|recibos|notas\s+de\s+venta)/i, intent: "billing", boost: 4 },
+  // Inventory
+  { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:inventario|almacen|bodega|stock)/i, intent: "inventory", boost: 6 },
+  { pattern: /(?:control\s+de\s+(?:inventario|stock|existencias))/i, intent: "inventory", boost: 5 },
+  // CRM
+  { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:clientes|crm|prospectos|leads)/i, intent: "crm", boost: 5 },
+  { pattern: /(?:gestion\s+de\s+clientes|seguimiento\s+de\s+clientes)/i, intent: "crm", boost: 5 },
+  // POS
+  { pattern: /(?:punto\s+de\s+venta|pos|terminal\s+de\s+venta|caja\s+registradora)/i, intent: "pos", boost: 6 },
+  // Booking
+  { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:reservas|citas|agenda|turnos)/i, intent: "booking", boost: 5 },
+  { pattern: /(?:agendar|reservar)\s+(?:citas|turnos|horarios)/i, intent: "booking", boost: 5 },
 ];
 
 // ==================== TOKENIZER ====================
@@ -383,9 +456,34 @@ const intentMap: Record<string, { keywords: string[]; bigrams: string[]; label: 
     label: "Abogado / Legal",
   },
   accounting: {
-    keywords: ["contador", "contabilidad", "impuestos", "fiscal", "auditor", "contable", "facturacion", "nomina", "tributario"],
+    keywords: ["contador", "contabilidad", "impuestos", "fiscal", "auditor", "contable", "nomina", "tributario"],
     bigrams: ["despacho contable", "asesoria fiscal", "declaracion impuestos"],
     label: "Contabilidad / Fiscal",
+  },
+  billing: {
+    keywords: ["facturacion", "facturas", "invoice", "cobro", "cobros", "recibo", "recibos", "billing", "cuentas", "cotizacion", "cotizaciones", "notas"],
+    bigrams: ["cuentas cobrar", "notas venta", "sistema facturacion", "generar facturas"],
+    label: "Facturación",
+  },
+  inventory: {
+    keywords: ["inventario", "almacen", "bodega", "stock", "existencias", "inventory", "warehouse", "productos"],
+    bigrams: ["control inventario", "control stock", "gestion almacen"],
+    label: "Inventario",
+  },
+  crm: {
+    keywords: ["crm", "clientes", "prospectos", "leads", "contactos", "oportunidades", "pipeline", "seguimiento"],
+    bigrams: ["gestion clientes", "seguimiento clientes", "base clientes"],
+    label: "CRM / Gestión de Clientes",
+  },
+  pos: {
+    keywords: ["pos", "caja", "registradora", "terminal", "venta", "ventas", "ticket", "tickets"],
+    bigrams: ["punto venta", "caja registradora", "terminal venta"],
+    label: "Punto de Venta",
+  },
+  booking: {
+    keywords: ["reservas", "citas", "agenda", "turnos", "booking", "appointments", "agendar", "programar"],
+    bigrams: ["sistema reservas", "sistema citas", "agendar citas"],
+    label: "Reservas / Citas",
   },
   photography: {
     keywords: ["fotografo", "fotos", "fotografia", "sesion", "camara", "retrato", "boda", "eventos", "editorial"],
@@ -991,6 +1089,7 @@ interface Entities {
   sections: string[];
   colorScheme: string;
   industry: string;
+  requiresAuth: boolean;
 }
 
 const colorMap: Record<string, string> = {
@@ -1026,6 +1125,19 @@ const sectionKeywords: Record<string, string[]> = {
 function extractEntities(text: string, tokens: string[], intent: string): Entities {
   const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+  // Detect requiresAuth
+  const authPatterns = [
+    /con\s+(?:inicio\s+de\s+)?sesi[oó]n/i,
+    /con\s+login/i,
+    /con\s+autenticaci[oó]n/i,
+    /con\s+registro\s+de\s+usuarios/i,
+    /con\s+registro/i,
+    /(?:inicio|iniciar)\s+(?:de\s+)?sesi[oó]n/i,
+    /(?:login|signin|sign\s*in|log\s*in)/i,
+    /(?:que\s+tenga|incluir|incluya)\s+(?:login|registro|autenticacion)/i,
+  ];
+  const requiresAuth = authPatterns.some(p => p.test(text));
+
   let businessName = "";
   const namePatterns = [
     // "se llama X", "llamado X"
@@ -1059,6 +1171,12 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     }
   }
 
+  // If requiresAuth detected, add auth and login sections
+  if (requiresAuth) {
+    sections.add("auth");
+    sections.add("login");
+  }
+
   const intentDefaults: Record<string, string[]> = {
     restaurant: ["menu", "contact", "about"],
     portfolio: ["gallery", "about", "contact"],
@@ -1079,6 +1197,11 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     music: ["gallery", "about", "contact"],
     salon: ["features", "pricing", "gallery", "contact"],
     technology: ["features", "about", "pricing", "contact"],
+    billing: ["features", "stats", "contact"],
+    inventory: ["features", "stats"],
+    crm: ["features", "stats", "contact"],
+    pos: ["features", "stats"],
+    booking: ["features", "pricing", "contact"],
   };
   for (const s of (intentDefaults[intent] || ["features", "contact"])) sections.add(s);
 
@@ -1092,7 +1215,8 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
       ecommerce: "blue", blog: "cool", clinic: "blue", realestate: "elegant",
       education: "blue", veterinary: "green", hotel: "elegant", lawyer: "dark",
       accounting: "cool", photography: "dark", music: "purple", salon: "pink",
-      technology: "modern",
+      technology: "modern", billing: "blue", inventory: "green", crm: "modern",
+      pos: "dark", booking: "warm",
     };
     colorScheme = intentColors[intent] || "purple";
   }
@@ -1102,6 +1226,7 @@ function extractEntities(text: string, tokens: string[], intent: string): Entiti
     sections: Array.from(sections),
     colorScheme,
     industry: intent,
+    requiresAuth,
   };
 }
 
@@ -1114,6 +1239,8 @@ function getDefaultName(intent: string): string {
     hotel: "Mi Hotel", lawyer: "Mi Bufete Legal", accounting: "Mi Contaduría",
     photography: "Mi Estudio Fotográfico", music: "Mi Estudio Musical",
     salon: "Mi Salón", technology: "Mi Tech",
+    billing: "Mi Facturación", inventory: "Mi Inventario", crm: "Mi CRM",
+    pos: "Mi Punto de Venta", booking: "Mis Reservas",
   };
   return defaults[intent] || "Mi Sitio";
 }
