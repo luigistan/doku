@@ -1,89 +1,54 @@
 
 
-# Plan: Sistema de Auto-aprendizaje + Edge Function en React/TypeScript
+# Plan: IA Autonoma Completa sin APIs Externas
 
-## Problema Identificado
+## Resumen
 
-El sistema actual tiene dos problemas principales:
-
-1. **La edge function genera HTML plano** mientras los templates del cliente generan React con TypeScript. Cuando la edge function responde exitosamente, el usuario ve un sitio en HTML vanilla en vez de React.
-2. **No hay aprendizaje** -- el clasificador de keywords es estatico. Si el usuario escribe algo ligeramente diferente, el sistema no lo entiende.
-
-No se usara ninguna API externa (ni Lovable API Key, ni Gemini, ni GPT). Todo sera autonomo.
+Convertir el sistema actual de keywords en una IA autonoma real con 3 capacidades nuevas: **TF-IDF vectorial** (entender semantica sin embeddings externos), **memoria conversacional** (entender seguimiento), y **auto-entrenamiento funcional** (el feedback loop actual no esta grabando datos).
 
 ---
 
-## 1. Crear tabla de aprendizaje `ai_learning_logs`
+## Problema Actual
 
-Nueva tabla en Supabase para almacenar patrones exitosos:
+1. **El feedback loop no funciona**: Todos los registros en `ai_learning_logs` tienen `user_accepted = NULL` -- el sistema graba la interaccion pero nunca actualiza si el usuario acepto o rechazo
+2. **Sin comprension semantica**: "lugar para comer" no matchea con "restaurant" porque no hay relacion semantica, solo keywords
+3. **Sin memoria de conversacion**: Si el usuario dice "hazme un restaurante" y luego "cambia el color a azul", el sistema no entiende el contexto
+4. **Sin generalizacion**: No puede inferir que "negocio de comida callejera" es similar a "restaurant"
 
-```text
-ai_learning_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_message TEXT NOT NULL,
-  detected_intent TEXT NOT NULL,
-  detected_entities JSONB,
-  confidence FLOAT,
-  user_accepted BOOLEAN DEFAULT NULL,
-  user_feedback TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-)
-```
+## Solucion: 3 Modulos de IA Autonoma
 
-RLS: INSERT para todos los autenticados, SELECT para todos (para que la edge function pueda leer los patrones).
+### Modulo 1: Motor TF-IDF Vectorial (Comprension Semantica)
 
-## 2. Reescribir la edge function para generar React/TypeScript
+En vez de comparar keywords exactos, el sistema calculara vectores TF-IDF para cada mensaje y los comparara con vectores pre-calculados de cada intent. Esto permite entender que "lugar para comer algo rico" es semanticamente cercano a "restaurant" sin necesidad de que la palabra "restaurant" aparezca.
 
-Actualmente `composeHtml()` genera HTML plano con CSS vanilla. Se reescribira para usar el mismo patron `reactWrap()` de los templates del cliente:
+**Como funciona:**
+- Se pre-calcula un "documento virtual" para cada intent usando sus keywords, bigrams, y descripciones
+- Cuando llega un mensaje, se calcula su vector TF-IDF
+- Se compara con coseno de similitud contra todos los intents
+- El intent con mayor similitud gana
 
-- Generar componentes React funcionales (Navbar, Hero, Features, Contact, etc.)
-- Usar `useState`, `useEffect`, `useRef` con hooks
-- Compilar en el navegador via Babel standalone + React CDN (igual que los templates locales)
-- Cada seccion sera un componente React independiente dentro del output
+**Vocabulario expandido por intent:**
+- restaurant: "comida, comer, alimento, plato, gastronomia, sabor, cocina, chef, mesa, reserva, delivery..."
+- ecommerce: "vender, comprar, producto, precio, oferta, envio, tienda, catalogo, pago..."
+- Cada intent tendra 30-50 terminos semanticos relacionados
 
-## 3. Mejorar el NLP con auto-aprendizaje (sin API externa)
+### Modulo 2: Memoria Conversacional
 
-El clasificador actual usa coincidencia exacta de keywords. Se mejorara con:
+Agregar capacidad de entender mensajes de seguimiento en el contexto de una conversacion:
 
-**a) Distancia de Levenshtein (fuzzy matching):**
-- Si el usuario escribe "restorante" o "restaurnte", el sistema lo detectara como "restaurant" usando similitud de cadenas
-- Threshold: distancia <= 2 caracteres
+- Almacenar el ultimo intent y entities detectados en la sesion
+- Si el usuario dice "cambia el color a azul" sin mencionar un tipo de sitio, el sistema usara el intent anterior
+- Patrones de seguimiento: "cambia X", "agrega Y", "quita Z", "ponle...", "hazlo mas..."
+- El cliente enviara `previousIntent` y `previousEntities` a la edge function
 
-**b) N-gramas y coincidencia parcial:**
-- Analizar bigramas (pares de palabras) para detectar frases como "tienda de ropa", "clinica dental"
-- Puntuar coincidencias parciales (substring match)
+### Modulo 3: Auto-entrenamiento Funcional
 
-**c) Few-shot learning desde la base de datos:**
-- Antes de clasificar, la edge function consulta las ultimas 20 interacciones exitosas (`user_accepted = true`) de `ai_learning_logs`
-- Si el mensaje actual es similar (Levenshtein) a uno exitoso anterior, usa ese intent directamente con alta confianza
-- Esto permite que el sistema "aprenda" de lo que los usuarios piden
+Arreglar el feedback loop y agregar aprendizaje por refuerzo:
 
-**d) Expansion de sinonimos:**
-- Agregar mapa de sinonimos mas amplio (ej: "pagina de aterrizaje" = landing, "negocio" = landing, "comedor" = restaurant)
-- Incluir variantes con errores comunes de escritura
-
-## 4. Agregar feedback loop en el cliente
-
-Modificar `useBuilderState.ts` y `builderService.ts` para:
-
-- Cuando el usuario **confirma** la ejecucion: enviar `user_accepted: true` a `ai_learning_logs`
-- Cuando el usuario **pide ajustes**: enviar `user_accepted: false` + `user_feedback` con lo que pidio
-- Esto alimenta el sistema de aprendizaje automatico
-
-Se agrega nueva funcion `logInteraction()` en `builderService.ts` que llama a un endpoint de la edge function.
-
-## 5. Agregar mas industrias y sinonimos
-
-Expandir el `intentMap` con:
-- **hotel**: hotel, hospedaje, alojamiento, airbnb, hostal, resort
-- **abogado**: abogado, legal, derecho, bufete, juridico, notaria
-- **contabilidad**: contador, contabilidad, impuestos, fiscal, auditor
-- **fotografia**: fotografo, fotos, sesion fotografica, estudio foto
-- **musica**: musico, banda, dj, estudio grabacion, disquera
-- **salon**: salon belleza, peluqueria, barberia, spa, estetica
-- **tecnologia**: tech, software, app, desarrollo, programacion
-
-Cada uno con su set de secciones default, colores, textos hero, features, etc.
+- **Bug fix**: El `logInteraction()` del cliente esta enviando el `logId` correctamente pero la edge function necesita la ruta de feedback funcional -- verificar y arreglar el flujo completo
+- **Peso por feedback**: Interacciones con `user_accepted = true` tendran 3x mas peso en la clasificacion
+- **Negative learning**: Interacciones rechazadas (`user_accepted = false`) penalizaran ese intent para mensajes similares
+- **Auto-seed**: Pre-cargar 50+ interacciones base en `ai_learning_logs` con `user_accepted = true` para que el sistema tenga conocimiento inicial
 
 ---
 
@@ -93,62 +58,73 @@ Cada uno con su set de secciones default, colores, textos hero, features, etc.
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/migrations/` | Nueva migracion para tabla `ai_learning_logs` con RLS |
-| `supabase/functions/builder-ai/index.ts` | Reescribir `composeHtml()` para generar React. Agregar fuzzy matching, learning DB query, endpoint de logging, nuevas industrias |
-| `src/services/builderService.ts` | Agregar `logInteraction()` para feedback |
-| `src/hooks/useBuilderState.ts` | Llamar `logInteraction()` al confirmar/rechazar |
-| `src/integrations/supabase/types.ts` | Agregar tipos de `ai_learning_logs` |
+| `supabase/functions/builder-ai/index.ts` | Agregar motor TF-IDF, memoria conversacional, negative learning, expandir vocabulario semantico por intent |
+| `src/hooks/useBuilderState.ts` | Enviar `previousIntent`/`previousEntities` en cada request, arreglar flujo de feedback |
+| `src/services/builderService.ts` | Agregar parametro de contexto previo a `generateSite()` |
+| `src/types/builder.ts` | Agregar tipos para contexto conversacional |
+| `supabase/migrations/` | INSERT de seed data con 50+ interacciones base pre-aceptadas |
 
-### Flujo de auto-aprendizaje
-
-```text
-1. Usuario escribe "quiero algo para mi barberia"
-2. Edge function consulta ai_learning_logs:
-   - Busca mensajes similares (Levenshtein < 3)
-   - Si encuentra match exitoso previo -> usa ese intent (alta confianza)
-   - Si no -> clasifica con keyword + fuzzy matching
-3. Detecta: intent="salon", businessName="Mi Barbería"
-4. Genera React/TypeScript con componentes
-5. Usuario confirma -> se guarda en ai_learning_logs (user_accepted=true)
-6. Proxima vez que alguien escriba algo similar, el sistema ya "sabe"
-```
-
-### Output React generado (ejemplo)
-
-En vez de HTML plano, la edge function generara:
+### Motor TF-IDF - Detalle Tecnico
 
 ```text
-const { useState, useEffect, useRef } = React;
-
-interface NavItem { label: string; href: string; }
-
-const Navbar: React.FC = () => {
-  const [scrolled, setScrolled] = useState<boolean>(false);
-  // ... componente React completo
-};
-
-const Hero: React.FC = () => { ... };
-const Features: React.FC = () => { ... };
-const Contact: React.FC = () => { ... };
-
-const App: React.FC = () => (
-  <>
-    <Navbar />
-    <Hero />
-    <Features />
-    <Contact />
-    <Footer />
-  </>
-);
+1. Construir vocabulario global (union de todos los terminos de todos los intents)
+2. Para cada intent, crear "documento virtual" con sus terminos semanticos
+3. Calcular IDF: log(N / df) donde N = num intents, df = cuantos intents contienen el termino
+4. Para mensaje del usuario:
+   a. Tokenizar
+   b. Calcular TF de cada token
+   c. Multiplicar TF * IDF = vector del mensaje
+   d. Calcular coseno de similitud con cada intent
+   e. El mayor coseno = intent mas probable
 ```
 
-Envuelto en el mismo HTML wrapper con React CDN + Babel standalone para compilacion en el navegador.
+Esto es la misma matematica que usan los motores de busqueda clasicos, implementada en TypeScript puro dentro de la edge function. Zero dependencias externas.
 
-### Sin dependencias externas
+### Memoria Conversacional - Flujo
 
-- NO usa Lovable API Key
-- NO usa Gemini/GPT
-- TODO el NLP es local en la edge function (Deno)
-- El aprendizaje es por patrones almacenados en Supabase
-- El fuzzy matching usa Levenshtein implementado en TypeScript puro
+```text
+Usuario: "hazme un restaurante mexicano"
+  -> intent: restaurant, entities: {businessName: "Mi Restaurante", colorScheme: "warm"}
+  -> Se guarda como previousContext
+
+Usuario: "cambia el color a azul"
+  -> Detecta patron de seguimiento ("cambia...")
+  -> No encuentra intent nuevo fuerte
+  -> Usa previousContext.intent = restaurant
+  -> Modifica solo colorScheme = "blue"
+  -> Regenera el sitio con el cambio
+```
+
+### Seed Data - Ejemplos de Pre-carga
+
+Se insertaran 50+ registros en `ai_learning_logs` con patrones comunes ya aceptados:
+
+```text
+"quiero una pagina para mi negocio" -> landing (accepted)
+"hazme una tienda para vender ropa" -> ecommerce (accepted)
+"necesito un sitio para mi restaurante" -> restaurant (accepted)
+"pagina de mi barberia" -> salon (accepted)
+"sitio web para mi gimnasio" -> fitness (accepted)
+"quiero mostrar mis fotos" -> portfolio (accepted)
+"pagina para mi consultorio dental" -> clinic (accepted)
+...50+ mas cubriendo variaciones naturales
+```
+
+### Negative Learning
+
+```text
+1. Al clasificar, consultar logs con user_accepted = false
+2. Si el mensaje actual es similar (Jaccard > 0.5) a uno rechazado:
+   a. Penalizar el intent que fue rechazado (-3 puntos)
+   b. Si el usuario dio feedback ("era para X"), boost al intent correcto
+3. Esto permite que el sistema corrija errores automaticamente
+```
+
+### Sin APIs externas
+
+- TF-IDF: implementado en TypeScript puro (40 lineas de codigo)
+- Coseno de similitud: formula matematica basica
+- Memoria: estado en el cliente + parametro en la request
+- Auto-aprendizaje: queries SQL a `ai_learning_logs`
+- Costo: $0.00 -- todo corre en la edge function existente
 
