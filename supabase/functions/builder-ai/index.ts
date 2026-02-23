@@ -312,6 +312,41 @@ async function updateInteractionFeedback(logId: string, accepted: boolean, feedb
   } catch { /* silently fail */ }
 }
 
+// ==================== REACT WRAP (mirrors src/lib/templates.ts) ====================
+function reactWrap(componentCode: string, title: string): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#e2e8f0;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#12121a}
+::-webkit-scrollbar-thumb{background:#2d2d3f;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+${componentCode}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+<\/script>
+</body>
+</html>`;
+}
+
 // ==================== OLLAMA CLOUD API ====================
 const OLLAMA_SYSTEM_PROMPT = `Eres DOKU AI, un asistente experto en crear sitios web profesionales en español. Tu trabajo es analizar mensajes de usuarios y responder de dos formas:
 
@@ -323,32 +358,56 @@ const OLLAMA_SYSTEM_PROMPT = `Eres DOKU AI, un asistente experto en crear sitios
    - intent: tipo de sitio (landing, restaurant, ecommerce, portfolio, blog, dashboard, fitness, agency, clinic, realestate, education, veterinary, hotel, lawyer, accounting, photography, music, salon, technology, billing, inventory, crm, pos, booking, laundry, pharmacy, construction, florist, mechanic, printing)
    - entities: nombre del negocio, secciones detectadas, esquema de color, industria
    - plan: pasos del plan de ejecución (4-6 pasos)
-   - html: Un sitio web HTML COMPLETO, profesional, responsivo y moderno
+   - html: Código de COMPONENTE REACT (NO documento HTML completo)
 
-**REGLAS PARA EL HTML:**
-- Debe ser un documento HTML completo (<!DOCTYPE html> hasta </html>)
-- Usa CSS inline con variables CSS para colores
-- Diseño oscuro moderno con gradientes sutiles
-- Tipografía: Google Fonts (Inter para body, Outfit para títulos)
-- Responsive con media queries
-- Incluye: navbar, hero, secciones relevantes, footer
-- Usa emojis/iconos Unicode para decorar
-- Animaciones CSS sutiles (fade-in, hover effects)
-- Imágenes de Unsplash: https://images.unsplash.com/photo-XXXXX?auto=format&fit=crop&w=800&q=80
-- El HTML debe funcionar de forma independiente sin JavaScript frameworks
-- Textos en español relevantes al negocio
-- Mínimo 5 secciones visibles
-- Calidad profesional como si fuera un diseñador premium
+**REGLAS CRÍTICAS PARA EL CÓDIGO REACT:**
+- Genera SOLO el código del componente React (SIN <!DOCTYPE>, SIN <html>, SIN <head>, SIN <body>)
+- El código debe empezar con funciones auxiliares/hooks y terminar con function App()
+- Usa React.useState, React.useEffect, React.useRef (están disponibles globalmente, NO uses import)
+- Estilos INLINE con objetos JavaScript en camelCase: style={{backgroundColor:'#0a0a0f', fontSize:'1rem', borderRadius:16}}
+- NO uses className, NO uses CSS externo, NO uses Tailwind
+- Tema oscuro profesional: fondo #0a0a0f, texto #e2e8f0, bordes #1e1e2e, cards #12121a
+- Fuentes: fontFamily:"'Inter',sans-serif" para body, "'Playfair Display',serif" para títulos
+- Gradientes de texto con WebkitBackgroundClip:'text' y WebkitTextFillColor:'transparent'
+- Hover effects con onMouseOver/onMouseOut cambiando estilos dinámicamente
+- Navbar sticky con position:'sticky', top:0, backdropFilter:'blur(16px)', zIndex:50
+- Mínimo 5 secciones: navbar, hero, features/servicios, contacto, footer
+- Usa emojis/iconos Unicode como decoración visual
+- Links de navegación con href="#seccion" para scroll suave
+- Botones con gradientes, box-shadow y border-radius
+- Animaciones de aparición usando IntersectionObserver (hook useOnScreen)
+- Contadores animados para estadísticas
+- Responsive con clamp() para font-size y grid con auto-fit
+
+**HOOK useOnScreen QUE DEBES INCLUIR:**
+function useOnScreen(ref) {
+  const [visible, setVisible] = React.useState(false);
+  React.useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return visible;
+}
+
+**EJEMPLO DE ESTRUCTURA DEL CÓDIGO QUE DEBES GENERAR:**
+const { useState, useEffect, useRef } = React;
+
+function useOnScreen(ref) { /* ... */ }
+function Counter({ end, label }) { /* componente de contador animado */ }
+function Navbar() { /* navbar sticky con blur */ }
+function Hero() { /* hero con gradientes y CTAs */ }
+function Features() { /* cards con animaciones de scroll */ }
+function Contact() { /* formulario con data-doku-table */ }
+function App() {
+  return <><Navbar /><Hero /><Features /><Contact /><footer>...</footer></>;
+}
 
 **REGLA CRÍTICA - FORMULARIOS CON BASE DE DATOS:**
-- TODOS los formularios de contacto, registro, reservas, pedidos, citas, etc. DEBEN incluir el atributo data-doku-table="nombre_tabla"
+- TODOS los formularios DEBEN incluir el atributo data-doku-table="nombre_tabla"
 - El nombre de la tabla debe coincidir con las tablas del negocio (contacts, reservations, orders, appointments, bookings, inquiries, etc.)
-- Cada campo input/textarea/select del formulario DEBE tener el atributo name="nombre_columna" que coincida con las columnas de la tabla
-- Ejemplo: <form data-doku-table="contacts"><input name="name" placeholder="Nombre" required><input name="email" type="email" placeholder="Email"><input name="phone" placeholder="Teléfono"><textarea name="notes" placeholder="Mensaje"></textarea><button type="submit">Enviar</button></form>
-- Para CRM: data-doku-table="contacts" con name="name", name="email", name="phone", name="company", name="notes"
-- Para restaurante: data-doku-table="reservations" con name="customer_name", name="customer_email", name="date", name="guests", name="notes"
-- Para e-commerce: data-doku-table="customers" con name="name", name="email", name="phone", name="address"
-- Los formularios deben ser funcionales y tener campos que coincidan con las columnas de la tabla correspondiente
+- Cada campo input/textarea/select del formulario DEBE tener el atributo name="nombre_columna"
+- Ejemplo: <form data-doku-table="contacts"><input name="name" placeholder="Nombre" required /><input name="email" type="email" placeholder="Email" /><textarea name="notes" placeholder="Mensaje" /><button type="submit">Enviar</button></form>
 
 RESPONDE SIEMPRE con JSON válido (sin markdown, sin backticks):
 {
@@ -364,7 +423,7 @@ RESPONDE SIEMPRE con JSON válido (sin markdown, sin backticks):
     "industry": "industria"
   },
   "plan": ["paso 1", "paso 2", ...],
-  "html": "<!DOCTYPE html>..."
+  "html": "const { useState, useEffect, useRef } = React; ... function App() { ... }"
 }`;
 
 interface OllamaResponse {
@@ -509,16 +568,16 @@ async function callOllama(message: string, modelOverride?: string, conversationH
   return null;
 }
 
-// ==================== FALLBACK HTML (minimal, when Ollama fails) ====================
+// ==================== FALLBACK HTML (React component, when Ollama fails) ====================
 function generateFallbackHtml(businessName: string, intent: string): string {
-  const colorMap: Record<string, { primary: string; bg: string; text: string }> = {
-    restaurant: { primary: "#d97706", bg: "#0f0a05", text: "#fef3c7" },
-    ecommerce: { primary: "#2563eb", bg: "#06080f", text: "#dbeafe" },
-    fitness: { primary: "#059669", bg: "#060f0a", text: "#d1fae5" },
-    landing: { primary: "#7c3aed", bg: "#0a0a0f", text: "#e8eaf0" },
-    portfolio: { primary: "#7c3aed", bg: "#0a0a0f", text: "#e8eaf0" },
-    clinic: { primary: "#2563eb", bg: "#06080f", text: "#dbeafe" },
-    salon: { primary: "#db2777", bg: "#0f060a", text: "#fce7f3" },
+  const colorMap: Record<string, { primary: string; primaryRgb: string; accent: string }> = {
+    restaurant: { primary: "#d97706", primaryRgb: "217,119,6", accent: "#f59e0b" },
+    ecommerce: { primary: "#2563eb", primaryRgb: "37,99,235", accent: "#3b82f6" },
+    fitness: { primary: "#059669", primaryRgb: "5,150,105", accent: "#10b981" },
+    landing: { primary: "#7c3aed", primaryRgb: "124,58,237", accent: "#6366f1" },
+    portfolio: { primary: "#7c3aed", primaryRgb: "124,58,237", accent: "#818cf8" },
+    clinic: { primary: "#2563eb", primaryRgb: "37,99,235", accent: "#60a5fa" },
+    salon: { primary: "#db2777", primaryRgb: "219,39,119", accent: "#ec4899" },
   };
   const c = colorMap[intent] || colorMap.landing;
   const labelMap: Record<string, string> = {
@@ -534,52 +593,125 @@ function generateFallbackHtml(businessName: string, intent: string): string {
   };
   const label = labelMap[intent] || "Sitio Web";
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${businessName} - ${label}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:${c.primary};--bg:${c.bg};--text:${c.text};--text-muted:${c.text}88;--border:${c.primary}20}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.container{max-width:1100px;margin:0 auto;padding:0 2rem}
-nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2.5rem;border-bottom:1px solid var(--border)}
-nav a{color:var(--primary);font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;text-decoration:none}
-.hero{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem}
-.hero h1{font-family:'Outfit',sans-serif;font-size:clamp(2.5rem,6vw,4rem);font-weight:800;margin-bottom:1.5rem;background:linear-gradient(135deg,var(--primary),${c.text});-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{color:var(--text-muted);font-size:1.15rem;max-width:600px;margin:0 auto 2rem;line-height:1.8}
-.btn{display:inline-block;background:var(--primary);color:var(--bg);padding:0.8rem 2rem;border-radius:8px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-size:1rem}
-section{padding:5rem 2rem}
-.section-title{text-align:center;font-family:'Outfit',sans-serif;font-size:2rem;font-weight:700;margin-bottom:3rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2rem}
-.card{background:${c.primary}08;border:1px solid var(--border);border-radius:12px;padding:2rem}
-.card h3{font-size:1.1rem;margin-bottom:0.5rem}
-.card p{color:var(--text-muted);font-size:0.95rem;line-height:1.7}
-footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);color:var(--text-muted);font-size:0.9rem}
-@media(max-width:768px){nav{flex-direction:column;gap:1rem}.hero h1{font-size:2rem}}
-</style>
-</head>
-<body>
-<nav><a href="#">${businessName}</a><a href="#contact" class="btn" style="font-size:0.85rem;padding:0.6rem 1.5rem">Contacto</a></nav>
-<div class="hero"><div><h1>${businessName}</h1><p>Bienvenido a ${businessName}. Somos expertos en ofrecer soluciones de ${label.toLowerCase()} de alta calidad para nuestros clientes.</p><button class="btn">Comenzar</button></div></div>
-<section><h2 class="section-title">Nuestros Servicios</h2><div class="grid container">
-<div class="card"><h3>⭐ Calidad Premium</h3><p>Ofrecemos servicios de la más alta calidad con atención personalizada para cada cliente.</p></div>
-<div class="card"><h3>🚀 Innovación</h3><p>Utilizamos las últimas tecnologías y tendencias para ofrecer resultados excepcionales.</p></div>
-<div class="card"><h3>💎 Experiencia</h3><p>Años de experiencia nos respaldan, garantizando resultados profesionales en cada proyecto.</p></div>
-</div></section>
-<section id="contact" style="background:${c.primary}05"><h2 class="section-title">Contacto</h2>
-<div class="container" style="max-width:500px;margin:0 auto">
-<form data-doku-table="contacts" style="display:flex;flex-direction:column;gap:1rem">
-<input name="name" placeholder="Tu nombre" required style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
-<input name="email" type="email" placeholder="Tu email" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
-<input name="phone" placeholder="Tu teléfono" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
-<textarea name="notes" placeholder="Tu mensaje" rows="4" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem;resize:vertical"></textarea>
-<button type="submit" class="btn">Enviar mensaje</button>
-</form></div></section>
-<footer><p>© 2024 ${businessName}. Todos los derechos reservados. Creado con DOKU AI.</p></footer>
-</body></html>`;
+  const componentCode = `
+const { useState, useEffect, useRef } = React;
+
+function useOnScreen(ref) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return visible;
+}
+
+function Counter({ end, label }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const visible = useOnScreen(ref);
+  useEffect(() => {
+    if (!visible) return;
+    let start = 0;
+    const step = Math.ceil(end / 40);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= end) { setCount(end); clearInterval(timer); }
+      else setCount(start);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [visible, end]);
+  return <div ref={ref} style={{textAlign:'center'}}><div style={{fontSize:'2.5rem',fontWeight:800,background:'linear-gradient(135deg,${c.primary},${c.accent})',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{count}+</div><div style={{color:'#94a3b8',fontSize:'0.9rem'}}>{label}</div></div>;
+}
+
+function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', h);
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+  return <nav style={{position:'sticky',top:0,zIndex:50,backdropFilter:'blur(16px)',background:scrolled?'rgba(10,10,15,0.95)':'rgba(10,10,15,0.7)',borderBottom:'1px solid #1e1e2e',padding:'1rem 2rem',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'background 0.3s'}}>
+    <div style={{fontSize:'1.3rem',fontWeight:700,color:'#e2e8f0'}}>${businessName}</div>
+    <div style={{display:'flex',gap:'1.5rem',alignItems:'center'}}>
+      {['Inicio','Servicios','Contacto'].map(l => <a key={l} href={\\\`#\\\${l.toLowerCase()}\\\`} style={{color:'#94a3b8',fontSize:'0.9rem',transition:'color 0.2s'}} onMouseOver={e=>e.target.style.color='${c.primary}'} onMouseOut={e=>e.target.style.color='#94a3b8'}>{l}</a>)}
+      <button style={{padding:'0.6rem 1.5rem',background:'linear-gradient(135deg,${c.primary},${c.accent})',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.85rem',boxShadow:'0 4px 15px rgba(${c.primaryRgb},0.3)'}}>Empezar</button>
+    </div>
+  </nav>;
+}
+
+function Hero() {
+  return <section id="inicio" style={{minHeight:'85vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'4rem 2rem',background:'radial-gradient(ellipse at 50% 0%,rgba(${c.primaryRgb},0.12) 0%,transparent 60%)'}}>
+    <span style={{background:'${c.primary}22',color:'${c.primary}',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.85rem',marginBottom:'1.5rem',border:'1px solid ${c.primary}44'}}>✦ ${label}</span>
+    <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2.5rem,5vw,4rem)',fontWeight:800,marginBottom:'1rem',background:'linear-gradient(135deg,${c.primary},${c.accent})',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',maxWidth:700}}>Bienvenido a ${businessName}</h1>
+    <p style={{fontSize:'1.15rem',color:'#94a3b8',maxWidth:600,marginBottom:'2rem'}}>Somos expertos en ofrecer soluciones de ${label.toLowerCase()} de alta calidad para nuestros clientes.</p>
+    <div style={{display:'flex',gap:'1rem',flexWrap:'wrap',justifyContent:'center'}}>
+      <button style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,${c.primary},${c.accent})',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem',boxShadow:'0 4px 15px rgba(${c.primaryRgb},0.3)'}}>Comenzar Ahora →</button>
+      <button style={{padding:'0.85rem 2rem',background:'transparent',border:'1.5px solid #2d2d3f',color:'#e2e8f0',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>Saber Más</button>
+    </div>
+  </section>;
+}
+
+function Features() {
+  const items = [
+    { icon: '⭐', title: 'Calidad Premium', desc: 'Ofrecemos servicios de la más alta calidad con atención personalizada.' },
+    { icon: '🚀', title: 'Innovación', desc: 'Utilizamos las últimas tecnologías y tendencias del mercado.' },
+    { icon: '💎', title: 'Experiencia', desc: 'Años de experiencia garantizando resultados profesionales.' },
+    { icon: '🤝', title: 'Soporte 24/7', desc: 'Equipo dedicado disponible las 24 horas para ayudarte.' },
+  ];
+  const ref = useRef(null);
+  const visible = useOnScreen(ref);
+  return <section ref={ref} id="servicios" style={{padding:'5rem 2rem',background:'#0e0e16'}}>
+    <div style={{textAlign:'center',marginBottom:'3rem'}}><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem'}}>Nuestros Servicios</h2><p style={{color:'#94a3b8'}}>Todo lo que necesitas en un solo lugar</p></div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'1.5rem',maxWidth:1100,margin:'0 auto'}}>
+      {items.map((f,i) => <div key={i} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:16,padding:'2rem',transition:'transform 0.3s,border-color 0.3s',opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transitionDelay:\\\`\\\${i*100}ms\\\`}} onMouseOver={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.borderColor='${c.primary}66'}} onMouseOut={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor='#1e1e2e'}}>
+        <div style={{fontSize:'2rem',marginBottom:'1rem'}}>{f.icon}</div>
+        <h3 style={{fontSize:'1.15rem',fontWeight:600,marginBottom:'0.5rem'}}>{f.title}</h3>
+        <p style={{color:'#94a3b8',fontSize:'0.95rem'}}>{f.desc}</p>
+      </div>)}
+    </div>
+  </section>;
+}
+
+function Stats() {
+  return <section style={{padding:'4rem 2rem',display:'flex',justifyContent:'center',gap:'4rem',flexWrap:'wrap'}}>
+    <Counter end={500} label="Clientes" /><Counter end={50} label="Proyectos" /><Counter end={99} label="% Satisfacción" /><Counter end={24} label="Soporte (hrs)" />
+  </section>;
+}
+
+function Contact() {
+  const [sent, setSent] = useState(false);
+  return <section id="contacto" style={{padding:'5rem 2rem',textAlign:'center'}}>
+    <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',fontWeight:700,marginBottom:'0.5rem'}}>Contáctanos</h2>
+    <p style={{color:'#94a3b8',marginBottom:'2rem'}}>¿Listo para empezar? Envíanos un mensaje</p>
+    {sent ? <p style={{color:'#34d399',fontSize:'1.1rem'}}>✅ ¡Mensaje enviado exitosamente!</p> :
+    <form data-doku-table="contacts" style={{maxWidth:500,margin:'0 auto',display:'flex',flexDirection:'column',gap:'1rem'}} onSubmit={e=>{e.preventDefault();setSent(true)}}>
+      <input name="name" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Tu nombre" required />
+      <input name="email" type="email" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="tu@email.com" required />
+      <input name="phone" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none'}} placeholder="Tu teléfono" />
+      <textarea name="notes" style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:10,padding:'0.85rem 1rem',color:'#e2e8f0',outline:'none',resize:'vertical',minHeight:120}} placeholder="Tu mensaje..." required />
+      <button type="submit" style={{padding:'0.85rem 2rem',background:'linear-gradient(135deg,${c.primary},${c.accent})',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>Enviar Mensaje</button>
+    </form>}
+  </section>;
+}
+
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const h = () => setShow(window.scrollY > 400);
+    window.addEventListener('scroll', h);
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+  if (!show) return null;
+  return <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} style={{position:'fixed',bottom:24,right:24,width:44,height:44,borderRadius:'50%',background:'linear-gradient(135deg,${c.primary},${c.accent})',color:'#fff',border:'none',fontSize:'1.2rem',zIndex:99,boxShadow:'0 4px 15px rgba(${c.primaryRgb},0.4)'}}>↑</button>;
+}
+
+function App() {
+  return <><Navbar /><Hero /><Stats /><Features /><Contact /><footer style={{borderTop:'1px solid #1e1e2e',padding:'2rem',textAlign:'center',color:'#64748b',fontSize:'0.85rem'}}>© 2026 ${businessName}. Todos los derechos reservados. Creado con DOKU AI.</footer><BackToTop /></>;
+}
+`;
+
+  return reactWrap(componentCode, `${businessName} - ${label}`);
 }
 
 // ==================== MAIN HANDLER ====================
@@ -691,10 +823,19 @@ serve(async (req) => {
 
     // Use Ollama-generated HTML or fallback
     let html = ollamaResult.html || "";
-    if (!html || html.length < 100 || !html.includes("<!DOCTYPE")) {
+    if (!html || html.length < 100) {
       console.log("[DOKU] Ollama HTML insufficient, using fallback");
       html = generateFallbackHtml(entities.businessName, intent);
+    } else if (html.includes("function App()") && !html.includes("<!DOCTYPE")) {
+      // LLM generated React component code — wrap it
+      console.log("[DOKU] Wrapping React component with reactWrap()");
+      html = reactWrap(html, entities.businessName || "Mi Sitio");
+    } else if (!html.includes("<!DOCTYPE")) {
+      // Not React, not full HTML — fallback
+      console.log("[DOKU] Output is neither React nor full HTML, using fallback");
+      html = generateFallbackHtml(entities.businessName, intent);
     }
+    // else: already a full HTML doc, use as-is
 
     const plan = ollamaResult.plan || [
       `Analizar solicitud: ${label}`,
