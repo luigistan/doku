@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { PreviewState, ViewportSize } from "@/types/builder";
 import { Monitor, Tablet, Smartphone, RotateCcw, Globe, CheckCircle2, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,10 +24,44 @@ const statusConfig = {
   error: { icon: AlertCircle, label: "Error", color: "text-destructive" },
 };
 
+function useSimulatedProgress(isLoading: boolean) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setProgress(0);
+      return;
+    }
+
+    setProgress(0);
+    const start = Date.now();
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      let p: number;
+      if (elapsed < 3) {
+        p = (elapsed / 3) * 30;
+      } else if (elapsed < 23) {
+        p = 30 + ((elapsed - 3) / 20) * 30;
+      } else if (elapsed < 63) {
+        p = 60 + ((elapsed - 23) / 40) * 25;
+      } else {
+        p = 85 + ((elapsed - 63) / 60) * 10;
+      }
+      setProgress(Math.min(p, 95));
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
+  return progress;
+}
+
 export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug, isPublic }: PreviewPanelProps) {
   const StatusIcon = statusConfig[preview.status].icon;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const progress = useSimulatedProgress(preview.status === "loading");
 
   // Detect if the preview seems stuck (HTML is set but iframe might not render)
   useEffect(() => {
@@ -126,6 +160,29 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
             sandbox="allow-scripts"
           />
         </div>
+
+        {/* DOKU loading overlay */}
+        {preview.status === "loading" && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background">
+            <div
+              className="select-none text-[80px] font-black tracking-widest leading-none transition-all duration-300"
+              style={{
+                background: `linear-gradient(to right, hsl(var(--brain)) ${progress}%, hsl(var(--muted-foreground) / 0.2) ${progress}%)`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              DOKU
+            </div>
+            <p className="mt-4 text-2xl font-bold text-foreground tabular-nums">
+              {Math.round(progress)}%
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Analizando con Ollama...
+            </p>
+          </div>
+        )}
 
         {/* Load failure overlay */}
         {loadFailed && (
