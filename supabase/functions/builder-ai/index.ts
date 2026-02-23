@@ -987,7 +987,7 @@ async function classifyWithOllama(message: string, modelOverride?: string): Prom
 
   // Try multiple Ollama API endpoints
   const endpoints = [
-    { url: "https://api.ollama.com/v1/chat/completions", format: "openai" },
+    { url: "https://ollama.com/v1/chat/completions", format: "openai" },
     { url: "https://ollama.com/api/chat", format: "ollama" },
   ];
 
@@ -1081,39 +1081,70 @@ async function classifyWithOllama(message: string, modelOverride?: string): Prom
   if (llmBaseUrl) {
     try {
       console.log(`[Ollama] Trying custom LLM_BASE_URL: ${llmBaseUrl}`);
-      const response = await fetch(`${llmBaseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: Deno.env.get("LLM_MODEL") || "llama3",
-          messages: [
-            { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
-            { role: "user", content: message }
-          ],
-          temperature: 0.1,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
+      // Try OpenAI-compatible path first, then native Ollama path
+      const customPaths = [
+        { path: "/v1/chat/completions", format: "openai" },
+        { path: "/api/chat", format: "ollama" },
+      ];
+      const selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
+      const baseUrl = llmBaseUrl.replace(/\/+$/, "");
 
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "";
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const ollamaIntent = parsed.intent?.toLowerCase?.();
-          if (ollamaIntent && intentMap[ollamaIntent]) {
-            const ollamaConfidence = Math.min(Math.max(parseFloat(parsed.confidence) || 0.7, 0.1), 0.99);
-            console.log(`[Ollama/Custom] Classified as "${ollamaIntent}" with confidence ${ollamaConfidence}`);
-            return {
-              intent: ollamaIntent,
-              confidence: ollamaConfidence,
-              label: intentMap[ollamaIntent]?.label || "Sitio Web",
-            };
+      for (const cp of customPaths) {
+        try {
+          console.log(`[Ollama/Custom] Trying ${baseUrl}${cp.path} (${cp.format})`);
+          const body = cp.format === "openai"
+            ? JSON.stringify({
+                model: selectedModel,
+                messages: [
+                  { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
+                  { role: "user", content: message }
+                ],
+                temperature: 0.1,
+              })
+            : JSON.stringify({
+                model: selectedModel,
+                messages: [
+                  { role: "system", content: OLLAMA_CLASSIFY_PROMPT },
+                  { role: "user", content: message }
+                ],
+                stream: false,
+                format: "json",
+              });
+
+          const response = await fetch(`${baseUrl}${cp.path}`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body,
+            signal: AbortSignal.timeout(15000),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const content = cp.format === "openai"
+              ? (data.choices?.[0]?.message?.content || "")
+              : (data.message?.content || "");
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              const ollamaIntent = parsed.intent?.toLowerCase?.();
+              if (ollamaIntent && intentMap[ollamaIntent]) {
+                const ollamaConfidence = Math.min(Math.max(parseFloat(parsed.confidence) || 0.7, 0.1), 0.99);
+                console.log(`[Ollama/Custom] Classified as "${ollamaIntent}" with confidence ${ollamaConfidence}`);
+                return {
+                  intent: ollamaIntent,
+                  confidence: ollamaConfidence,
+                  label: intentMap[ollamaIntent]?.label || "Sitio Web",
+                };
+              }
+            }
+          } else {
+            console.warn(`[Ollama/Custom] ${baseUrl}${cp.path} returned ${response.status}`);
           }
+        } catch (err) {
+          console.warn(`[Ollama/Custom] Error with ${baseUrl}${cp.path}:`, err);
         }
       }
     } catch (err) {
