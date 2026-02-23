@@ -161,3 +161,101 @@ export async function deleteAppTable(tableId: string): Promise<void> {
     .eq("id", tableId);
   if (error) throw error;
 }
+
+// ── App Columns ──
+
+export interface AppColumn {
+  id: string;
+  table_id: string;
+  name: string;
+  column_type: string;
+  is_required: boolean;
+  default_value: string | null;
+  position: number;
+  created_at: string;
+}
+
+export async function getAppColumns(tableId: string): Promise<AppColumn[]> {
+  const { data, error } = await supabase
+    .from("app_columns")
+    .select("*")
+    .eq("table_id", tableId)
+    .order("position", { ascending: true });
+  if (error) throw error;
+  return (data || []) as AppColumn[];
+}
+
+export async function createAppColumn(
+  tableId: string,
+  name: string,
+  columnType: string = "text",
+  isRequired: boolean = false,
+  defaultValue: string | null = null
+): Promise<AppColumn> {
+  // Get next position
+  const { count } = await supabase
+    .from("app_columns")
+    .select("*", { count: "exact", head: true })
+    .eq("table_id", tableId);
+
+  const { data, error } = await supabase
+    .from("app_columns")
+    .insert({
+      table_id: tableId,
+      name,
+      column_type: columnType,
+      is_required: isRequired,
+      default_value: defaultValue,
+      position: (count || 0),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AppColumn;
+}
+
+export async function deleteAppColumn(columnId: string): Promise<void> {
+  const { error } = await supabase
+    .from("app_columns")
+    .delete()
+    .eq("id", columnId);
+  if (error) throw error;
+}
+
+// ── App Rows ──
+
+export interface AppRow {
+  id: string;
+  table_id: string;
+  data: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getAppRows(tableId: string): Promise<AppRow[]> {
+  const { data, error } = await supabase
+    .from("app_rows")
+    .select("*")
+    .eq("table_id", tableId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []) as AppRow[];
+}
+
+export async function createAppRow(tableId: string, rowData: Record<string, unknown>): Promise<AppRow> {
+  const { data, error } = await supabase
+    .from("app_rows")
+    .insert({ table_id: tableId, data: rowData as any } as any)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AppRow;
+}
+
+export async function deleteAppRow(rowId: string): Promise<void> {
+  const { error } = await supabase
+    .from("app_rows")
+    .delete()
+    .eq("id", rowId);
+  if (error) throw error;
+}
