@@ -1644,7 +1644,7 @@ function App() {
         {filtered.map((p,i)=><button key={i} onClick={()=>addToCart(p)} style={{background:'#12121a',border:'1px solid #1e1e2e',borderRadius:14,padding:'1.5rem 1rem',textAlign:'center',cursor:'pointer',transition:'all 0.2s',color:'#e2e8f0'}} onMouseOver={e=>e.currentTarget.style.borderColor='#7c3aed'} onMouseOut={e=>e.currentTarget.style.borderColor='#1e1e2e'}>
           <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>{p.icon}</div>
           <div style={{fontSize:'0.85rem',fontWeight:500}}>{p.name}</div>
-          <div style={{color:'#a78bfa',fontWeight:700,marginTop:'0.3rem'}}>${p.price.toFixed(2)}</div>
+          <div style={{color:'#a78bfa',fontWeight:700,marginTop:'0.3rem'}}>{'$'}{p.price.toFixed(2)}</div>
         </button>)}
       </div>
     </div>
@@ -1654,11 +1654,11 @@ function App() {
         {cart.length===0?<p style={{color:'#64748b',textAlign:'center',marginTop:'2rem'}}>Carrito vacío</p>:
         cart.map((c,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.6rem 0',borderBottom:'1px solid #1e1e2e'}}>
           <div><span style={{fontSize:'0.9rem'}}>{c.name}</span><span style={{color:'#64748b',fontSize:'0.8rem',marginLeft:'0.5rem'}}>x{c.qty}</span></div>
-          <span style={{fontWeight:600,color:'#a78bfa'}}>${(c.price*c.qty).toFixed(2)}</span>
+          <span style={{fontWeight:600,color:'#a78bfa'}}>{'$'}{(c.price*c.qty).toFixed(2)}</span>
         </div>)}
       </div>
       <div style={{borderTop:'2px solid #1e1e2e',paddingTop:'1rem',marginTop:'1rem'}}>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'1.2rem',fontWeight:700,marginBottom:'1rem'}}><span>Total</span><span style={{color:'#a78bfa'}}>${total.toFixed(2)}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'1.2rem',fontWeight:700,marginBottom:'1rem'}}><span>Total</span><span style={{color:'#a78bfa'}}>{'$'}{total.toFixed(2)}</span></div>
         <button onClick={()=>{if(cart.length>0){alert('¡Venta procesada!');setCart([])}}} style={{width:'100%',padding:'0.85rem',background:'linear-gradient(135deg,#7c3aed,#6366f1)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'0.95rem'}}>💳 Cobrar</button>
       </div>
     </div>
