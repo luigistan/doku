@@ -53,13 +53,19 @@ const Builder = () => {
 
         const chatMsgs = await getChatMessages(projectId);
         if (chatMsgs && chatMsgs.length > 0) {
-          const restored: Message[] = chatMsgs.map((m: { id: string; role: string; content: string; plan: unknown; created_at: string }) => ({
-            id: m.id,
-            role: m.role as "user" | "system",
-            content: m.content,
-            timestamp: new Date(m.created_at),
-            plan: m.plan as Message["plan"],
-          }));
+          const restored: Message[] = chatMsgs
+            .filter((m: { content: string }) => 
+              // Filter out temporary "analyzing" messages that were saved by mistake
+              !m.content.startsWith("🔍 Analizando") && 
+              !m.content.startsWith("⚙️ **Ejecutando plan")
+            )
+            .map((m: { id: string; role: string; content: string; plan: unknown; created_at: string }) => ({
+              id: m.id,
+              role: m.role as "user" | "system",
+              content: m.content,
+              timestamp: new Date(m.created_at),
+              plan: m.plan as Message["plan"],
+            }));
           setMessages(prev => [prev[0], ...restored]);
         }
       } catch (err) {
@@ -86,9 +92,9 @@ const Builder = () => {
   useEffect(() => {
     if (!projectId || loadingProject || messages.length <= 1) return;
     const last = messages[messages.length - 1];
-    if (last.id !== "welcome") {
-      saveChatMessage(projectId, last.role, last.content, last.plan).catch(console.error);
-    }
+    // Don't save welcome, temp, or "analyzing" messages
+    if (last.id === "welcome" || last.id.startsWith("_temp_") || last.content.startsWith("🔍 Analizando")) return;
+    saveChatMessage(projectId, last.role, last.content, last.plan).catch(console.error);
   }, [messages.length]);
 
   const handleSend = async (content: string) => {

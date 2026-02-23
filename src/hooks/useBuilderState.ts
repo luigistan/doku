@@ -165,7 +165,8 @@ export function useBuilderState(projectId?: string) {
       // Use "updating" if we already have HTML (live preview), "loading" for first generation
       setPreview((p) => ({ ...p, status: p.html && p.html.length > 100 ? "updating" : "loading" }));
 
-      const waitMsgId = (Date.now() + 99).toString();
+      // Don't persist this temporary message - use a special prefix
+      const waitMsgId = `_temp_${Date.now()}`;
       setMessages((prev) => [
         ...prev,
         {
