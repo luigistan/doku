@@ -1,72 +1,70 @@
 
 
-# Plan: Configurar Ollama Cloud paso a paso
+# Plan: Corregir modelo de Ollama Cloud
 
-## Problema actual
+## Problema
 
-El sistema no funciona porque falta la pieza clave: **no hay API key de Ollama configurada**. La edge function verifica `OLLAMA_API_KEY` y al no encontrarla, siempre devuelve el mensaje de error "motor de IA no disponible".
+`gemma3` es un modelo LOCAL de Ollama, no esta disponible en Ollama Cloud (`ollama.com/api`). Por eso ambos endpoints devuelven 404: `"model 'gemma3' not found"`.
 
-## Paso 1: Agregar el secreto OLLAMA_API_KEY
+Segun la documentacion oficial de Ollama, los modelos cloud disponibles son:
+- `gpt-oss:120b` y `gpt-oss:20b` (proposito general)
+- `glm-4.7:cloud` (alto rendimiento)
+- `minimax-m2.1:cloud` (rapido)
 
-Necesitas crear una API key en tu cuenta de Ollama:
-1. Ve a https://ollama.com/settings/keys
-2. Crea una nueva API key
-3. Lovable te pedira que la pegues como secreto de Supabase
+## Solucion
 
-## Paso 2: Corregir los endpoints de la API en la edge function
+Cambiar el modelo default a `gpt-oss:20b` (modelo cloud real, proposito general, bueno para generar HTML) y actualizar los aliases para que todo apunte a modelos cloud validos.
 
-Segun la documentacion oficial de Ollama, los endpoints correctos para Ollama Cloud son:
+## Cambios
 
-| Actual (incorrecto) | Correcto (segun docs) |
-|---|---|
-| `https://ollama.com/v1/chat/completions` | `https://ollama.com/api/chat` |
-| `https://ollama.com/api/chat` | Ya existe, mantener |
+### 1. `supabase/functions/builder-ai/index.ts`
 
-La respuesta de `/api/chat` (no-streaming) tiene este formato:
-```json
-{
-  "model": "gemma3",
-  "message": { "role": "assistant", "content": "..." },
-  "done": true
-}
+En la funcion `callOllama` (~linea 378-393):
+
+- Cambiar default de `"gemma3"` a `"gpt-oss:20b"`
+- Actualizar `modelAliases` para mapear modelos locales a cloud:
+
+```typescript
+let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gpt-oss:20b";
+
+const modelAliases: Record<string, string> = {
+  "llama3": "gpt-oss:20b",
+  "llama3.1": "gpt-oss:20b",
+  "llama3.2": "gpt-oss:20b",
+  "llama3.3": "gpt-oss:20b",
+  "llama2": "gpt-oss:20b",
+  "gemma3": "gpt-oss:20b",
+  "qwen3": "gpt-oss:20b",
+};
 ```
 
-Cambios en `supabase/functions/builder-ai/index.ts`:
-- Reordenar endpoints: probar primero `https://ollama.com/api/chat` (API nativa)
-- Mantener `https://ollama.com/v1/chat/completions` como fallback (OpenAI compat)
-- Agregar `stream: false` explicitamente en ambos endpoints
-- Mejorar el logging para diagnostico
+- IMPORTANTE: Eliminar la normalizacion que quita el `:` del modelo (lineas 381-385), porque los modelos cloud usan `:` como parte del nombre (`gpt-oss:20b`, `glm-4.7:cloud`).
 
-## Paso 3: Actualizar la UI de configuracion
+### 2. `src/components/builder/ProjectSettings.tsx`
 
-En `src/components/builder/ProjectSettings.tsx`:
-- Eliminar el umbral de confianza (ya no hay motor de reglas, todo va por Ollama)
-- Actualizar los textos descriptivos para reflejar que Ollama es el unico motor
-- Simplificar: el toggle ya no dice "respaldo", sino "Motor principal"
+- Actualizar default de `"gemma3"` a `"gpt-oss:20b"` en el estado inicial
+- Actualizar placeholder del input
 
-## Paso 4: Actualizar el servicio del cliente
+### 3. `src/services/builderService.ts`
 
-En `src/services/builderService.ts`:
-- Siempre enviar `ollamaModel` al edge function (ya no es condicional basado en `enabled`)
-- Eliminar la lectura de `confidenceThreshold` del localStorage
+- Actualizar default de `"gemma3"` a `"gpt-oss:20b"`
 
-## Paso 5: Deploy y test
+### 4. Deploy
 
-Redesplegar la edge function `builder-ai` con los cambios.
+Redesplegar `builder-ai`.
 
-## Seccion tecnica - Archivos a modificar
+## Seccion tecnica
 
-| Archivo | Cambios |
+| Archivo | Cambio |
 |---|---|
-| Secreto `OLLAMA_API_KEY` | Agregar via herramienta de secretos de Supabase |
-| `supabase/functions/builder-ai/index.ts` | Reordenar endpoints, priorizar `/api/chat`, mejorar logging |
-| `src/components/builder/ProjectSettings.tsx` | Simplificar UI, eliminar umbral, actualizar textos |
-| `src/services/builderService.ts` | Siempre enviar modelo, eliminar logica condicional de `enabled` |
+| `supabase/functions/builder-ai/index.ts` | Default `gpt-oss:20b`, eliminar normalizacion de `:`, aliases actualizados |
+| `src/components/builder/ProjectSettings.tsx` | Default y placeholder `gpt-oss:20b` |
+| `src/services/builderService.ts` | Default `gpt-oss:20b` |
 
-## Resultado esperado
+## Modelos cloud alternativos
 
-1. El usuario pega su OLLAMA_API_KEY
-2. La edge function usa `https://ollama.com/api/chat` con Bearer auth
-3. Ollama Cloud responde con el modelo `gemma3` (o el que elija el usuario)
-4. El sistema genera sitios web y responde conversacionalmente via Ollama
+Si `gpt-oss:20b` no funciona bien, se puede cambiar a:
+- `gpt-oss:120b` (mas potente, mas lento)
+- `glm-4.7:cloud` (alto rendimiento)
+- `minimax-m2.1:cloud` (rapido)
 
