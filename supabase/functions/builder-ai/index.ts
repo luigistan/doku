@@ -1949,11 +1949,11 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
   }
 }
 
-// ==================== SHORT LLM CALLS (Optimized for llama3.1:8b) ====================
-async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | null> {
+// ==================== SHORT LLM CALLS (Optimized for llama3.1:70b) ====================
+async function callLLMShort(prompt: string, maxTokens = 500): Promise<string | null> {
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "llama3.1:8b";
+  const model = Deno.env.get("LLM_MODEL") || "llama3.1:70b";
 
   try {
     if (provider === "ollama") {
@@ -1967,10 +1967,9 @@ async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | n
           options: {
             num_predict: maxTokens,
             temperature: 0.7,
-            ...(maxTokens <= 500 ? { stop: ["\n\n\n", "---", "```"] } : {}),
           },
         }),
-        signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
+        signal: AbortSignal.timeout(maxTokens > 1000 ? 120000 : 45000),
       });
       if (!response.ok) return null;
       const data = await response.json();
@@ -2111,18 +2110,36 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
 }
 
 function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
-  return `Eres un generador de sitios web profesionales.
-Genera HTML completo (desde <!DOCTYPE html> hasta </html>), moderno, responsivo.
-Usa Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-Usa imagenes de https://images.unsplash.com para fondos y fotos relevantes.
-El diseno debe ser oscuro, moderno, profesional.
+  return `Eres un experto generador de sitios web profesionales de alta calidad.
 
-Tipo de sitio: ${intent} (${label})
-Negocio: ${entities.businessName}
-Secciones requeridas: ${entities.sections.join(", ")}
-Esquema de colores: ${entities.colorScheme}
+GENERA HTML COMPLETO (desde <!DOCTYPE html> hasta </html>) con las siguientes caracteristicas:
 
-IMPORTANTE: Responde SOLO con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
+TECNOLOGIAS:
+- Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+- Iconos SVG inline para elementos visuales (flechas, estrellas, iconos de redes sociales, etc.)
+- Imagenes relevantes de Unsplash: https://images.unsplash.com/photo-[id]?w=800&q=80 (usa parametros de busqueda adecuados al tipo de negocio)
+
+ESTRUCTURA SEMANTICA OBLIGATORIA:
+- <header> con navegacion <nav> y logo/nombre del negocio
+- <main> con las secciones solicitadas
+- <footer> con informacion de contacto, redes sociales y copyright
+
+DISENO Y ESTILO:
+- Esquema de colores: ${entities.colorScheme} - usa una paleta coherente y profesional
+- Diseno oscuro, moderno y premium con gradientes sutiles
+- Animaciones CSS: transiciones hover en botones y tarjetas, fade-in para secciones
+- Tipografia con jerarquia clara (hero grande y bold, subtitulos medios, texto body legible)
+- Fully responsive con clases de Tailwind (mobile-first)
+
+CONTENIDO:
+- Escribe contenido REAL y relevante para "${entities.businessName}" (tipo: ${intent}/${label})
+- NO uses Lorem Ipsum ni texto placeholder
+- Incluye llamadas a la accion (CTAs) convincentes
+- Testimonios con nombres y cargos realistas si se piden
+
+SECCIONES REQUERIDAS: ${entities.sections.join(", ")}
+
+IMPORTANTE: Responde UNICAMENTE con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
 El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
 }
 
@@ -2213,12 +2230,12 @@ serve(async (req) => {
     // 5. Generate HTML - Try FULL LLM generation first, fallback to hybrid
     let html: string;
 
-    // Step A: Attempt full HTML generation with llama3.1:8b (60s timeout, 2000 tokens)
+    // Step A: Attempt full HTML generation with llama3.1:70b (120s timeout, 4000 tokens)
     const systemPrompt = buildSystemPrompt(intent, label, entities);
-    const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
+    const fullHtmlResult = await callLLMShort(systemPrompt, 4000);
     const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
 
-    if (extractedHtml && extractedHtml.length > 200) {
+    if (extractedHtml && extractedHtml.length > 500) {
       // Full LLM generation succeeded
       html = extractedHtml;
       console.log(`[Full LLM] HTML generated successfully (${extractedHtml.length} chars)`);
