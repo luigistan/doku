@@ -29,11 +29,6 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => {
-  // Prevent the full app from rendering inside an iframe (preview duplication bug)
-  if (window.self !== window.top) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
