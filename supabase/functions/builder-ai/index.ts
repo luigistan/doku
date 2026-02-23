@@ -1450,7 +1450,7 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-type="module">
+<script type="text/babel" data-presets="react,typescript">
 const { useState, useEffect, useRef } = React;
 ${components.join("\n")}
 
