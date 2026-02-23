@@ -7,7 +7,7 @@ const Home = () => {
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-6 py-3 max-w-6xl mx-auto">
+        <div className="flex items-center justify-between px-6 py-3 max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             <img src="/doku-logo.png" alt="DOKU AI" className="h-8 w-8 rounded-lg" />
             <span className="text-lg font-bold">DOKU AI</span>
@@ -33,7 +33,7 @@ const Home = () => {
           <div className="absolute top-1/3 left-1/4 w-[300px] h-[300px] bg-accent/5 rounded-full blur-[80px]" />
         </div>
 
-        <div className="relative max-w-4xl mx-auto text-center">
+        <div className="relative max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-brain/20 bg-brain/10 px-4 py-1.5 text-xs font-semibold text-brain mb-8">
             <Sparkles className="h-3.5 w-3.5" />
             100% OPEN SOURCE & GRATUITO
@@ -68,7 +68,7 @@ const Home = () => {
 
       {/* Stats */}
       <section className="py-12 px-6 border-y border-border/50">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             { value: "12+", label: "Industrias" },
             { value: "15+", label: "Bloques UI" },
@@ -85,7 +85,7 @@ const Home = () => {
 
       {/* Features */}
       <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-xs font-semibold text-brain uppercase tracking-widest">Características</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">¿Qué hace DOKU AI?</h2>
@@ -116,7 +116,7 @@ const Home = () => {
 
       {/* How it works */}
       <section className="py-24 px-6 bg-surface-1">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-xs font-semibold text-execute uppercase tracking-widest">Proceso</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">Así de fácil funciona</h2>
@@ -147,7 +147,7 @@ const Home = () => {
 
       {/* Collaborate */}
       <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-xs font-semibold text-brain uppercase tracking-widest">Comunidad</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-3 mb-4">¿Cómo Colaborar?</h2>
@@ -203,7 +203,7 @@ const Home = () => {
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-brain/8 rounded-full blur-[100px]" />
         </div>
-        <div className="relative max-w-2xl mx-auto text-center">
+        <div className="relative max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">¿Listo para crear?</h2>
           <p className="text-muted-foreground mb-8 text-lg">
             Crea tu cuenta gratis y empieza a generar sitios web profesionales con DOKU AI.
@@ -216,7 +216,7 @@ const Home = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 text-sm">
             <img src="/doku-logo.png" alt="DOKU AI" className="h-6 w-6 rounded" />
             <span className="font-semibold text-foreground">DOKU AI</span>
