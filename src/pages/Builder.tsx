@@ -23,7 +23,7 @@ const Builder = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
 
-  const { mode, setMode, messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment } = useBuilderState();
+  const { messages, setMessages, preview, setPreview, isTyping, sendMessage, confirmExecution, requestAdjustment } = useBuilderState();
 
   // Load project data
   useEffect(() => {
@@ -121,8 +121,6 @@ const Builder = () => {
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
           <ChatPanel
-            mode={mode}
-            onModeChange={setMode}
             messages={messages}
             isTyping={isTyping}
             onSend={handleSend}
@@ -139,6 +137,8 @@ const Builder = () => {
               setPreview((p) => ({ ...p, html: p.html + " " }));
               setTimeout(() => setPreview((p) => ({ ...p, html: p.html.trim() })), 50);
             }}
+            projectSlug={projectSlug}
+            isPublic={isPublic}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
