@@ -20,6 +20,7 @@ const viewportWidths: Record<ViewportSize, string> = {
 const statusConfig = {
   idle: { icon: Globe, label: "Listo", color: "text-muted-foreground" },
   loading: { icon: Loader2, label: "Generando...", color: "text-brain" },
+  updating: { icon: Loader2, label: "Actualizando...", color: "text-brain" },
   ready: { icon: CheckCircle2, label: "Listo", color: "text-execute" },
   error: { icon: AlertCircle, label: "Error", color: "text-destructive" },
 };
@@ -169,7 +170,15 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
           />
         </div>
 
-        {/* DOKU loading overlay */}
+        {/* Subtle updating indicator (no overlay, preview stays visible) */}
+        {preview.status === "updating" && (
+          <div className="absolute top-16 right-6 z-10 flex items-center gap-2 rounded-lg border border-border bg-surface-1/95 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-brain" />
+            <span className="text-xs font-medium text-foreground">Actualizando...</span>
+          </div>
+        )}
+
+        {/* DOKU loading overlay - only for first generation */}
         {preview.status === "loading" && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background">
             <div
