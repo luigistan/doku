@@ -996,11 +996,22 @@ async function classifyWithOllama(message: string, modelOverride?: string): Prom
       console.log(`[Ollama] Trying ${endpoint.url} (${endpoint.format} format)`);
       
       let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
-      // Ollama Cloud no soporta tags de version como :8b, :70b - usar modelo base
+      // 1. Quitar tags de version (:8b, :70b, :latest)
       if (selectedModel.includes(":")) {
         const baseModel = selectedModel.split(":")[0];
         console.log(`[Ollama] Normalizing model "${selectedModel}" -> "${baseModel}"`);
         selectedModel = baseModel;
+      }
+      // 2. Mapear variantes que no existen en Ollama Cloud
+      const modelAliases: Record<string, string> = {
+        "llama3.1": "llama3",
+        "llama3.2": "llama3",
+        "llama3.3": "llama3",
+        "llama2": "llama3",
+      };
+      if (modelAliases[selectedModel]) {
+        console.log(`[Ollama] Mapping model "${selectedModel}" -> "${modelAliases[selectedModel]}"`);
+        selectedModel = modelAliases[selectedModel];
       }
       const body = endpoint.format === "openai" 
         ? JSON.stringify({
