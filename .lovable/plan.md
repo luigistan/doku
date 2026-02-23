@@ -1,99 +1,98 @@
 
-## Plan: Base de Datos Multi-Tenant para Proyectos del Usuario
+
+## Plan: Creacion Automatica de Tablas segun el Tipo de Proyecto
 
 ### Concepto
 
-Agregar una seccion "Base de Datos" en el modal de Configuracion del Proyecto (entre "Visibilidad" y "Eliminar proyecto"). El usuario podra activar una base de datos gestionada por DOKU para su proyecto, crear tablas dinamicas, definir columnas, y ver/editar filas -- todo sin salir del builder.
+Cuando el AI genera un sitio (por ejemplo, un e-commerce), el sistema automaticamente crea las tablas de base de datos que ese tipo de proyecto necesita. El usuario no tiene que hacer nada -- las tablas aparecen creadas en la seccion "Base de Datos" de Configuracion.
 
-Se usa el modelo multi-tenant que propones: una sola DB de Supabase con `project_id` en cada fila y RLS que garantiza aislamiento total.
+### Esquema de tablas por intent
 
-### Mejora al modelo propuesto
-
-Tu modelo es solido. Estas son las mejoras que recomiendo:
-
-1. **`app_tables` + `app_columns` + `app_rows`** es mejor que `app_data_json` porque:
-   - Permite validacion de tipos por columna
-   - Soporta indices futuros por columna
-   - Permite exportar a SQL real si el usuario migra
-
-2. **Agregar `column_type` enum** con tipos basicos: `text`, `number`, `boolean`, `date`, `email`, `url`, `select` -- esto permite que la IA genere formularios automaticos
-
-3. **Agregar `app_rows.data` como JSONB** en lugar de una columna por campo -- esto da flexibilidad total sin alterar el schema cuando el usuario agrega columnas
-
-4. **Toggle `db_enabled` en la tabla `projects`** para saber si el proyecto tiene DB activa
-
-### Nuevas tablas (migracion SQL)
+Se define un mapa `intentDatabaseSchema` que asocia cada tipo de proyecto con las tablas y columnas que necesita:
 
 ```text
-projects (agregar columna)
-  +-- db_enabled boolean default false
+ecommerce:
+  - products: name(text), description(text), price(number), image_url(url), category(text), stock(number), active(boolean)
+  - orders: customer_name(text), customer_email(email), total(number), status(select), order_date(date)
+  - customers: name(text), email(email), phone(text), address(text)
 
-app_tables
-  id uuid PK
-  project_id uuid FK -> projects.id
-  name text (nombre de la tabla del usuario)
-  created_at timestamp
+restaurant:
+  - menu_items: name(text), description(text), price(number), category(text), image_url(url), available(boolean)
+  - reservations: customer_name(text), customer_email(email), date(date), guests(number), status(select), notes(text)
 
-app_columns
-  id uuid PK
-  table_id uuid FK -> app_tables.id
-  name text
-  column_type text (text | number | boolean | date | email | url | select)
-  is_required boolean default false
-  default_value text nullable
-  position integer default 0
-  created_at timestamp
+fitness:
+  - members: name(text), email(email), phone(text), plan(select), start_date(date), active(boolean)
+  - classes: name(text), instructor(text), schedule(text), capacity(number), category(text)
 
-app_rows
-  id uuid PK
-  table_id uuid FK -> app_tables.id
-  data jsonb (las columnas del usuario como JSON)
-  created_at timestamp
-  updated_at timestamp
+clinic:
+  - patients: name(text), email(email), phone(text), birth_date(date), notes(text)
+  - appointments: patient_name(text), doctor(text), date(date), status(select), notes(text)
+
+hotel:
+  - rooms: name(text), type(select), price(number), capacity(number), available(boolean), description(text)
+  - reservations: guest_name(text), guest_email(email), room(text), check_in(date), check_out(date), status(select)
+
+education:
+  - courses: name(text), description(text), instructor(text), price(number), duration(text), level(select)
+  - students: name(text), email(email), phone(text), enrolled_date(date), course(text)
+
+realestate:
+  - properties: title(text), description(text), price(number), location(text), type(select), bedrooms(number), image_url(url)
+  - inquiries: name(text), email(email), phone(text), property(text), message(text), date(date)
+
+salon:
+  - services: name(text), description(text), price(number), duration(text), category(text)
+  - appointments: client_name(text), client_phone(text), service(text), date(date), status(select)
+
+veterinary:
+  - patients: pet_name(text), species(select), breed(text), owner_name(text), owner_phone(text), notes(text)
+  - appointments: pet_name(text), owner_name(text), date(date), reason(text), status(select)
+
+(landing, portfolio, blog, dashboard, agency, lawyer, accounting, photography, music, technology: sin tablas automaticas -- son sitios informativos)
 ```
 
-### RLS (aislamiento total)
+### Flujo de ejecucion
 
-Todas las tablas usan la misma logica:
+1. El usuario pide un sitio (ej: "Crea una tienda online de zapatillas")
+2. El AI clasifica como `ecommerce`, genera el HTML normalmente
+3. **NUEVO**: Despues de generar el HTML, el edge function:
+   a. Activa `db_enabled = true` en el proyecto
+   b. Crea las tablas definidas para ese intent (`products`, `orders`, `customers`)
+   c. Crea las columnas para cada tabla
+4. El response incluye un nuevo campo `dbTablesCreated` con la lista de tablas creadas
+5. El frontend muestra un mensaje: "Se crearon automaticamente las tablas: Productos, Pedidos, Clientes"
+6. El usuario puede ver y gestionar las tablas en Configuracion > Base de Datos
 
-- SELECT/INSERT/UPDATE/DELETE: solo si el usuario es dueno del `project_id` asociado
-- Para `app_columns` y `app_rows`: se valida via JOIN a `app_tables.project_id -> projects.user_id`
-
-Ejemplo de politica:
-```text
-"El usuario solo puede acceder a filas donde
- app_tables.project_id pertenece a un proyecto suyo"
-```
-
-### Cambios en la UI
-
-**`ProjectSettings.tsx`** -- nueva seccion "Base de Datos" con:
-
-1. **Toggle de activacion**: Boton "Activar Base de Datos" que cambia `db_enabled` a true
-2. **Lista de tablas**: Cuando esta activo, muestra las tablas creadas con un boton "+ Nueva tabla"
-3. **Crear tabla**: Input para nombre + boton crear
-4. **Indicador visual**: Icono de Database con badge verde cuando esta activo
-
-**`projectService.ts`** -- nuevas funciones:
-
-- `enableProjectDb(projectId)` -- actualiza `db_enabled = true`
-- `getAppTables(projectId)` -- lista tablas del proyecto
-- `createAppTable(projectId, name)` -- crea una tabla
-- `deleteAppTable(tableId)` -- elimina tabla y sus columnas/filas en cascada
-
-El editor completo de columnas y filas (tipo Airtable) se implementara como un componente separado `DatabaseManager.tsx` accesible desde el builder.
-
-### Archivos a modificar/crear
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| Migracion SQL | Crear `app_tables`, `app_columns`, `app_rows` + agregar `db_enabled` a `projects` + RLS policies |
-| `src/services/projectService.ts` | Agregar funciones CRUD para tablas de la app |
-| `src/components/builder/ProjectSettings.tsx` | Agregar seccion "Base de Datos" con toggle y lista de tablas |
-| `src/pages/Builder.tsx` | Pasar nuevo estado `dbEnabled` al modal de settings |
+| `supabase/functions/builder-ai/index.ts` | Agregar mapa `intentDatabaseSchema`, funcion `autoCreateProjectTables()` que crea tablas+columnas via Supabase client, llamar despues de generar HTML |
+| `src/hooks/useBuilderState.ts` | Leer `dbTablesCreated` del response y mostrar mensaje al usuario |
+| `src/pages/Builder.tsx` | Actualizar `dbEnabled` state cuando el AI crea tablas automaticamente |
 
-### Secuencia de implementacion
+### Detalles tecnicos
 
-1. Migracion SQL: crear tablas + RLS
-2. Service layer: funciones CRUD
-3. UI: seccion en ProjectSettings con toggle + lista de tablas + crear tabla
+**Edge function (`builder-ai/index.ts`)**:
+
+La funcion `autoCreateProjectTables` recibe `projectId`, `intent`, y el service role client de Supabase:
+
+1. Verifica si el proyecto ya tiene tablas (para no duplicar si el usuario regenera)
+2. Si no tiene tablas, activa `db_enabled` y crea las tablas+columnas del schema
+3. Usa el service role key (ya disponible en el edge function) para bypasear RLS
+4. Retorna la lista de tablas creadas
+
+**Frontend (`useBuilderState.ts`)**:
+
+Cuando el response incluye `dbTablesCreated`, se agrega un mensaje extra al chat:
+
+"Se configuraron automaticamente X tablas para tu proyecto: [lista]"
+
+Y se emite un evento para que Builder.tsx actualice el estado `dbEnabled`.
+
+### Protecciones
+
+- No se duplican tablas si ya existen para ese proyecto
+- Solo se crean tablas para intents que tienen schema definido
+- Se usa `service_role_key` en el edge function (no el anon key) para poder crear sin RLS issues
+- Si falla la creacion de tablas, el sitio se genera igual (no es bloqueante)
