@@ -1,109 +1,72 @@
 
 
-# Plan: Corregir el error de formularios y hacer que la base de datos sea completamente automatica
+# Plan: Corregir el error de carga recursiva del iframe (duplicacion de pantalla)
 
-## Problema diagnosticado
+## Problema
 
-Se encontraron 3 problemas encadenados que causan el "Error - Reintentar":
+Cuando el usuario hace clic en links de navegacion del sitio generado (ej. "Inicio", "Productos", "Contacto" en el E-Shop), la pagina completa de DOKU Builder se carga dentro del iframe del preview, causando una "pantalla duplicada" recursiva.
 
-1. **Tablas existentes bloquean la creacion de nuevas**: El proyecto ya tenia tablas `contacts` y `deals` (de una generacion anterior). Cuando se detecto el intent `billing`, AutoDB vio que ya habia tablas y no creo las nuevas (`clients`, `invoices`, `users`).
+## Causa raiz
 
-2. **El LLM no sabe que tablas existen**: El system prompt le dice al LLM que use ciertos nombres de tabla, pero no le informa cuales ya estan creadas en el proyecto. El HTML generado referencia `users`, `clients`, `invoices` pero esas tablas no existen.
+El navigation guard actual tiene varias debilidades:
 
-3. **El crud-api falla silenciosamente**: Cuando recibe `tableName="users"` y la tabla no existe, devuelve 404 sin intentar crearla.
+1. **`e.target.closest('a')` falla con SVGs**: Si el click target es un elemento SVG dentro de un link, `closest` puede no encontrar el `<a>` padre, permitiendo la navegacion
+2. **No bloquea cambios de `location`**: JavaScript puede cambiar `window.location.href` directamente y el guard no lo intercepta
+3. **`beforeunload` no previene navegacion en iframes**: Los navegadores ignoran `e.preventDefault()` en `beforeunload` dentro de iframes con `allow-same-origin`
+4. **Links generados con `href="/"`**: El LLM genera links con `href="/"` o `href="/productos"` que, al no ser `#hash`, deberian bloquearse pero pueden escapar
 
-## Solucion (3 cambios)
+## Solucion
 
-### 1. `supabase/functions/crud-api/index.ts` - Auto-crear tablas que no existen
+Reforzar el navigation guard en `PreviewPanel.tsx` con multiples capas de proteccion:
 
-Cuando el action es `create` y la tabla no se encuentra, en vez de devolver 404, crearla automaticamente con las columnas extraidas del `data` enviado.
+### Cambios en `src/components/builder/PreviewPanel.tsx`
+
+Actualizar la funcion `injectNavigationGuard` para agregar:
+
+1. **Click handler mas robusto**: Usar `composedPath()` para encontrar el `<a>` ancestro incluso con SVGs y Shadow DOM
+2. **Convertir links peligrosos a `#`**: Un MutationObserver que automaticamente convierte cualquier `href` que no sea `#hash`, `mailto:`, `tel:` a `href="#"` tan pronto como aparece en el DOM
+3. **Bloquear `location` setter**: Interceptar asignaciones a `window.location` usando `Object.defineProperty` para bloquear navegacion programatica
+4. **Scroll suave para links de seccion**: Los links tipo "Inicio", "Productos" se convierten en scroll suave a la seccion correspondiente (buscando por id o por texto)
 
 ```text
-Flujo actual:
-  form submit -> crud-api -> "Table not found" -> ERROR
-
 Flujo corregido:
-  form submit -> crud-api -> tabla no existe? -> crearla con columnas del data -> insertar row -> OK
+  1. HTML se carga en iframe
+  2. MutationObserver escanea todos los <a> y convierte hrefs peligrosos a "#"
+  3. Click handler usa composedPath() para capturar clicks en SVGs dentro de <a>
+  4. location.href bloqueado por Object.defineProperty
+  5. No hay forma de que el iframe navegue a la URL del builder
 ```
 
-Cambios especificos:
-- En la seccion `action === "create"`, si la tabla no existe:
-  1. Crear registro en `app_tables` con el nombre recibido
-  2. Crear columnas en `app_columns` basadas en las keys del objeto `data`
-  3. Insertar el row normalmente en `app_rows`
+### Detalle del MutationObserver (sanitizar links)
 
-### 2. `supabase/functions/builder-ai/index.ts` - Pasar tablas existentes al LLM
+Escanea el DOM al cargar y observa cambios para:
+- `href="/"` se convierte a `href="#"`
+- `href="/productos"` se convierte a `href="#productos"`
+- `href="https://..."` se convierte a `href="#"` (links externos)
+- `href="#contacto"` se mantiene igual (ya es hash)
+- `href="mailto:..."` se mantiene igual
+- `href="tel:..."` se mantiene igual
 
-Antes de llamar a Ollama, consultar las tablas existentes del proyecto y agregarlas al prompt para que el LLM use los nombres correctos.
-
-Cambios especificos:
-- Cargar tablas existentes con sus columnas antes de llamar a `callOllama`
-- Agregar al mensaje del usuario un contexto como: `[TABLAS EXISTENTES: contacts(name,email,phone,company,status,notes), deals(title,contact_name,value,stage,expected_close,notes)]`
-- Asi el LLM generara `data-doku-table="contacts"` en vez de inventar nombres
-
-### 3. `supabase/functions/builder-ai/index.ts` - AutoDB no debe bloquear por tablas de otro intent
-
-Modificar `autoCreateProjectTables` para que en vez de verificar "si hay alguna tabla, skip", verifique tabla por tabla si ya existe.
-
-Cambios especificos:
-- En vez de `if (existingTables.length > 0) return`, consultar las tablas existentes por nombre
-- Solo crear las tablas del schema que NO existan aun
-- Asi si el proyecto tenia `contacts`/`deals` y ahora necesita `clients`/`invoices`, se crean las que faltan
-
-### 4. Deploy
-
-Redesplegar `builder-ai` y `crud-api`.
-
-## Seccion tecnica
-
-| Archivo | Cambio |
-|---|---|
-| `supabase/functions/crud-api/index.ts` | Auto-crear tabla + columnas cuando no existe (en action "create") |
-| `supabase/functions/builder-ai/index.ts` | Pasar tablas existentes al LLM como contexto; AutoDB crea solo tablas faltantes |
-
-### Auto-creacion de tabla en crud-api (pseudocodigo)
+### Detalle del bloqueo de location
 
 ```text
-if (action === "create") {
-  // Intentar resolver tabla
-  let table = buscar en app_tables por nombre y projectId
-
-  if (!table) {
-    // Auto-crear tabla
-    table = INSERT en app_tables (project_id, name)
-    
-    // Crear columnas basadas en las keys del data
-    for (key in data) {
-      INSERT en app_columns (table_id, name, column_type: inferir_tipo(data[key]))
-    }
-    
-    // Habilitar db_enabled en el proyecto
-    UPDATE projects SET db_enabled = true WHERE id = projectId
-  }
-
-  // Insertar row normalmente
-  INSERT en app_rows (table_id, data)
-}
+// Prevenir window.location = "..."
+Object.defineProperty(window, 'location', {
+  configurable: false,
+  get: function() { return currentLocation; },
+  set: function() { /* bloqueado */ }
+});
 ```
 
-### Contexto de tablas para el LLM
+Nota: si `Object.defineProperty` en `location` no es posible (restriccion del navegador), se usa un `setInterval` de 100ms que detecta si la URL del iframe cambio y la revierte.
 
-```text
-// Antes de llamar a callOllama:
-const existingTables = await cargar tablas y columnas del proyecto
-const tableContext = existingTables.map(t => 
-  t.name + "(" + t.columns.join(",") + ")"
-).join(", ");
+### Tambien aplicar a `src/pages/PublicPreview.tsx`
 
-// Agregar al mensaje:
-message += "\n[TABLAS BD: " + tableContext + "]"
-```
+El preview publico (`/p/:slug` y `/preview/:projectId`) tambien tiene un iframe sin navigation guard. Aplicar la misma proteccion para evitar el mismo problema en la vista publica.
 
 ## Resultado esperado
 
-1. El usuario dice "crea un sistema de facturacion"
-2. El LLM ve las tablas existentes y las usa, o usa nombres nuevos
-3. Si las tablas no existen, se crean automaticamente al primer envio del formulario
-4. El registro de "hola@hola.com" se guarda correctamente en la BD
-5. No mas errores "Table not found"
-
+- Los links de navegacion del sitio generado no causan recarga
+- Los links `#seccion` hacen scroll suave a la seccion correspondiente
+- Los formularios siguen funcionando con el CRUD SDK
+- No hay forma de que el iframe cargue la URL del builder
