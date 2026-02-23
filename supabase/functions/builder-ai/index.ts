@@ -1950,10 +1950,10 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
 }
 
 // ==================== SHORT LLM CALLS (Optimized for llama3.1:8b) ====================
-async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | null> {
+async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | null> {
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "llama3.1:8b";
+  const model = Deno.env.get("OLLAMA_MODEL") || Deno.env.get("LLM_MODEL") || "llama3.1:8b";
 
   try {
     if (provider === "ollama") {
@@ -1965,8 +1965,11 @@ async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | n
           prompt,
           stream: false,
           options: {
+            temperature: 0.3,
+            top_p: 0.9,
+            num_ctx: 4096,
+            repeat_penalty: 1.12,
             num_predict: maxTokens,
-            temperature: 0.7,
           },
         }),
         signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
