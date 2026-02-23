@@ -1622,33 +1622,8 @@ function composeReactHtml(config: BlockConfig): string {
   }
 
   // Auth
-  if (sections.includes("auth") || sections.includes("login")) {
-    htmlSections.push(`
-  <section id="auth" class="section section-alt">
-    <div class="container" style="max-width:480px;margin:0 auto">
-      <div class="section-header"><h2>Accede a tu cuenta</h2><p>Inicia sesión o regístrate para disfrutar de todos los beneficios</p></div>
-      <div class="card" style="padding:2.5rem">
-        <div style="display:flex;gap:0;margin-bottom:1.5rem;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border)">
-          <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:0.75rem;background:var(--primary);color:#fff;border:none;cursor:pointer;font-weight:600;font-family:var(--font-body);font-size:0.9rem;transition:all var(--transition)">Iniciar Sesión</button>
-          <button id="tab-register" onclick="switchAuthTab('register')" style="flex:1;padding:0.75rem;background:transparent;color:var(--text-muted);border:none;cursor:pointer;font-weight:600;font-family:var(--font-body);font-size:0.9rem;transition:all var(--transition)">Registrarse</button>
-        </div>
-        <form id="login-form" onsubmit="event.preventDefault()" style="display:flex;flex-direction:column;gap:1rem">
-          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Email</label><input type="email" placeholder="tu@email.com" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
-          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Contraseña</label><input type="password" placeholder="••••••••" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
-          <button class="btn" style="width:100%;justify-content:center;margin-top:0.5rem">Iniciar Sesión</button>
-          <p style="text-align:center;font-size:0.82rem;color:var(--text-muted)">¿Olvidaste tu contraseña? <a href="#" style="color:var(--primary-light)">Recupérala aquí</a></p>
-        </form>
-        <form id="register-form" onsubmit="event.preventDefault()" style="display:none;flex-direction:column;gap:1rem">
-          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Nombre completo</label><input type="text" placeholder="Juan Pérez" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
-          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Email</label><input type="email" placeholder="tu@email.com" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
-          <div><label style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;display:block">Contraseña</label><input type="password" placeholder="Mínimo 8 caracteres" style="width:100%;padding:0.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.95rem;font-family:var(--font-body)"/></div>
-          <button class="btn" style="width:100%;justify-content:center;margin-top:0.5rem">Crear Cuenta</button>
-          <p style="text-align:center;font-size:0.82rem;color:var(--text-muted)">Al registrarte aceptas nuestros <a href="#" style="color:var(--primary-light)">términos y condiciones</a></p>
-        </form>
-      </div>
-    </div>
-  </section>`);
-  }
+  // Auth section is now rendered as a React component (AuthSection) in the JSX output
+  // No need to push HTML here - it's handled in the React template below
 
   // User Panel
   if (sections.includes("user-panel")) {
@@ -1717,7 +1692,35 @@ function composeReactHtml(config: BlockConfig): string {
   </footer>`);
   }
 
-  // Build complete HTML document (pure HTML + CSS, NO React/Babel)
+  // Build complete HTML document with React 18 + Babel standalone
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+  const hasAuth = sections.includes("auth") || sections.includes("login");
+
+  // Convert HTML sections into React component functions
+  const reactComponents: string[] = [];
+  
+  // Each section becomes a React component
+  for (let i = 0; i < htmlSections.length; i++) {
+    const sectionHtml = htmlSections[i]
+      .replace(/class=/g, 'className=')
+      .replace(/for=/g, 'htmlFor=')
+      .replace(/onclick=/g, 'onClick=')
+      .replace(/onsubmit=/g, 'onSubmit=')
+      .replace(/onmouseover=/g, 'onMouseOver=')
+      .replace(/onmouseout=/g, 'onMouseOut=')
+      .replace(/onfocus=/g, 'onFocus=')
+      .replace(/onblur=/g, 'onBlur=')
+      .replace(/crossorigin/g, 'crossOrigin')
+      .replace(/colspan=/g, 'colSpan=')
+      .replace(/tabindex=/g, 'tabIndex=')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\{(\d+)\}/g, '{"$1"}');
+    reactComponents.push(sectionHtml);
+  }
+
+  const allSectionsJSX = reactComponents.join("\n");
+
   return `<!DOCTYPE html>
 <html lang="es" dir="ltr">
 <head>
@@ -1729,8 +1732,12 @@ function composeReactHtml(config: BlockConfig): string {
 <meta property="og:description" content="${getMetaDescription(intent, name)}">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+${hasAuth ? `<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>` : ''}
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -1788,96 +1795,228 @@ h3{font-size:clamp(1.1rem,2vw,1.35rem);font-weight:600;font-family:var(--font-bo
 </style>
 </head>
 <body>
-<a href="#main-content" class="skip-link">Ir al contenido principal</a>
-<div id="main-content">
-${htmlSections.join("\n")}
-</div>
+<a href="#main-content" className="skip-link">Ir al contenido principal</a>
+<div id="root"></div>
 
-<!-- Back to top -->
-<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="position:fixed;bottom:2rem;right:2rem;width:44px;height:44px;border-radius:50%;background:var(--gradient);color:#fff;border:none;cursor:pointer;font-size:1.2rem;display:none;align-items:center;justify-content:center;box-shadow:var(--shadow-md);z-index:100">↑</button>
+<script type="text/babel" data-presets="react,typescript">
+const { useState, useEffect, useRef, useCallback } = React;
 
-<script>
-// Navbar scroll effect
-window.addEventListener('scroll',function(){
-  var header=document.getElementById('site-header');
-  if(header){
-    if(window.scrollY>80){
-      header.style.background='var(--bg-card)';
-      header.style.borderBottom='1px solid var(--border)';
-      header.style.backdropFilter='blur(12px)';
-    }else{
-      header.style.background='transparent';
-      header.style.borderBottom='none';
-      header.style.backdropFilter='none';
-    }
-  }
-  var btn=document.getElementById('back-to-top');
-  if(btn) btn.style.display=window.scrollY>400?'flex':'none';
-});
+${hasAuth ? `
+// Supabase Auth client
+const supabaseClient = window.supabase.createClient('${supabaseUrl}', '${anonKey}');
 
-// Mobile menu
-var menuBtn=document.getElementById('mobile-menu-btn');
-var mobileMenu=document.getElementById('mobile-menu');
-if(menuBtn&&mobileMenu){
-  menuBtn.addEventListener('click',function(){
-    mobileMenu.style.display=mobileMenu.style.display==='flex'?'none':'flex';
-  });
-  document.querySelectorAll('.mobile-link').forEach(function(link){
-    link.addEventListener('click',function(){mobileMenu.style.display='none';});
-  });
-}
+function AuthSection() {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' });
+  const [user, setUser] = useState(null);
 
-// FAQ accordion
-document.querySelectorAll('.faq-item').forEach(function(item){
-  item.addEventListener('click',function(){
-    var answer=this.querySelector('.faq-answer');
-    var icon=this.querySelector('.faq-icon');
-    var isOpen=answer.style.display==='block';
-    document.querySelectorAll('.faq-answer').forEach(function(a){a.style.display='none';});
-    document.querySelectorAll('.faq-icon').forEach(function(i){i.style.transform='none';});
-    if(!isOpen){answer.style.display='block';icon.style.transform='rotate(45deg)';}
-  });
-});
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => {
+      if (data?.user) setUser(data.user);
+    });
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-// Auth tab switching
-function switchAuthTab(tab){
-  var loginForm=document.getElementById('login-form');
-  var registerForm=document.getElementById('register-form');
-  var tabLogin=document.getElementById('tab-login');
-  var tabRegister=document.getElementById('tab-register');
-  if(!loginForm||!registerForm) return;
-  if(tab==='login'){
-    loginForm.style.display='flex';registerForm.style.display='none';
-    tabLogin.style.background='var(--primary)';tabLogin.style.color='#fff';
-    tabRegister.style.background='transparent';tabRegister.style.color='var(--text-muted)';
-  }else{
-    loginForm.style.display='none';registerForm.style.display='flex';
-    tabRegister.style.background='var(--primary)';tabRegister.style.color='#fff';
-    tabLogin.style.background='transparent';tabLogin.style.color='var(--text-muted)';
-  }
-}
-
-// Contact form
-var contactForm=document.getElementById('contact-form');
-if(contactForm){
-  contactForm.addEventListener('submit',function(e){
+  const handleLogin = async (e) => {
     e.preventDefault();
-    var btn=this.querySelector('button[type=submit]');
-    btn.textContent='¡Enviado! ✓';btn.style.opacity='0.7';
-  });
+    setLoading(true);
+    setMessage({ text: '', type: '' });
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) setMessage({ text: error.message, type: 'error' });
+    else setMessage({ text: '¡Sesión iniciada correctamente!', type: 'success' });
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage({ text: '', type: '' });
+    const { error } = await supabaseClient.auth.signUp({
+      email, password,
+      options: { data: { display_name: name } }
+    });
+    setLoading(false);
+    if (error) setMessage({ text: error.message, type: 'error' });
+    else setMessage({ text: '¡Cuenta creada! Revisa tu email para confirmar.', type: 'success' });
+  };
+
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    setUser(null);
+    setMessage({ text: 'Sesión cerrada', type: 'success' });
+  };
+
+  if (user) {
+    return (
+      <section id="auth" className="section section-alt">
+        <div className="container" style={{maxWidth:'480px',margin:'0 auto'}}>
+          <div className="card" style={{padding:'2.5rem',textAlign:'center'}}>
+            <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'var(--gradient)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontSize:'1.5rem',color:'#fff',fontWeight:700}}>
+              {(user.email || '?')[0].toUpperCase()}
+            </div>
+            <h3 style={{marginBottom:'0.5rem'}}>¡Bienvenido!</h3>
+            <p style={{color:'var(--text-muted)',fontSize:'0.9rem',marginBottom:'1.5rem'}}>{user.email}</p>
+            <button className="btn btn-outline" onClick={handleLogout} style={{width:'100%',justifyContent:'center'}}>
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section id="auth" className="section section-alt">
+      <div className="container" style={{maxWidth:'480px',margin:'0 auto'}}>
+        <div className="section-header"><h2>Accede a tu cuenta</h2><p>Inicia sesión o regístrate para disfrutar de todos los beneficios</p></div>
+        <div className="card" style={{padding:'2.5rem'}}>
+          <div style={{display:'flex',gap:0,marginBottom:'1.5rem',borderRadius:'var(--radius-sm)',overflow:'hidden',border:'1px solid var(--border)'}}>
+            <button onClick={() => setMode('login')} style={{flex:1,padding:'0.75rem',background:mode==='login'?'var(--primary)':'transparent',color:mode==='login'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Iniciar Sesión</button>
+            <button onClick={() => setMode('register')} style={{flex:1,padding:'0.75rem',background:mode==='register'?'var(--primary)':'transparent',color:mode==='register'?'#fff':'var(--text-muted)',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'var(--font-body)',fontSize:'0.9rem',transition:'all var(--transition)'}}>Registrarse</button>
+          </div>
+          {message.text && (
+            <div style={{padding:'0.75rem 1rem',borderRadius:'var(--radius-sm)',marginBottom:'1rem',fontSize:'0.85rem',background:message.type==='error'?'rgba(239,68,68,0.15)':'rgba(34,197,94,0.15)',color:message.type==='error'?'#f87171':'#4ade80',border:\`1px solid \${message.type==='error'?'rgba(239,68,68,0.3)':'rgba(34,197,94,0.3)'}\`}}>
+              {message.text}
+            </div>
+          )}
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin} data-real-submit="true" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+              <div><label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:'4px',display:'block'}}>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}}/></div>
+              <div><label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:'4px',display:'block'}}>Contraseña</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}}/></div>
+              <button className="btn" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center',marginTop:'0.5rem'}}>{loading ? 'Ingresando...' : 'Iniciar Sesión'}</button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister} data-real-submit="true" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+              <div><label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:'4px',display:'block'}}>Nombre completo</label><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Juan Pérez" style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}}/></div>
+              <div><label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:'4px',display:'block'}}>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}}/></div>
+              <div><label style={{fontSize:'0.85rem',color:'var(--text-muted)',marginBottom:'4px',display:'block'}}>Contraseña</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" required style={{width:'100%',padding:'0.75rem 1rem',background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontSize:'0.95rem',fontFamily:'var(--font-body)'}}/></div>
+              <button className="btn" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center',marginTop:'0.5rem'}}>{loading ? 'Creando...' : 'Crear Cuenta'}</button>
+            </form>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+` : ''}
+
+function FadeIn({ children, delay = 0 }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(20px)',
+      transition: \`opacity 0.6s ease \${delay}s, transform 0.6s ease \${delay}s\`
+    }}>
+      {children}
+    </div>
+  );
 }
 
-// Intersection Observer for fade-in
-var observer=new IntersectionObserver(function(entries){
-  entries.forEach(function(entry){
-    if(entry.isIntersecting) entry.target.style.animationPlayState='running';
-  });
-},{threshold:0.1});
-document.querySelectorAll('.fade-in').forEach(function(el){
-  el.style.animationPlayState='paused';
-  observer.observe(el);
-});
-</script>
+function ScrollHeader() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 80);
+    window.addEventListener('scroll', handler);
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+  return null; // Header styling handled by CSS
+}
+
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const handler = () => setShow(window.scrollY > 400);
+    window.addEventListener('scroll', handler);
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+  if (!show) return null;
+  return (
+    <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} style={{position:'fixed',bottom:'2rem',right:'2rem',width:'44px',height:'44px',borderRadius:'50%',background:'var(--gradient)',color:'#fff',border:'none',cursor:'pointer',fontSize:'1.2rem',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'var(--shadow-md)',zIndex:100}}>↑</button>
+  );
+}
+
+function FAQItem({ question, answer }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card" style={{cursor:'pointer'}} onClick={() => setOpen(!open)}>
+      <div style={{fontWeight:600,fontSize:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem'}}>
+        {question}
+        <span style={{color:'var(--primary-light)',fontSize:'1.2rem',transition:'transform 0.3s',transform:open?'rotate(45deg)':'none'}}>+</span>
+      </div>
+      {open && <p style={{color:'var(--text-muted)',marginTop:'1rem',lineHeight:1.7,fontSize:'0.95rem'}}>{answer}</p>}
+    </div>
+  );
+}
+
+function ContactForm() {
+  const [sent, setSent] = useState(false);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSent(true);
+    setTimeout(() => setSent(false), 3000);
+  };
+  return (
+    <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+        <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} placeholder="Tu nombre" required/>
+        <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} type="email" placeholder="Tu email" required/>
+      </div>
+      <input style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none'}} placeholder="Asunto"/>
+      <textarea style={{padding:'0.9rem 1.25rem',background:'var(--bg)',border:'1.5px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)',fontFamily:'var(--font-body)',fontSize:'0.95rem',outline:'none',minHeight:'140px',resize:'vertical'}} placeholder="Tu mensaje" required/>
+      <button className="btn" type="submit" style={{width:'100%',justifyContent:'center'}}>{sent ? '✓ ¡Enviado!' : 'Enviar Mensaje →'}</button>
+    </form>
+  );
+}
+
+function App() {
+  useEffect(() => {
+    // Navbar scroll effect
+    const handler = () => {
+      const header = document.getElementById('site-header');
+      if (header) {
+        if (window.scrollY > 80) {
+          header.style.background = 'var(--bg-card)';
+          header.style.borderBottom = '1px solid var(--border)';
+          header.style.backdropFilter = 'blur(12px)';
+        } else {
+          header.style.background = 'transparent';
+          header.style.borderBottom = 'none';
+          header.style.backdropFilter = 'none';
+        }
+      }
+    };
+    window.addEventListener('scroll', handler);
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  return (
+    <div id="main-content">
+      ${allSectionsJSX}
+      ${hasAuth ? '<AuthSection />' : ''}
+      <BackToTop />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+<\/script>
 </body>
 </html>`;
 }
@@ -2291,9 +2430,82 @@ interface EnrichedContent {
   testimonials?: { name: string; text: string; role: string }[];
 }
 
-async function enrichContentWithLLM(_intent: string, _businessName: string): Promise<EnrichedContent> {
-  // No external AI providers - return empty enrichment, templates handle content
-  return {};
+async function enrichContentWithLLM(intent: string, businessName: string): Promise<EnrichedContent> {
+  // Local content enrichment based on industry and business name
+  const heroSubtitles: Record<string, string[]> = {
+    restaurant: [
+      `En ${businessName} te ofrecemos una experiencia gastronómica única, con ingredientes frescos y recetas que enamoran.`,
+      `Descubre los sabores auténticos de ${businessName}. Cocina artesanal preparada con pasión y dedicación.`,
+      `Bienvenido a ${businessName}, donde cada platillo cuenta una historia y cada visita es memorable.`,
+    ],
+    ecommerce: [
+      `${businessName} te trae los mejores productos con envío rápido y atención personalizada.`,
+      `Explora nuestro catálogo en ${businessName}. Calidad, variedad y los mejores precios te esperan.`,
+      `Compra con confianza en ${businessName}. Miles de clientes satisfechos nos respaldan.`,
+    ],
+    fitness: [
+      `En ${businessName} transformamos tu cuerpo y tu vida con entrenamientos personalizados.`,
+      `Únete a ${businessName} y alcanza tus metas fitness con nuestros programas profesionales.`,
+    ],
+    clinic: [
+      `${businessName} — Atención médica integral con los más altos estándares de calidad y calidez humana.`,
+      `Tu salud es nuestra prioridad. En ${businessName} contamos con profesionales de excelencia.`,
+    ],
+    agency: [
+      `${businessName} transforma ideas en resultados. Estrategia digital que impulsa tu negocio.`,
+      `Somos ${businessName}, tu aliado en marketing digital, diseño y desarrollo web de alto impacto.`,
+    ],
+    landing: [
+      `${businessName} ofrece soluciones innovadoras para hacer crecer tu negocio en la era digital.`,
+      `Descubre cómo ${businessName} puede transformar tu visión en realidad con tecnología de vanguardia.`,
+    ],
+    portfolio: [
+      `Explora el trabajo creativo de ${businessName}. Cada proyecto refleja pasión por el diseño.`,
+      `${businessName} — Diseño, desarrollo y creatividad al servicio de tus ideas.`,
+    ],
+    hotel: [
+      `${businessName} te ofrece una estadía inolvidable con servicio de primera clase.`,
+      `Descansa y disfruta en ${businessName}. Confort, elegancia y atención personalizada.`,
+    ],
+    salon: [
+      `En ${businessName} resaltamos tu belleza natural con tratamientos profesionales.`,
+      `Déjate consentir en ${businessName}. Estilo, tendencia y cuidado personal experto.`,
+    ],
+    billing: [
+      `${businessName} simplifica tu facturación con herramientas intuitivas y seguras.`,
+      `Gestiona facturas, clientes y cobros en un solo lugar con ${businessName}.`,
+    ],
+    crm: [
+      `${businessName} te ayuda a gestionar tus clientes y cerrar más ventas con inteligencia.`,
+      `Organiza contactos, oportunidades y seguimiento comercial con ${businessName}.`,
+    ],
+    inventory: [
+      `Controla tu inventario en tiempo real con ${businessName}. Stock preciso, decisiones inteligentes.`,
+    ],
+  };
+
+  const aboutTexts: Record<string, string[]> = {
+    restaurant: [
+      `${businessName} nació con la misión de ofrecer una experiencia culinaria excepcional. Nuestro equipo de chefs combina técnicas modernas con recetas tradicionales para crear platillos que deleitan todos los sentidos.`,
+    ],
+    ecommerce: [
+      `En ${businessName} creemos que comprar en línea debe ser fácil, seguro y placentero. Desde nuestros inicios, nos hemos dedicado a ofrecer productos de calidad con un servicio al cliente excepcional.`,
+    ],
+    clinic: [
+      `${businessName} es un centro de salud comprometido con la excelencia médica. Nuestro equipo de profesionales trabaja con tecnología de vanguardia para brindarte la mejor atención.`,
+    ],
+    agency: [
+      `Somos ${businessName}, una agencia creativa que combina estrategia, diseño y tecnología para impulsar marcas hacia el éxito digital. Nuestro equipo multidisciplinario hace realidad las ideas más ambiciosas.`,
+    ],
+  };
+
+  const subs = heroSubtitles[intent] || heroSubtitles.landing || [];
+  const abouts = aboutTexts[intent] || aboutTexts.agency || [];
+
+  return {
+    heroSubtitle: subs[Math.floor(Math.random() * subs.length)],
+    aboutText: abouts[Math.floor(Math.random() * abouts.length)],
+  };
 }
 
 // (buildSystemPrompt and extractHtmlFromResponse removed - no external AI)
@@ -2506,19 +2718,47 @@ function parseExistingPages(html: string): PageDef[] {
 
 function composeMultiPageHtml(pages: PageDef[], colors: ColorScheme, businessName: string): string {
   const c = colors;
-  const tabButtons = pages.map((p, i) =>
-    `<button class="page-tab${i === 0 ? " active" : ""}" data-page="${p.id}" onclick="switchPage('${p.id}')" style="padding:0.6rem 1.2rem;font-size:0.85rem;font-weight:500;border:none;background:${i === 0 ? "var(--primary)" : "transparent"};color:${i === 0 ? "#fff" : "var(--text-muted)"};border-radius:var(--radius-sm);cursor:pointer;transition:all var(--transition);white-space:nowrap">${p.label}</button>`
-  ).join("\n        ");
-  const pageContents = pages.map((p, i) =>
-    `<!-- PAGE:${p.id}:${p.label} -->\n    <div id="page-${p.id}" class="page-content" style="display:${i === 0 ? "block" : "none"}">\n${p.content}\n    </div>\n    <!-- /PAGE:${p.id} -->`
-  ).join("\n    ");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+
+  // Convert page contents: class -> className etc.
+  const pagesJson = JSON.stringify(pages.map(p => ({
+    id: p.id,
+    label: p.label,
+  })));
+
+  const pageContentDivs = pages.map((p, i) => {
+    const converted = p.content
+      .replace(/class=/g, 'className=')
+      .replace(/for=/g, 'htmlFor=')
+      .replace(/onclick=/g, 'onClick=')
+      .replace(/onsubmit=/g, 'onSubmit=')
+      .replace(/onmouseover=/g, 'onMouseOver=')
+      .replace(/onmouseout=/g, 'onMouseOut=')
+      .replace(/onfocus=/g, 'onFocus=')
+      .replace(/onblur=/g, 'onBlur=')
+      .replace(/crossorigin/g, 'crossOrigin')
+      .replace(/colspan=/g, 'colSpan=')
+      .replace(/tabindex=/g, 'tabIndex=')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\{(\d+)\}/g, '{"$1"}');
+    return `{activePage === '${p.id}' && (
+        <div>
+          ${converted}
+        </div>
+      )}`;
+  }).join("\n      ");
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${businessName} — Sistema</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{--font-body:'Inter',system-ui,sans-serif;--primary:${c.primary};--primary-light:${c.primaryLight};--primary-dark:${c.primaryDark};--bg:${c.bg};--bg-alt:${c.bgAlt};--bg-card:${c.bgCard};--text:${c.text};--text-muted:${c.textMuted};--border:${c.border};--accent:${c.accent};--gradient:${c.gradient};--gradient-subtle:${c.gradientSubtle};--radius:16px;--radius-sm:10px;--shadow-md:0 8px 24px -4px rgba(0,0,0,0.4);--transition:0.3s cubic-bezier(0.4,0,0.2,1)}
@@ -2533,24 +2773,44 @@ a{color:var(--primary-light);text-decoration:none;transition:color var(--transit
 .card:hover{border-color:color-mix(in srgb,var(--primary) 30%,var(--border))}
 .tab-bar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:0.5rem;padding:0.8rem 1.5rem;background:var(--bg-card);border-bottom:1px solid var(--border);overflow-x:auto;backdrop-filter:blur(12px)}
 .tab-bar .logo{font-weight:700;font-size:1.1rem;margin-right:1.5rem;flex-shrink:0}
-.page-tab:hover{background:color-mix(in srgb,var(--primary) 20%,transparent)!important;color:var(--text)!important}
-@media(max-width:768px){.tab-bar{padding:0.6rem 0.8rem;gap:0.3rem;flex-wrap:wrap}.page-tab{font-size:0.8rem!important;padding:0.5rem 0.8rem!important}}
+@media(max-width:768px){.tab-bar{padding:0.6rem 0.8rem;gap:0.3rem;flex-wrap:wrap}}
 </style>
 </head>
 <body>
-  <nav class="tab-bar">
-    <span class="logo gradient-text">${businessName}</span>
-    <div style="display:flex;gap:0.4rem;overflow-x:auto">
-      ${tabButtons}
+<div id="root"></div>
+<script type="text/babel" data-presets="react,typescript">
+const { useState, useEffect } = React;
+
+const pages = ${pagesJson};
+
+function App() {
+  const [activePage, setActivePage] = useState(pages[0]?.id || 'home');
+
+  return (
+    <div>
+      <nav className="tab-bar">
+        <span className="logo gradient-text">${businessName}</span>
+        <div style={{display:'flex',gap:'0.4rem',overflowX:'auto'}}>
+          {pages.map(p => (
+            <button key={p.id} onClick={() => setActivePage(p.id)} style={{
+              padding:'0.6rem 1.2rem',fontSize:'0.85rem',fontWeight:500,border:'none',
+              background: activePage===p.id ? 'var(--primary)' : 'transparent',
+              color: activePage===p.id ? '#fff' : 'var(--text-muted)',
+              borderRadius:'var(--radius-sm)',cursor:'pointer',transition:'all var(--transition)',whiteSpace:'nowrap'
+            }}>{p.label}</button>
+          ))}
+        </div>
+      </nav>
+      <main>
+        ${pageContentDivs}
+      </main>
     </div>
-  </nav>
-  <main>
-    ${pageContents}
-  </main>
-  <script>
-  function switchPage(pageId){document.querySelectorAll('.page-content').forEach(function(p){p.style.display='none'});document.querySelectorAll('.page-tab').forEach(function(t){t.style.background='transparent';t.style.color='var(--text-muted)';t.classList.remove('active')});var target=document.getElementById('page-'+pageId);if(target)target.style.display='block';var tab=document.querySelector('.page-tab[data-page="'+pageId+'"]');if(tab){tab.style.background='var(--primary)';tab.style.color='#fff';tab.classList.add('active')}if(window.DOKU_CRUD&&window.DOKU_CRUD.onPageSwitch)window.DOKU_CRUD.onPageSwitch(pageId)}
-  </script>
-  ${getCrudSdkScript(businessName)}
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+<\/script>
+${getCrudSdkScript(businessName)}
 </body>
 </html>`;
 }
