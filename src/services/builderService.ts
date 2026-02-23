@@ -15,6 +15,7 @@ export interface BuilderResponse {
   plan?: string[];
   html: string;
   logId?: string;
+  conversationalResponse?: string;
 }
 
 export async function generateSite(
