@@ -86,9 +86,9 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
             <Globe className="h-3 w-3" />
             <span className="font-mono">
               {isPublic && projectSlug
-                ? `doku.ai/s/${projectSlug}`
+                ? `doku.red/p/${projectSlug}`
                 : isPublic
-                  ? "doku.ai/preview/..."
+                  ? "doku.red/preview/..."
                   : "🔒 Privado"}
             </span>
           </div>
