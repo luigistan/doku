@@ -151,6 +151,7 @@ const Builder = () => {
             }}
             projectSlug={projectSlug}
             isPublic={isPublic}
+            projectId={projectId}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
