@@ -126,8 +126,24 @@ export function useBuilderState() {
       setIsTyping(true);
       setPreview((p) => ({ ...p, status: "loading" }));
 
+      // Show wait message for open source AI
+      const waitMsgId = (Date.now() + 99).toString();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: waitMsgId,
+          role: "system",
+          content: "⏳ Procesando con IA open source (Ollama). Esto puede tardar 1-2 minutos la primera vez...",
+          timestamp: new Date(),
+        },
+      ]);
+      setPreview((p) => ({ ...p, status: "loading" }));
+
       try {
         const result = await generateSite(content, mode, conversationalContext.current);
+
+        // Remove wait message
+        setMessages((prev) => prev.filter((msg) => msg.id !== waitMsgId));
 
         // Update conversational context for next message
         conversationalContext.current = {
@@ -171,6 +187,9 @@ export function useBuilderState() {
         setIsTyping(false);
         setPreview((p) => ({ ...p, status: "idle" }));
       } catch (err: unknown) {
+        // Remove wait message on error
+        setMessages((prev) => prev.filter((msg) => msg.id !== waitMsgId));
+        
         const errMsg = err instanceof Error && err.message === "NO_MATCH"
           ? "🤔 No logré identificar qué tipo de sitio quieres. Intenta con:\n\n• **Landing page** - página de presentación\n• **Restaurante** - con menú y contacto\n• **Portfolio** - muestra de trabajos\n• **Blog** - artículos y publicaciones\n• **Dashboard** - panel de administración\n• **E-commerce** - tienda online\n• **Gimnasio** - fitness y planes\n• **Agencia** - servicios digitales"
           : `❌ Hubo un error al generar el sitio. Intenta de nuevo.\n\nDetalle: ${err}`;

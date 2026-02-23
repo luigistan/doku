@@ -1891,7 +1891,7 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
           prompt: `${systemPrompt}\n\nUsuario: ${userPrompt}`,
           stream: false,
         }),
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(150000),
       });
       if (!response.ok) {
         console.error("Ollama error:", response.status, await response.text().catch(() => ""));
@@ -2049,24 +2049,42 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
     }
   }
 
-  // Run prompts sequentially to avoid overloading Ollama on Render
-  console.log(`[Hybrid] Running enrichment prompts sequentially for Ollama...`);
-  
-  const heroResult = await callLLMShort(
-    `Subtitulo corto (1 oracion) para "${businessName}" (${intent}). Solo el texto:`, 80
-  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+  // For Ollama on slow servers: only run 2 enrichments sequentially to stay within time limits
+  const isOllama = provider === "ollama";
+  console.log(`[Hybrid] Running ${isOllama ? '2 sequential' : '4 parallel'} enrichment prompts...`);
 
-  const featResult = await callLLMShort(
-    `3 servicios cortos de "${businessName}" (${intent}) separados por |. Solo texto:`, 100
-  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+  if (isOllama) {
+    // Sequential: only hero + about (2 calls, ~2-3 min total)
+    const heroResult = await callLLMShort(
+      `Subtitulo corto para "${businessName}" (${intent}). Responde SOLO el texto, maximo 15 palabras:`, 60
+    ).catch(() => null);
+    
+    if (heroResult && heroResult.length > 5 && heroResult.length < 300) {
+      enriched.heroSubtitle = heroResult.replace(/^["']|["']$/g, "").replace(/^(Subtitulo|Subtitle)\s*[:.-]\s*/i, "").trim();
+      console.log(`[Hybrid] Hero subtitle enriched`);
+    }
 
-  const aboutResult = await callLLMShort(
-    `2 oraciones para "Sobre nosotros" de "${businessName}" (${intent}). Solo texto:`, 100
-  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+    const aboutResult = await callLLMShort(
+      `2 oraciones para "Sobre nosotros" de "${businessName}" (${intent}). Solo texto, sin titulos:`, 80
+    ).catch(() => null);
+    
+    if (aboutResult && aboutResult.length > 10) {
+      enriched.aboutText = aboutResult.replace(/^["']|["']$/g, "").trim();
+      console.log(`[Hybrid] About text enriched`);
+    }
 
-  const testimonialsResult = await callLLMShort(
-    `2 testimonios de clientes de "${businessName}" (${intent}). Formato: Nombre - texto - cargo. Separados por |:`, 120
-  ).then(v => ({ status: "fulfilled" as const, value: v })).catch(() => ({ status: "rejected" as const, reason: null }));
+    const enrichedCount = (enriched.heroSubtitle ? 1 : 0) + (enriched.aboutText ? 1 : 0);
+    console.log(`[Hybrid] Content enrichment complete: ${enrichedCount}/2 sections enriched`);
+    return enriched;
+  }
+
+  // Non-Ollama: run all 4 in parallel (fast providers)
+  const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
+    callLLMShort(`Subtitulo corto para "${businessName}" (${intent}). Solo texto:`, 80),
+    callLLMShort(`3 servicios de "${businessName}" (${intent}) separados por |. Solo texto:`, 100),
+    callLLMShort(`2 oraciones para "Sobre nosotros" de "${businessName}" (${intent}). Solo texto:`, 100),
+    callLLMShort(`2 testimonios de "${businessName}" (${intent}). Formato: Nombre - texto - cargo. Separados por |:`, 120),
+  ]);
 
   // Process hero subtitle
   if (heroResult.status === "fulfilled" && heroResult.value) {
