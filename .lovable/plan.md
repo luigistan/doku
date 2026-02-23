@@ -1,92 +1,54 @@
 
 
-## Mejorar los prompts de tinyllama para contenido natural en espanol
+## Plan: Optimizar edge function para llama3.1:8b
 
-### Problemas detectados en los logs
+### Contexto
 
-Los logs muestran exactamente que falla:
-
-1. **Hero subtitle**: tinyllama repite la instruccion del prompt ("Un subtitulo corto (maximo 2 oraciones) para la pa...") en vez de generar contenido.
-2. **Features**: No se enriquecieron (0 de 3). tinyllama no entiende bien el formato con `|`.
-3. **About text**: Genera con numeracion ("1. Oracion sobre...") en vez de texto natural.
-4. **Testimonials**: Solo 1 de 2 se parseo correctamente.
-
-### Causa raiz
-
-Los prompts actuales son demasiado complejos para tinyllama (1.1B). Contienen demasiadas instrucciones negativas ("sin comillas ni explicaciones", "sin numeros") que el modelo no procesa bien. Modelos pequenos funcionan mejor con:
-- Prompts tipo "completar la frase" (few-shot by example)
-- Un solo ejemplo concreto del formato esperado
-- Instrucciones positivas en vez de negativas
+El upgrade de tinyllama (1.1B) a llama3.1:8b es un salto enorme en capacidad. llama3.1 entiende instrucciones complejas, genera texto coherente en espanol, y puede producir HTML estructurado. Los prompts actuales estan "dumbed down" para tinyllama -- ahora podemos usar prompts mas ricos.
 
 ### Cambios en `supabase/functions/builder-ai/index.ts`
 
-**1. Prompt del Hero Subtitle (linea 2022-2024)**
+**1. Actualizar modelo default (linea 1956)**
 
-Cambiar de instruccion abstracta a formato "completa la frase":
+Cambiar `"tinyllama"` a `"llama3.1:8b"` como modelo default.
 
-```
-ANTES: "Escribe UN subtitulo corto (maximo 2 oraciones) para la pagina web de "El Buen Cafe", que es un negocio de tipo restaurant. Solo responde con el texto, sin comillas ni explicaciones."
+**2. Aumentar parametros del modelo (lineas 1967-1971)**
 
-DESPUES: "Subtitulo para pagina web de El Buen Cafe:\n\n"
-```
+- `num_predict`: de 150 a 300 (llama3.1 puede generar mas contenido de calidad)
+- `temperature`: mantener en 0.7
+- Timeout: de 15s a 30s (llama3.1:8b es mas lento que tinyllama pero mucho mejor)
 
-Prompt ultra-corto tipo "completion" que tinyllama puede completar naturalmente.
+**3. Mejorar prompts para aprovechar llama3.1 (lineas 2020-2036)**
 
-**2. Prompt de Features (linea 2026-2028)**
+Los prompts completion-style que usamos para tinyllama eran necesarios porque el modelo no entendia instrucciones. llama3.1 SI las entiende, asi que podemos dar instrucciones claras:
 
-Usar few-shot example con el delimitador `|` ya incluido en el patron:
+- **Hero subtitle**: Instruccion directa pidiendo un subtitulo profesional de 1-2 oraciones
+- **Features**: Pedir 3 descripciones separadas por `|` con instruccion clara del formato
+- **About**: Pedir 2-3 oraciones naturales para la seccion "Sobre nosotros"
+- **Testimonials**: Pedir 2 testimonios con formato `Nombre - texto - cargo` separados por `|`
 
-```
-ANTES: "Escribe 3 descripciones cortas (1 oracion cada una) de servicios para "El Buen Cafe" (restaurant). Separa cada descripcion con "|". Solo el texto, sin numeros ni explicaciones."
+Todos los prompts incluiran el contexto del tipo de negocio (intent) para contenido mas relevante.
 
-DESPUES: "Servicios de El Buen Cafe:\nDesayunos frescos cada manana|Cafe de grano seleccionado|"
-```
+**4. Intentar generacion HTML completa como primera opcion (logica principal)**
 
-Al darle el ejemplo ya con `|`, tinyllama continuara el patron naturalmente.
+Con llama3.1:8b, podemos intentar que el LLM genere HTML completo. Si el resultado es mayor a 200 caracteres, usarlo directamente. Si no, caer al enfoque hibrido (template + contenido enriquecido). Esto requiere:
 
-**3. Prompt del About (linea 2030-2032)**
+- Aumentar `num_predict` en la llamada principal de generacion HTML a 2000
+- Aumentar el timeout de la llamada principal a 60s
+- Mantener el fallback hibrido como respaldo
 
-```
-ANTES: "Escribe 2 oraciones sobre "El Buen Cafe" (restaurant) para la seccion "Sobre nosotros" de su pagina web. Solo responde con el texto."
+**5. Actualizar comentarios del codigo**
 
-DESPUES: "Sobre nosotros: El Buen Cafe es"
-```
-
-Inicio de frase que el modelo completa de forma natural.
-
-**4. Prompt de Testimonials (linea 2034-2036)**
-
-```
-ANTES: "Escribe 2 testimonios ficticios cortos (1 oracion cada uno) de clientes satisfechos de "El Buen Cafe" (restaurant). Formato: Nombre - "testimonio" - cargo. Separa con "|"."
-
-DESPUES: "Opiniones de clientes de El Buen Cafe:\nMaria Lopez - Excelente servicio y comida deliciosa - Cliente frecuente|"
-```
-
-**5. Mejorar el parsing de features (lineas 2048-2055)**
-
-Agregar limpieza adicional para manejar variaciones de tinyllama:
-- Limpiar numeracion residual ("1.", "2.", "-")
-- Aceptar `|` o saltos de linea como separadores
-- Reducir el minimo de caracteres de 10 a 5 para aceptar descripciones cortas
-
-**6. Mejorar el parsing de hero (lineas 2040-2046)**
-
-- Limpiar texto que repita el nombre del negocio al inicio si ya esta duplicado
-- Remover prefijos como "Subtitulo:" que tinyllama podria agregar
-
-**7. Aumentar `num_predict` a 150 (linea 1968)**
-
-Las features necesitan 3 descripciones separadas, 120 tokens puede ser insuficiente.
+Cambiar referencias de "tinyllama" a "llama3.1" en los comentarios para claridad.
 
 ### Resumen de cambios
 
-Todos los cambios son en un solo archivo: `supabase/functions/builder-ai/index.ts`
+Un solo archivo: `supabase/functions/builder-ai/index.ts`
 
-- Lineas 1968: `num_predict: 120` a `150`
-- Lineas 2022-2024: Prompt hero simplificado (completion-style)
-- Lineas 2026-2028: Prompt features con few-shot example y `|`
-- Lineas 2030-2032: Prompt about simplificado
-- Lineas 2034-2036: Prompt testimonials con ejemplo concreto
-- Lineas 2040-2055: Parsing mejorado con limpieza de numeracion y separadores alternativos
+- Linea 1952: Comentario actualizado
+- Linea 1956: Modelo default a `llama3.1:8b`
+- Lineas 1967-1971: `num_predict: 300`, timeout a 30s
+- Lineas 2020-2036: Prompts mejorados con instrucciones claras
+- Logica principal: Intentar HTML completo con timeout 60s, fallback a hibrido
 - Redesplegar edge function
 
