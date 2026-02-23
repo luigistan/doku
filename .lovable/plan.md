@@ -1,67 +1,72 @@
 
 
-# Plan: Usar modelo real de Ollama Cloud
+# Plan: Configurar Ollama Cloud paso a paso
 
-## Problema
+## Problema actual
 
-`llama3` no existe en Ollama Cloud. Los logs siguen mostrando 404 porque estamos mapeando todo a un modelo inexistente. La lista de modelos cloud disponibles incluye: `qwen3`, `gemma3`, `deepseek-v3.1`, `qwen3-coder`, entre otros.
+El sistema no funciona porque falta la pieza clave: **no hay API key de Ollama configurada**. La edge function verifica `OLLAMA_API_KEY` y al no encontrarla, siempre devuelve el mensaje de error "motor de IA no disponible".
 
-## Solucion
+## Paso 1: Agregar el secreto OLLAMA_API_KEY
 
-Cambiar el modelo default a `gemma3` (ligero, gratuito, multilenguaje) y actualizar el mapa de aliases para que todas las variantes de llama apunten a un modelo que si existe.
+Necesitas crear una API key en tu cuenta de Ollama:
+1. Ve a https://ollama.com/settings/keys
+2. Crea una nueva API key
+3. Lovable te pedira que la pegues como secreto de Supabase
 
-## Cambios
+## Paso 2: Corregir los endpoints de la API en la edge function
 
-### 1. `supabase/functions/builder-ai/index.ts` (linea 998-1014)
+Segun la documentacion oficial de Ollama, los endpoints correctos para Ollama Cloud son:
 
-```typescript
-// Antes
-let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
-const modelAliases: Record<string, string> = {
-  "llama3.1": "llama3",
-  "llama3.2": "llama3",
-  "llama3.3": "llama3",
-  "llama2": "llama3",
-};
+| Actual (incorrecto) | Correcto (segun docs) |
+|---|---|
+| `https://ollama.com/v1/chat/completions` | `https://ollama.com/api/chat` |
+| `https://ollama.com/api/chat` | Ya existe, mantener |
 
-// Despues
-let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gemma3";
-const modelAliases: Record<string, string> = {
-  "llama3": "gemma3",
-  "llama3.1": "gemma3",
-  "llama3.2": "gemma3",
-  "llama3.3": "gemma3",
-  "llama2": "gemma3",
-};
+La respuesta de `/api/chat` (no-streaming) tiene este formato:
+```json
+{
+  "model": "gemma3",
+  "message": { "role": "assistant", "content": "..." },
+  "done": true
+}
 ```
 
-### 2. `src/components/builder/ProjectSettings.tsx`
+Cambios en `supabase/functions/builder-ai/index.ts`:
+- Reordenar endpoints: probar primero `https://ollama.com/api/chat` (API nativa)
+- Mantener `https://ollama.com/v1/chat/completions` como fallback (OpenAI compat)
+- Agregar `stream: false` explicitamente en ambos endpoints
+- Mejorar el logging para diagnostico
 
-Actualizar el default del estado de `ollamaConfig` de `"llama3"` a `"gemma3"` y actualizar el placeholder del input.
+## Paso 3: Actualizar la UI de configuracion
 
-### 3. `src/types/builder.ts`
+En `src/components/builder/ProjectSettings.tsx`:
+- Eliminar el umbral de confianza (ya no hay motor de reglas, todo va por Ollama)
+- Actualizar los textos descriptivos para reflejar que Ollama es el unico motor
+- Simplificar: el toggle ya no dice "respaldo", sino "Motor principal"
 
-Sin cambios (la interfaz `OllamaConfig` no necesita modificacion).
+## Paso 4: Actualizar el servicio del cliente
 
-### 4. Deploy
+En `src/services/builderService.ts`:
+- Siempre enviar `ollamaModel` al edge function (ya no es condicional basado en `enabled`)
+- Eliminar la lectura de `confidenceThreshold` del localStorage
 
-Redesplegar edge function `builder-ai`.
+## Paso 5: Deploy y test
 
-## Seccion tecnica
+Redesplegar la edge function `builder-ai` con los cambios.
 
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/builder-ai/index.ts` | Default `gemma3`, aliases de llama -> `gemma3` |
-| `src/components/builder/ProjectSettings.tsx` | Default config `gemma3`, placeholder actualizado |
-| Deploy | Redesplegar `builder-ai` |
+## Seccion tecnica - Archivos a modificar
 
-## Modelos alternativos disponibles en Ollama Cloud
-
-Si `gemma3` no funciona, se puede probar con `qwen3` o `qwen3-coder` como respaldo.
+| Archivo | Cambios |
+|---|---|
+| Secreto `OLLAMA_API_KEY` | Agregar via herramienta de secretos de Supabase |
+| `supabase/functions/builder-ai/index.ts` | Reordenar endpoints, priorizar `/api/chat`, mejorar logging |
+| `src/components/builder/ProjectSettings.tsx` | Simplificar UI, eliminar umbral, actualizar textos |
+| `src/services/builderService.ts` | Siempre enviar modelo, eliminar logica condicional de `enabled` |
 
 ## Resultado esperado
 
-- Ollama Cloud responde correctamente con `gemma3` (modelo real y disponible)
-- Usuarios con `llama3.1:8b` en localStorage se normalizan automaticamente a `gemma3`
-- El clasificador AI funciona como fallback cuando el motor de reglas tiene baja confianza
+1. El usuario pega su OLLAMA_API_KEY
+2. La edge function usa `https://ollama.com/api/chat` con Bearer auth
+3. Ollama Cloud responde con el modelo `gemma3` (o el que elija el usuario)
+4. El sistema genera sitios web y responde conversacionalmente via Ollama
 
