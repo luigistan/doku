@@ -272,7 +272,7 @@ function expandSynonyms(tokens: string[]): string[] {
   return tokens.map(t => synonymMap[t] || t);
 }
 
-// ==================== FEW-SHOT LEARNING FROM DB (Enhanced) ====================
+// ==================== FEW-SHOT LEARNING FROM DB (Enhanced + 5min Cache) ====================
 interface LearningLog {
   user_message: string;
   detected_intent: string;
@@ -282,7 +282,17 @@ interface LearningLog {
   user_accepted: boolean | null;
 }
 
+let cachedPatterns: LearningLog[] | null = null;
+let cachedPatternsTime = 0;
+const PATTERN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 async function queryLearningPatterns(): Promise<LearningLog[]> {
+  // Return cached if fresh
+  if (cachedPatterns && (Date.now() - cachedPatternsTime) < PATTERN_CACHE_TTL) {
+    console.log(`[Cache] Using cached patterns (${cachedPatterns.length} entries, age: ${Math.round((Date.now() - cachedPatternsTime) / 1000)}s)`);
+    return cachedPatterns;
+  }
+
   try {
     const sb = getSupabaseClient();
     const { data, error } = await sb
@@ -291,9 +301,12 @@ async function queryLearningPatterns(): Promise<LearningLog[]> {
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    return (data || []) as LearningLog[];
+    cachedPatterns = (data || []) as LearningLog[];
+    cachedPatternsTime = Date.now();
+    console.log(`[Cache] Refreshed patterns cache: ${cachedPatterns.length} entries`);
+    return cachedPatterns;
   } catch {
-    return [];
+    return cachedPatterns || [];
   }
 }
 
@@ -463,6 +476,22 @@ const followUpPatterns = [
   /(?:color|colores)\s+(?:a\s+)?(?:rojo|azul|verde|morado|naranja|amarillo|rosa|negro|blanco|oscuro|claro|calido|frio|elegante|moderno|dorado|plateado|turquesa|coral)/i,
   /(?:nombre|llamar|llamalo|llamala)\s/i,
 ];
+
+// Detect if message is a modification request (vs new creation)
+const modificationPatterns = [
+  /^(?:cambia|cambiar|cambiale|modificar?|modifica)\s/i,
+  /^(?:agrega|agregar|anadir?|anade|pon|ponle|incluir?|incluye|mete|meter)\s/i,
+  /^(?:quita|quitar|elimina|eliminar|remueve|remover|saca|sacar|borra|borrar)\s/i,
+  /^(?:hazlo|hazla|hacelo|hacerlo|que sea|que quede)\s/i,
+  /(?:mas|menos)\s+(?:moderno|elegante|oscuro|claro|grande|pequeno|simple|profesional|colorido|serio|divertido|minimalista)/i,
+  /(?:cambia|pon|ponle)\s+(?:el\s+)?(?:color|fondo|titulo|nombre|fuente|texto|imagen)/i,
+  /(?:mueve|mover|reordena|reordenar|intercambia)\s/i,
+];
+
+function isModification(message: string): boolean {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return modificationPatterns.some(p => p.test(normalized));
+}
 
 function isFollowUp(message: string): boolean {
   const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -2283,10 +2312,33 @@ async function enrichContentWithLLM(intent: string, businessName: string): Promi
   return enriched;
 }
 
-function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
-  return `Eres un experto generador de sitios web profesionales de alta calidad.
+function buildSystemPrompt(intent: string, label: string, entities: Entities, isModificationRequest = false, previousHtml?: string): string {
+  const architectPreamble = `Eres DOKU AI, un arquitecto de software y diseñador web experto.
+Tu tarea es diseñar y generar sistemas web completos y profesionales.
 
-GENERA HTML COMPLETO (desde <!DOCTYPE html> hasta </html>) con las siguientes caracteristicas:
+PROCESO DE DISEÑO (piensa como arquitecto antes de generar):
+1. ANALISIS: Identifica el tipo de negocio, audiencia objetivo y objetivos del sitio
+2. ARQUITECTURA: Define la estructura de componentes (Header, Hero, Features, etc.)
+3. FLUJO DE DATOS: Determina como interactuan las secciones entre si
+4. DISENO VISUAL: Aplica principios de UI/UX profesional
+5. GENERACION: Produce codigo HTML completo y funcional
+
+`;
+
+  const modificationContext = isModificationRequest && previousHtml
+    ? `CONTEXTO DE MODIFICACION:
+El usuario quiere MODIFICAR un sitio existente, NO crear uno nuevo.
+Aplica SOLO los cambios solicitados al HTML existente, manteniendo todo lo demas igual.
+HTML ACTUAL (modifica este):
+${previousHtml.substring(0, 3000)}${previousHtml.length > 3000 ? "\n... [truncado]" : ""}
+
+IMPORTANTE: Responde con el HTML COMPLETO modificado (desde <!DOCTYPE html> hasta </html>).
+Mantiene la estructura, estilos y contenido existente. Solo cambia lo que el usuario pidio.
+
+`
+    : "";
+
+  return `${architectPreamble}${modificationContext}GENERA HTML COMPLETO (desde <!DOCTYPE html> hasta </html>) con las siguientes caracteristicas:
 
 TECNOLOGIAS:
 - Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
@@ -2324,7 +2376,13 @@ ${entities.sections.includes("auth") || entities.sections.includes("login") ? `S
 - Muestra un historial de consumo/pedidos con tabla o cards (datos de ejemplo realistas)
 - Incluye nombre del usuario, avatar placeholder, y resumen de actividad
 - Diseño tipo dashboard con cards de estadísticas (total gastado, pedidos, favoritos)
-` : ""}IMPORTANTE: Responde UNICAMENTE con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
+` : ""}RESPUESTA ESTRUCTURADA:
+Antes del HTML, opcionalmente incluye un bloque JSON de arquitectura:
+\`\`\`json
+{"analysis":{"intent":"${intent}","businessName":"${entities.businessName}","sections":${JSON.stringify(entities.sections)},"complexity":"medium"},"architecture":{"components":["Navbar","Hero","Features","Contact","Footer"],"dataFlow":"User -> Sections -> CTA -> Contact"}}
+\`\`\`
+
+IMPORTANTE: Responde UNICAMENTE con el HTML completo. Sin explicaciones, sin markdown, sin backticks.
 El HTML debe empezar con <!DOCTYPE html> y terminar con </html>.`;
 }
 
@@ -2536,8 +2594,26 @@ serve(async (req) => {
     // 5. Generate HTML - Try FULL LLM generation first, fallback to hybrid
     let html: string;
 
+    // Detect if this is a modification request
+    const isModificationRequest = isModification(message) || isFollowUp(message);
+    
+    // For modifications, try to get previous HTML from project
+    let previousHtml: string | undefined;
+    if (isModificationRequest && projectId) {
+      try {
+        const sb = getSupabaseClient();
+        const { data } = await sb.from("projects").select("html").eq("id", projectId).single();
+        if (data?.html) {
+          previousHtml = data.html;
+          console.log(`[Modification] Loaded previous HTML (${previousHtml.length} chars) for modification request`);
+        }
+      } catch {
+        console.warn("[Modification] Could not load previous HTML");
+      }
+    }
+
     // Step A: Attempt full HTML generation with LLM (60s timeout, 2000 tokens)
-    const systemPrompt = buildSystemPrompt(intent, label, entities);
+    const systemPrompt = buildSystemPrompt(intent, label, entities, isModificationRequest, previousHtml);
     const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
     const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
 
@@ -2546,7 +2622,7 @@ serve(async (req) => {
       const validation = validateHtmlQuality(extractedHtml, entities.businessName);
       if (validation.passed) {
         html = extractedHtml;
-        console.log(`[Full LLM] HTML generated and validated (${extractedHtml.length} chars)`);
+        console.log(`[Full LLM] HTML generated and validated (${extractedHtml.length} chars)${isModificationRequest ? " [MODIFICATION]" : ""}`);
       } else {
         console.log(`[Full LLM] HTML failed validation (${validation.failCount} issues: ${validation.issues.join(", ")}), falling back`);
         // Try to fix minor issues
