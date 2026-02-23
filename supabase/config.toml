@@ -2,3 +2,6 @@ project_id = "hbdgpvixrdwbvdtxymqa"
 
 [functions.builder-ai]
 verify_jwt = false
+
+[functions.db-connector]
+verify_jwt = false

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle, Database, Plus } from "lucide-react";
+import { X, Trash2, Globe, Lock, Copy, Check, Loader2, AlertCircle, Database, Plus, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { checkSlugAvailable, enableProjectDb, getAppTables, createAppTable, deleteAppTable, type AppTable } from "@/services/projectService";
+import { ExternalDbForm } from "./ExternalDbForm";
 
 interface ProjectSettingsProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function ProjectSettings({
   const [loadingDb, setLoadingDb] = useState(false);
   const [newTableName, setNewTableName] = useState("");
   const [creatingTable, setCreatingTable] = useState(false);
+  const [dbTab, setDbTab] = useState<"managed" | "external">("managed");
 
   useEffect(() => {
     setName(projectName);
@@ -210,61 +212,100 @@ export function ProjectSettings({
           {/* Database */}
           <div className="space-y-3">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Base de Datos</label>
-            {!dbEnabled ? (
+            
+            {/* Tabs */}
+            <div className="flex gap-1 rounded-lg bg-surface-2 p-1">
               <button
-                onClick={handleEnableDb}
-                disabled={loadingDb}
-                className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3 transition-colors hover:bg-surface-2/80"
-              >
-                <Database className="h-4 w-4 text-muted-foreground" />
-                <div className="flex-1 text-left">
-                  <div className="text-sm font-medium text-foreground">Activar Base de Datos</div>
-                  <div className="text-xs text-muted-foreground">Gestiona datos de tu proyecto con tablas dinámicas</div>
-                </div>
-                {loadingDb && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 rounded-lg border border-execute/40 bg-execute/10 px-3 py-2">
-                  <Database className="h-4 w-4 text-execute" />
-                  <span className="text-xs font-medium text-execute">Base de datos activa</span>
-                </div>
-
-                {loadingDb ? (
-                  <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-                ) : (
-                  <>
-                    {tables.length > 0 && (
-                      <div className="space-y-1">
-                        {tables.map(t => (
-                          <div key={t.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                            <span className="text-sm text-foreground font-mono">{t.name}</span>
-                            <button onClick={() => handleDeleteTable(t.id)} className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <input
-                        value={newTableName}
-                        onChange={e => setNewTableName(e.target.value)}
-                        placeholder="Nombre de tabla"
-                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-brain/60"
-                        onKeyDown={e => e.key === "Enter" && handleCreateTable()}
-                      />
-                      <button
-                        onClick={handleCreateTable}
-                        disabled={creatingTable || !newTableName.trim()}
-                        className="rounded-lg bg-brain px-3 py-2 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors disabled:opacity-50"
-                      >
-                        {creatingTable ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </>
+                onClick={() => setDbTab("managed")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  dbTab === "managed"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
-              </div>
+              >
+                <Database className="h-3.5 w-3.5" />
+                DOKU Managed
+              </button>
+              <button
+                onClick={() => setDbTab("external")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  dbTab === "external"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Plug className="h-3.5 w-3.5" />
+                DB Externa
+              </button>
+            </div>
+
+            {/* DOKU Managed tab */}
+            {dbTab === "managed" && (
+              <>
+                {!dbEnabled ? (
+                  <button
+                    onClick={handleEnableDb}
+                    disabled={loadingDb}
+                    className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3 transition-colors hover:bg-surface-2/80"
+                  >
+                    <Database className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1 text-left">
+                      <div className="text-sm font-medium text-foreground">Activar Base de Datos</div>
+                      <div className="text-xs text-muted-foreground">Gestiona datos de tu proyecto con tablas dinámicas</div>
+                    </div>
+                    {loadingDb && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 rounded-lg border border-execute/40 bg-execute/10 px-3 py-2">
+                      <Database className="h-4 w-4 text-execute" />
+                      <span className="text-xs font-medium text-execute">Base de datos activa</span>
+                    </div>
+
+                    {loadingDb ? (
+                      <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    ) : (
+                      <>
+                        {tables.length > 0 && (
+                          <div className="space-y-1">
+                            {tables.map(t => (
+                              <div key={t.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                                <span className="text-sm text-foreground font-mono">{t.name}</span>
+                                <button onClick={() => handleDeleteTable(t.id)} className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            value={newTableName}
+                            onChange={e => setNewTableName(e.target.value)}
+                            placeholder="Nombre de tabla"
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-brain/60"
+                            onKeyDown={e => e.key === "Enter" && handleCreateTable()}
+                          />
+                          <button
+                            onClick={handleCreateTable}
+                            disabled={creatingTable || !newTableName.trim()}
+                            className="rounded-lg bg-brain px-3 py-2 text-xs font-medium text-brain-foreground hover:bg-brain/90 transition-colors disabled:opacity-50"
+                          >
+                            {creatingTable ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* External DB tab */}
+            {dbTab === "external" && projectId && (
+              <ExternalDbForm projectId={projectId} />
             )}
           </div>
 
