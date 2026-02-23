@@ -995,7 +995,7 @@ async function classifyWithOllama(message: string, modelOverride?: string): Prom
     try {
       console.log(`[Ollama] Trying ${endpoint.url} (${endpoint.format} format)`);
       
-      let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
+      let selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "gemma3";
       // 1. Quitar tags de version (:8b, :70b, :latest)
       if (selectedModel.includes(":")) {
         const baseModel = selectedModel.split(":")[0];
@@ -1004,10 +1004,11 @@ async function classifyWithOllama(message: string, modelOverride?: string): Prom
       }
       // 2. Mapear variantes que no existen en Ollama Cloud
       const modelAliases: Record<string, string> = {
-        "llama3.1": "llama3",
-        "llama3.2": "llama3",
-        "llama3.3": "llama3",
-        "llama2": "llama3",
+        "llama3": "gemma3",
+        "llama3.1": "gemma3",
+        "llama3.2": "gemma3",
+        "llama3.3": "gemma3",
+        "llama2": "gemma3",
       };
       if (modelAliases[selectedModel]) {
         console.log(`[Ollama] Mapping model "${selectedModel}" -> "${modelAliases[selectedModel]}"`);

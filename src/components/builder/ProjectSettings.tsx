@@ -54,7 +54,7 @@ export function ProjectSettings({
       const stored = localStorage.getItem(ollamaStorageKey);
       if (stored) return JSON.parse(stored);
     } catch {}
-    return { enabled: true, model: "llama3", confidenceThreshold: 0.6 };
+    return { enabled: true, model: "gemma3", confidenceThreshold: 0.6 };
   });
   const [ollamaModelInput, setOllamaModelInput] = useState(ollamaConfig.model);
   const [ollamaThresholdInput, setOllamaThresholdInput] = useState(String(ollamaConfig.confidenceThreshold));
@@ -383,7 +383,7 @@ export function ProjectSettings({
                     <input
                       value={ollamaModelInput}
                       onChange={e => setOllamaModelInput(e.target.value.replace(/:[^\s]*/g, ""))}
-                      placeholder="llama3 (sin tags de versión)"
+                      placeholder="gemma3 (modelo por defecto)"
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-brain/60"
                     />
                     <button
