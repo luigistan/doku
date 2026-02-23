@@ -9,6 +9,7 @@ interface PreviewPanelProps {
   onRefresh: () => void;
   projectSlug?: string | null;
   isPublic?: boolean;
+  projectId?: string;
 }
 
 const viewportWidths: Record<ViewportSize, string> = {
@@ -58,12 +59,22 @@ function useSimulatedProgress(isLoading: boolean) {
   return progress;
 }
 
-export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug, isPublic }: PreviewPanelProps) {
+export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug, isPublic, projectId }: PreviewPanelProps) {
   const StatusIcon = statusConfig[preview.status].icon;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const progress = useSimulatedProgress(preview.status === "loading");
 
+  // Send projectId to iframe for CRUD SDK
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'doku:requestProjectId' && projectId && iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: 'doku:projectId', projectId }, '*');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [projectId]);
   // Detect if the preview seems stuck (HTML is set but iframe might not render)
   useEffect(() => {
     if (preview.status !== "ready" || !preview.html || preview.html.length < 100) {
@@ -166,7 +177,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
             srcDoc={preview.html}
             className="h-full w-full border-0"
             title="Preview"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
           />
         </div>
 

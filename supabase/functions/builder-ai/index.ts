@@ -2890,6 +2890,66 @@ function generatePageContent(pageType: string, c: ColorScheme, businessName: str
   return pages[pageType] || `<div style="padding:2rem;background:var(--bg);min-height:100vh"><h1 style="font-size:1.8rem;font-weight:700">${pageType}</h1></div>`;
 }
 
+// ==================== CRUD SDK INJECTION ====================
+function getCrudSdkScript(businessName: string): string {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+  
+  return `<script>
+(function(){
+  var API_URL='${supabaseUrl}/functions/v1/crud-api';
+  var API_KEY='${anonKey}';
+  var PROJECT_ID=null;
+  try{var p=new URLSearchParams(window.location.search);PROJECT_ID=p.get('projectId')}catch(e){}
+  window.addEventListener('message',function(e){if(e.data&&e.data.type==='doku:projectId'){PROJECT_ID=e.data.projectId;console.log('[CRUD] Project ID:',PROJECT_ID);var ap=document.querySelector('.page-tab.active');if(ap&&window.DOKU_CRUD)DOKU_CRUD.onPageSwitch(ap.dataset.page)}});
+  if(window.parent!==window)window.parent.postMessage({type:'doku:requestProjectId'},'*');
+
+  function apiCall(body){body.projectId=PROJECT_ID;return fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':API_KEY,'Authorization':'Bearer '+API_KEY},body:JSON.stringify(body)}).then(function(r){return r.json()})}
+  
+  var ptMap={clients:'clients',customers:'customers',products:'products',invoices:'invoices',orders:'orders',members:'members',menu_items:'menu_items',reservations:'reservations',appointments:'appointments',patients:'patients',contacts:'contacts',deals:'deals',services:'services',bookings:'bookings',sales:'sales',movements:'movements',rooms:'rooms',courses:'courses',students:'students',properties:'properties',inquiries:'inquiries',invoice_items:'invoice_items'};
+  function tbl(p){return ptMap[p]||p}
+  
+  function renderRows(cid,rows,cols){
+    var c=document.getElementById(cid);if(!c)return;
+    var tb=c.querySelector('tbody');if(!tb)return;
+    if(!rows||!rows.length){tb.innerHTML='<tr><td colspan="10" style="padding:2rem;text-align:center;color:var(--text-muted)">No hay datos. Clic en "+ Agregar" para crear.</td></tr>';return}
+    var ks=cols?cols.map(function(c){return c.name||c}):Object.keys(rows[0].data||{});
+    tb.innerHTML=rows.map(function(r){var d=r.data||{};return '<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background=\\'var(--bg-alt)\\'" onmouseout="this.style.background=\\'transparent\\'">'+ks.map(function(k){return '<td style="padding:0.8rem 1rem">'+(d[k]||'')+'</td>'}).join('')+'<td style="padding:0.8rem 1rem;text-align:right"><button onclick="DOKU_CRUD.deleteRow(\\''+r.id+'\\')" style="background:none;border:none;color:#ef4444;cursor:pointer">🗑️</button></td></tr>'}).join('')}
+
+  window.DOKU_CRUD={
+    setProjectId:function(id){PROJECT_ID=id},
+    read:function(t){return apiCall({action:'read',tableName:t})},
+    create:function(t,d){return apiCall({action:'create',tableName:t,data:d})},
+    update:function(rid,d){return apiCall({action:'update',rowId:rid,data:d})},
+    deleteRow:function(rid){if(!confirm('¿Eliminar?'))return;apiCall({action:'delete',rowId:rid}).then(function(){var ap=document.querySelector('.page-tab.active');if(ap)DOKU_CRUD.onPageSwitch(ap.dataset.page)})},
+    showAddForm:function(t){
+      var m=document.getElementById('doku-modal');if(m)m.remove();
+      apiCall({action:'get_columns',tableName:t}).then(function(r){
+        var cols=r.columns||[];
+        var fields=cols.map(function(c){var it=c.column_type==='email'?'email':c.column_type==='number'?'number':c.column_type==='date'?'date':'text';return '<div style="margin-bottom:1rem"><label style="display:block;font-size:0.85rem;font-weight:500;margin-bottom:0.4rem">'+c.name.replace(/_/g,' ')+(c.is_required?' *':'')+'</label><input type="'+it+'" name="'+c.name+'" '+(c.is_required?'required':'')+' style="width:100%;padding:0.65rem 1rem;background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.9rem;outline:none;font-family:var(--font-body)"/></div>'}).join('');
+        var html='<div id="doku-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.remove()"><div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;width:100%;max-width:480px;max-height:80vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem"><h2 style="font-size:1.2rem;font-weight:700">Agregar '+t.replace(/_/g,' ')+'</h2><button onclick="document.getElementById(\\'doku-modal\\').remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem">✕</button></div><form id="doku-add-form" onsubmit="event.preventDefault();DOKU_CRUD.submitForm(\\''+t+'\\')">'+fields+'<button type="submit" class="btn" style="width:100%;justify-content:center;margin-top:0.5rem">Guardar</button></form></div></div>';
+        document.body.insertAdjacentHTML('beforeend',html)
+      })
+    },
+    submitForm:function(t){
+      var f=document.getElementById('doku-add-form');if(!f)return;
+      var d={};f.querySelectorAll('input').forEach(function(i){if(i.value)d[i.name]=i.value});
+      var b=f.querySelector('button[type=submit]');b.textContent='Guardando...';b.disabled=true;
+      DOKU_CRUD.create(t,d).then(function(){document.getElementById('doku-modal').remove();var ap=document.querySelector('.page-tab.active');if(ap)DOKU_CRUD.onPageSwitch(ap.dataset.page);DOKU_CRUD.notify('✅ Registro creado')}).catch(function(e){b.textContent='Guardar';b.disabled=false;DOKU_CRUD.notify('❌ Error: '+e,'error')})
+    },
+    notify:function(msg,type){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);padding:0.8rem 1.5rem;background:'+(type==='error'?'#ef4444':'var(--primary)')+';color:#fff;border-radius:var(--radius-sm);font-size:0.9rem;font-weight:500;z-index:9999;box-shadow:0 4px 15px rgba(0,0,0,0.3)';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},3000)},
+    onPageSwitch:function(pid){
+      if(!PROJECT_ID)return;var tn=tbl(pid);
+      DOKU_CRUD.read(tn).then(function(r){if(r.rows){var pe=document.getElementById('page-'+pid);if(!pe)return;var tb=pe.querySelector('table');if(tb){apiCall({action:'get_columns',tableName:tn,projectId:PROJECT_ID}).then(function(cr){renderRows('page-'+pid,r.rows,cr.columns)})}}}).catch(function(e){console.warn('[CRUD] Load error:',e)})
+    }
+  };
+
+  document.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var t=b.textContent.trim();if(t.startsWith('+')&&PROJECT_ID){e.preventDefault();var ap=document.querySelector('.page-tab.active');if(ap)DOKU_CRUD.showAddForm(tbl(ap.dataset.page))}});
+  console.log('[CRUD] SDK loaded');
+})();
+<` + `/script>`;
+}
+
 function parseExistingPages(html: string): PageDef[] {
   const pages: PageDef[] = [];
   const regex = /<!-- PAGE:(\w+):(.+?) -->\s*<div[^>]*class="page-content"[^>]*>([\s\S]*?)<\/div>\s*<!-- \/PAGE:\1 -->/g;
@@ -2944,8 +3004,9 @@ a{color:var(--primary-light);text-decoration:none;transition:color var(--transit
     ${pageContents}
   </main>
   <script>
-  function switchPage(pageId){document.querySelectorAll('.page-content').forEach(function(p){p.style.display='none'});document.querySelectorAll('.page-tab').forEach(function(t){t.style.background='transparent';t.style.color='var(--text-muted)';t.classList.remove('active')});var target=document.getElementById('page-'+pageId);if(target)target.style.display='block';var tab=document.querySelector('.page-tab[data-page="'+pageId+'"]');if(tab){tab.style.background='var(--primary)';tab.style.color='#fff';tab.classList.add('active')}}
+  function switchPage(pageId){document.querySelectorAll('.page-content').forEach(function(p){p.style.display='none'});document.querySelectorAll('.page-tab').forEach(function(t){t.style.background='transparent';t.style.color='var(--text-muted)';t.classList.remove('active')});var target=document.getElementById('page-'+pageId);if(target)target.style.display='block';var tab=document.querySelector('.page-tab[data-page="'+pageId+'"]');if(tab){tab.style.background='var(--primary)';tab.style.color='#fff';tab.classList.add('active')}if(window.DOKU_CRUD&&window.DOKU_CRUD.onPageSwitch)window.DOKU_CRUD.onPageSwitch(pageId)}
   </script>
+  ${getCrudSdkScript(businessName)}
 </body>
 </html>`;
 }
