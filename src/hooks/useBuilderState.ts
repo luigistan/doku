@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { Message, Mode, PreviewState, AnalysisData } from "@/types/builder";
+import { Message, Mode, PreviewState, AnalysisData, ConversationalContext } from "@/types/builder";
 import { getDefaultHtml } from "@/lib/templates";
 import { generateSite, BuilderResponse, logInteraction } from "@/services/builderService";
 
@@ -20,6 +20,7 @@ export function useBuilderState() {
   });
   const [isTyping, setIsTyping] = useState(false);
   const pendingResult = useRef<BuilderResponse | null>(null);
+  const conversationalContext = useRef<ConversationalContext>({});
 
   const executeFromResult = useCallback((result: BuilderResponse) => {
     const planMsgId = (Date.now() + 10).toString();
@@ -126,7 +127,13 @@ export function useBuilderState() {
       setPreview((p) => ({ ...p, status: "loading" }));
 
       try {
-        const result = await generateSite(content, mode);
+        const result = await generateSite(content, mode, conversationalContext.current);
+
+        // Update conversational context for next message
+        conversationalContext.current = {
+          previousIntent: result.intent,
+          previousEntities: result.entities,
+        };
 
         if (mode === "brain") {
           // Brain mode: show analysis and ASK for confirmation

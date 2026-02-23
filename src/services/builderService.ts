@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { findTemplate } from "@/lib/templates";
+import { ConversationalContext } from "@/types/builder";
 
 export interface BuilderResponse {
   intent: string;
@@ -18,11 +19,12 @@ export interface BuilderResponse {
 
 export async function generateSite(
   message: string,
-  mode: "brain" | "execute"
+  mode: "brain" | "execute",
+  context?: ConversationalContext
 ): Promise<BuilderResponse> {
   try {
     const { data, error } = await supabase.functions.invoke("builder-ai", {
-      body: { message, mode },
+      body: { message, mode, previousIntent: context?.previousIntent, previousEntities: context?.previousEntities },
     });
 
     if (error) throw error;

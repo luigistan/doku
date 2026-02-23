@@ -29,6 +29,16 @@ export interface PlanStep {
   status: "pending" | "active" | "done";
 }
 
+export interface ConversationalContext {
+  previousIntent?: string;
+  previousEntities?: {
+    businessName: string;
+    sections: string[];
+    colorScheme: string;
+    industry: string;
+  };
+}
+
 export type ViewportSize = "desktop" | "tablet" | "mobile";
 
 export interface PreviewState {

@@ -279,6 +279,7 @@ interface LearningLog {
   detected_entities: Record<string, unknown>;
   confidence: number;
   created_at: string;
+  user_accepted: boolean | null;
 }
 
 async function queryLearningPatterns(): Promise<LearningLog[]> {
@@ -286,10 +287,9 @@ async function queryLearningPatterns(): Promise<LearningLog[]> {
     const sb = getSupabaseClient();
     const { data, error } = await sb
       .from("ai_learning_logs")
-      .select("user_message, detected_intent, detected_entities, confidence, created_at")
-      .eq("user_accepted", true)
+      .select("user_message, detected_intent, detected_entities, confidence, created_at, user_accepted")
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(200);
     if (error) throw error;
     return (data || []) as LearningLog[];
   } catch {
@@ -376,7 +376,143 @@ function matchFromLearning(tokens: string[], originalText: string, patterns: Lea
   return null;
 }
 
-// ==================== ENHANCED CLASSIFIER (Multi-Signal Fusion) ====================
+// ==================== TF-IDF VECTORIAL ENGINE ====================
+const semanticVocabulary: Record<string, string[]> = {
+  landing: ["landing", "principal", "home", "inicio", "empresa", "negocio", "startup", "corporativo", "institucional", "presentacion", "marca", "producto", "servicio", "innovacion", "digital", "profesional", "moderno", "compania", "organizacion", "fundacion"],
+  restaurant: ["restaurante", "cafeteria", "cafe", "comida", "food", "bar", "cocina", "gastronomia", "pizzeria", "sushi", "panaderia", "bistro", "comedor", "taqueria", "mariscos", "asador", "buffet", "comer", "alimento", "plato", "sabor", "chef", "mesa", "reserva", "delivery", "receta", "ingrediente", "menu", "carta", "gourmet", "culinario", "hambre", "cenar", "almorzar", "desayunar", "brunch", "bebida", "postre", "comedor", "fonda"],
+  portfolio: ["portfolio", "portafolio", "proyectos", "galeria", "trabajos", "curriculum", "cv", "freelancer", "disenador", "artista", "creativo", "muestra", "exhibir", "mostrar", "obra", "talento", "habilidades", "experiencia", "profesional"],
+  blog: ["blog", "articulos", "posts", "noticias", "publicaciones", "contenido", "revista", "magazine", "editorial", "escribir", "publicar", "lectura", "opinion", "columna", "periodismo", "autor"],
+  dashboard: ["dashboard", "panel", "admin", "administracion", "estadisticas", "metricas", "analytics", "control", "gestion", "crm", "reportes", "datos", "graficas", "monitoreo"],
+  ecommerce: ["tienda", "ecommerce", "commerce", "shop", "productos", "comprar", "venta", "carrito", "store", "marketplace", "catalogo", "vender", "precio", "oferta", "envio", "pago", "pedido", "inventario", "articulo", "mercancia", "comercio", "negocio", "ropa", "zapatos", "accesorios", "joyeria", "moda"],
+  fitness: ["gimnasio", "gym", "fitness", "ejercicio", "entrenamiento", "deporte", "crossfit", "yoga", "pilates", "wellness", "salud", "musculo", "fuerza", "cardio", "rutina", "nutricion", "proteina", "cuerpo", "atleta"],
+  agency: ["agencia", "agency", "consultoria", "marketing", "digital", "estudio", "studio", "creativa", "diseno", "publicidad", "branding", "estrategia", "campaña", "cliente", "proyecto", "solucion"],
+  clinic: ["clinica", "medico", "doctor", "hospital", "dental", "dentista", "medicina", "consultorio", "pediatra", "dermatologo", "health", "odontologo", "fisioterapia", "rehabilitacion", "salud", "paciente", "cita", "tratamiento", "diagnostico", "enfermedad", "cirugia"],
+  realestate: ["inmobiliaria", "propiedades", "apartamentos", "casas", "alquiler", "inmuebles", "departamentos", "terrenos", "lotes", "bienes", "raices", "venta", "renta", "hipoteca", "construccion", "edificio"],
+  education: ["escuela", "academia", "cursos", "educacion", "universidad", "colegio", "formacion", "capacitacion", "clases", "tutoria", "school", "institute", "aprender", "ensenar", "estudiante", "profesor", "maestro", "leccion", "diploma"],
+  veterinary: ["veterinaria", "mascotas", "pet", "animales", "perros", "gatos", "vet", "cachorro", "gatito", "vacuna", "consulta", "animal", "peludito", "canino", "felino"],
+  hotel: ["hotel", "hospedaje", "alojamiento", "airbnb", "hostal", "resort", "motel", "posada", "cabana", "habitaciones", "reservacion", "huesped", "turismo", "vacaciones", "descanso", "suite"],
+  lawyer: ["abogado", "legal", "derecho", "bufete", "juridico", "notaria", "leyes", "litigio", "penalista", "civilista", "defensa", "demanda", "juicio", "asesor", "contrato"],
+  accounting: ["contador", "contabilidad", "impuestos", "fiscal", "auditor", "contable", "facturacion", "nomina", "tributario", "balance", "finanzas", "declaracion", "sat"],
+  photography: ["fotografo", "fotos", "fotografia", "sesion", "camara", "retrato", "boda", "eventos", "editorial", "imagen", "foto", "lente", "estudio", "album"],
+  music: ["musico", "banda", "dj", "grabacion", "disquera", "musica", "cantante", "productor", "compositor", "cancion", "album", "concierto", "sonido", "audio", "instrumento"],
+  salon: ["salon", "peluqueria", "barberia", "spa", "estetica", "belleza", "cabello", "unas", "maquillaje", "corte", "barber", "nails", "peinado", "tinte", "tratamiento", "facial", "manicure"],
+  technology: ["tech", "software", "app", "desarrollo", "programacion", "tecnologia", "sistemas", "informatica", "devops", "cloud", "saas", "plataforma", "codigo", "web", "aplicacion", "inteligencia", "artificial"],
+};
+
+// Pre-compute IDF values
+function computeIDF(vocabulary: Record<string, string[]>): Map<string, number> {
+  const allTerms = new Set<string>();
+  const intentCount = Object.keys(vocabulary).length;
+  const termDocFreq = new Map<string, number>();
+
+  for (const terms of Object.values(vocabulary)) {
+    const uniqueTerms = new Set(terms);
+    for (const t of uniqueTerms) {
+      allTerms.add(t);
+      termDocFreq.set(t, (termDocFreq.get(t) || 0) + 1);
+    }
+  }
+
+  const idf = new Map<string, number>();
+  for (const [term, df] of termDocFreq) {
+    idf.set(term, Math.log((intentCount + 1) / (df + 1)) + 1); // smoothed IDF
+  }
+  return idf;
+}
+
+function computeTFVector(tokens: string[], idf: Map<string, number>): Map<string, number> {
+  const tf = new Map<string, number>();
+  for (const t of tokens) {
+    tf.set(t, (tf.get(t) || 0) + 1);
+  }
+  const vector = new Map<string, number>();
+  for (const [term, freq] of tf) {
+    const idfVal = idf.get(term) || 0;
+    if (idfVal > 0) {
+      vector.set(term, (freq / tokens.length) * idfVal);
+    }
+  }
+  return vector;
+}
+
+function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+  let dot = 0, magA = 0, magB = 0;
+  for (const [k, v] of a) {
+    magA += v * v;
+    const bv = b.get(k);
+    if (bv) dot += v * bv;
+  }
+  for (const [, v] of b) magB += v * v;
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+const cachedIDF = computeIDF(semanticVocabulary);
+const cachedIntentVectors = new Map<string, Map<string, number>>();
+for (const [intent, terms] of Object.entries(semanticVocabulary)) {
+  cachedIntentVectors.set(intent, computeTFVector(terms, cachedIDF));
+}
+
+// ==================== CONVERSATIONAL MEMORY ====================
+const followUpPatterns = [
+  /^(?:cambia|cambiar|cambiale|modificar?)\s/i,
+  /^(?:agrega|agregar|anadir?|anade|pon|ponle|incluir?|incluye)\s/i,
+  /^(?:quita|quitar|elimina|eliminar|remueve|remover|saca|sacar)\s/i,
+  /^(?:hazlo|hazla|hacelo|hacerlo|que sea)\s/i,
+  /^(?:mejor|mas|menos)\s/i,
+  /(?:color|colores)\s+(?:a\s+)?(?:rojo|azul|verde|morado|naranja|amarillo|rosa|negro|blanco|oscuro|claro|calido|frio|elegante|moderno|dorado|plateado|turquesa|coral)/i,
+  /(?:nombre|llamar|llamalo|llamala)\s/i,
+];
+
+function isFollowUp(message: string): boolean {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return followUpPatterns.some(p => p.test(normalized));
+}
+
+// ==================== NEGATIVE LEARNING ====================
+function jaccardSimilarity(a: string[], b: string[]): number {
+  const setA = new Set(a);
+  const setB = new Set(b);
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return union.size > 0 ? intersection.size / union.size : 0;
+}
+
+function applyNegativeLearning(
+  scores: Record<string, number>,
+  tokens: string[],
+  patterns: LearningLog[]
+): void {
+  const rejectedPatterns = patterns.filter(p => p.user_accepted === false);
+  const acceptedPatterns = patterns.filter(p => p.user_accepted === true);
+
+  for (const rejected of rejectedPatterns) {
+    const rejTokens = tokenize(rejected.user_message);
+    const sim = jaccardSimilarity(tokens, rejTokens);
+    if (sim > 0.4) {
+      // Penalize the rejected intent
+      scores[rejected.detected_intent] = (scores[rejected.detected_intent] || 0) - 3 * sim;
+      // If feedback suggests another intent, boost it
+      if (rejected.user_accepted === false && rejected.detected_entities) {
+        const entities = rejected.detected_entities as Record<string, unknown>;
+        if (entities.suggestedIntent && typeof entities.suggestedIntent === "string") {
+          scores[entities.suggestedIntent] = (scores[entities.suggestedIntent] || 0) + 2;
+        }
+      }
+    }
+  }
+
+  // Boost accepted patterns (3x weight)
+  for (const accepted of acceptedPatterns) {
+    const accTokens = tokenize(accepted.user_message);
+    const sim = jaccardSimilarity(tokens, accTokens);
+    if (sim > 0.3) {
+      scores[accepted.detected_intent] = (scores[accepted.detected_intent] || 0) + 3 * sim;
+    }
+  }
+}
+
+// ==================== ENHANCED CLASSIFIER (Multi-Signal Fusion + TF-IDF) ====================
 function classifyIntent(tokens: string[], originalText: string, patterns: LearningLog[]): IntentMatch {
   const scores: Record<string, number> = {};
 
@@ -409,13 +545,10 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
   const bigrams = getBigrams(expanded);
 
   for (const [intent, { keywords, bigrams: intentBigrams }] of Object.entries(intentMap)) {
-    // Exact keyword match
     for (const kw of keywords) {
       if (expanded.includes(kw)) scores[intent] += 3;
       else if (normalizedText.includes(kw) && kw.length > 3) scores[intent] += 2;
     }
-
-    // Fuzzy keyword match (Levenshtein)
     for (const token of expanded) {
       for (const kw of keywords) {
         if (token !== kw && fuzzyMatch(token, kw, 2)) {
@@ -424,14 +557,10 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
         }
       }
     }
-
-    // Bigram match
     for (const bg of intentBigrams || []) {
       if (bigrams.includes(bg)) scores[intent] += 4;
       else if (normalizedText.includes(bg)) scores[intent] += 3;
     }
-
-    // Substring match
     for (const kw of keywords) {
       if (kw.length > 4 && normalizedText.includes(kw.substring(0, kw.length - 1))) {
         scores[intent] += 0.5;
@@ -439,16 +568,23 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
     }
   }
 
-  // ---- SIGNAL 4: Dynamic keywords from learning logs ----
-  const dynamicKW = buildDynamicKeywords(patterns);
+  // ---- SIGNAL 4: TF-IDF Vectorial Semantic Matching ----
+  const messageVector = computeTFVector(expanded, cachedIDF);
+  for (const [intent, intentVector] of cachedIntentVectors) {
+    const similarity = cosineSimilarity(messageVector, intentVector);
+    if (similarity > 0.05) {
+      scores[intent] = (scores[intent] || 0) + similarity * 6;
+    }
+  }
+
+  // ---- SIGNAL 5: Dynamic keywords from learning logs ----
+  const dynamicKW = buildDynamicKeywords(patterns.filter(p => p.user_accepted !== false));
   for (const [intent, freqMap] of dynamicKW) {
     for (const token of expanded) {
       const freq = freqMap.get(token);
       if (freq) {
-        // Learned keywords get weight proportional to how often they appeared
         scores[intent] = (scores[intent] || 0) + Math.min(freq * 0.5, 2);
       }
-      // Also fuzzy match against learned tokens
       for (const [learnedToken, f] of freqMap) {
         if (token !== learnedToken && fuzzyMatch(token, learnedToken, 1)) {
           scores[intent] = (scores[intent] || 0) + Math.min(f * 0.3, 1);
@@ -457,12 +593,15 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
     }
   }
 
-  // ---- SIGNAL 5: Few-shot learning from DB ----
-  const learned = matchFromLearning(tokens, originalText, patterns);
+  // ---- SIGNAL 6: Few-shot learning from DB ----
+  const acceptedPatterns = patterns.filter(p => p.user_accepted !== false);
+  const learned = matchFromLearning(tokens, originalText, acceptedPatterns);
   if (learned && learned.confidence > 0.6) {
-    // Boost the learned intent's score significantly
     scores[learned.intent] = (scores[learned.intent] || 0) + learned.confidence * 8;
   }
+
+  // ---- SIGNAL 7: Negative learning (penalize rejected, boost accepted) ----
+  applyNegativeLearning(scores, tokens, patterns);
 
   // Find best scoring intent
   let bestIntent = "landing";
@@ -474,15 +613,12 @@ function classifyIntent(tokens: string[], originalText: string, patterns: Learni
     }
   }
 
-  // If learned match has very high confidence and keyword score is low, prefer learned
   if (learned && learned.confidence > 0.7 && bestScore < 3) {
     return learned;
   }
 
-  // Calibrate confidence based on score distribution
   const sortedScores = Object.values(scores).sort((a, b) => b - a);
   const gap = sortedScores.length > 1 ? sortedScores[0] - sortedScores[1] : sortedScores[0];
-  // Confidence is higher when: (a) absolute score is high, (b) gap between top two is large
   const absConfidence = Math.min(bestScore / 12, 1);
   const gapConfidence = Math.min(gap / 6, 1);
   const confidence = Math.round(Math.min((absConfidence * 0.6 + gapConfidence * 0.4) * 1.1, 1) * 100) / 100;
@@ -1731,7 +1867,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, mode, action, logId, accepted, feedback } = body;
+    const { message, mode, action, logId, accepted, feedback, previousIntent, previousEntities } = body;
 
     // Handle feedback logging
     if (action === "feedback" && logId) {
@@ -1749,16 +1885,53 @@ serve(async (req) => {
       );
     }
 
-    // 1. Query learning patterns
+    // 1. Query learning patterns (includes accepted + rejected for negative learning)
     const patterns = await queryLearningPatterns();
 
-    // 2. Tokenize and classify with enhanced NLP
+    // 2. Tokenize and classify with enhanced NLP + TF-IDF
     const tokens = tokenize(message);
-    const { intent, confidence, label } = classifyIntent(tokens, message, patterns);
-    const entities = extractEntities(message, tokens, intent);
+
+    // 3. Check for conversational follow-up
+    let intent: string;
+    let confidence: number;
+    let label: string;
+
+    if (isFollowUp(message) && previousIntent && previousEntities) {
+      // Follow-up message: use previous context
+      intent = previousIntent;
+      confidence = 0.85;
+      label = intentMap[previousIntent]?.label || "Sitio Web";
+    } else {
+      // New message: full classification with TF-IDF + all signals
+      const classification = classifyIntent(tokens, message, patterns);
+      intent = classification.intent;
+      confidence = classification.confidence;
+      label = classification.label;
+    }
+
+    // 4. Extract entities (merging with previous context for follow-ups)
+    let entities = extractEntities(message, tokens, intent);
+
+    if (previousEntities && isFollowUp(message)) {
+      // Merge: keep previous values where current extraction has defaults
+      const defaultName = getDefaultName(intent);
+      entities = {
+        businessName: entities.businessName !== defaultName ? entities.businessName : (previousEntities.businessName || defaultName),
+        sections: entities.sections.length > 3 ? entities.sections : [...new Set([...previousEntities.sections || [], ...entities.sections])],
+        colorScheme: entities.colorScheme !== "default" && entities.colorScheme !== (({
+          restaurant: "warm", fitness: "green", agency: "modern", portfolio: "purple",
+          ecommerce: "blue", blog: "cool", clinic: "blue", realestate: "elegant",
+          education: "blue", veterinary: "green", hotel: "elegant", lawyer: "dark",
+          accounting: "cool", photography: "dark", music: "purple", salon: "pink",
+          technology: "modern",
+        } as Record<string, string>)[intent] || "purple") ? entities.colorScheme : (previousEntities.colorScheme || entities.colorScheme),
+        industry: intent,
+      };
+    }
+
     const colors = getColors(entities.colorScheme);
 
-    // 3. Generate React/TypeScript HTML
+    // 5. Generate React/TypeScript HTML
     const html = composeReactHtml({
       name: entities.businessName,
       colors,
@@ -1766,7 +1939,7 @@ serve(async (req) => {
       intent,
     });
 
-    // 4. Log interaction for learning
+    // 6. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
 
     const response: Record<string, unknown> = {
