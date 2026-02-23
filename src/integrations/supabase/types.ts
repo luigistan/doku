@@ -184,6 +184,65 @@ export type Database = {
           },
         ]
       }
+      db_connections: {
+        Row: {
+          created_at: string
+          database_name: string
+          host: string
+          id: string
+          is_default: boolean
+          password_encrypted: string
+          port: number
+          project_id: string
+          status: string
+          status_message: string | null
+          type: string
+          updated_at: string
+          use_ssl: boolean
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          database_name: string
+          host: string
+          id?: string
+          is_default?: boolean
+          password_encrypted: string
+          port: number
+          project_id: string
+          status?: string
+          status_message?: string | null
+          type: string
+          updated_at?: string
+          use_ssl?: boolean
+          username: string
+        }
+        Update: {
+          created_at?: string
+          database_name?: string
+          host?: string
+          id?: string
+          is_default?: boolean
+          password_encrypted?: string
+          port?: number
+          project_id?: string
+          status?: string
+          status_message?: string | null
+          type?: string
+          updated_at?: string
+          use_ssl?: boolean
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "db_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
