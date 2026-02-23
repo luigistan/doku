@@ -228,20 +228,12 @@ const HeroDemo = () => {
                 transform: previewVisible ? "scale(1)" : "scale(0.95)",
               }}
             >
-              <div className="w-full h-full overflow-hidden">
-                <iframe
-                  srcDoc={templateHtml}
-                  title="Demo preview"
-                  className="border-0 origin-top-left pointer-events-none"
-                  style={{
-                    width: "1280px",
-                    height: "800px",
-                    transform: "scale(0.25)",
-                    transformOrigin: "top left",
-                  }}
-                  sandbox="allow-scripts"
-                />
-              </div>
+              <iframe
+                srcDoc={templateHtml}
+                title="Demo preview"
+                className="border-0 pointer-events-none w-full h-full"
+                sandbox="allow-scripts"
+              />
             </div>
           )}
         </div>
