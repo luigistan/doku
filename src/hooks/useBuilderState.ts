@@ -133,7 +133,7 @@ export function useBuilderState() {
         {
           id: waitMsgId,
           role: "system",
-          content: "⏳ Procesando con IA open source (Ollama). Esto puede tardar 2-4 minutos la primera vez...",
+          content: "🔍 Analizando tu solicitud con Ollama...",
           timestamp: new Date(),
         },
       ]);
