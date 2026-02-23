@@ -2690,28 +2690,77 @@ function extractHtmlFromResponse(response: string): string | null {
 interface PageDef { id: string; label: string; content: string; }
 
 const pageRequestPatterns: { pattern: RegExp; pageType: string; label: string }[] = [
+  // Tab/menu specific patterns - "quiero que crees una pestaña en el menu que diga clientes"
+  { pattern: /(?:quiero|pon|agrega|crea|incluye|haz|anade|mete)\s+(?:que\s+)?(?:se\s+)?(?:cree[ns]?\s+)?(?:una?\s+)?(?:pestana|pestanas|tab|tabs|menu|opcion)\s+(?:(?:en\s+)?(?:el\s+)?(?:menu|navbar|barra)\s+)?(?:que\s+diga\s+|de\s+|para\s+|llamad[ao]\s+|con\s+(?:el\s+)?(?:nombre|titulo)\s+)?(?:de\s+)?(\w+)/i, pageType: "_dynamic_", label: "" },
+  // "agrega X al menu" / "pon X en el menu"
+  { pattern: /(?:agrega|pon|incluye|mete|anade)\s+(\w+)\s+(?:al|en\s+el)\s+(?:menu|navbar|barra|tabs|pestanas)/i, pageType: "_dynamic_", label: "" },
+  // Direct page requests
   { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|formulario)\s+(?:de\s+)?(?:login|inicio\s+de?\s*sesion|iniciar?\s*sesion)/i, pageType: "login", label: "Login" },
   { pattern: /(?:crea|haz|hazme|genera|agrega)\s+(?:un?\s+)?(?:login|inicio\s+de?\s*sesion)/i, pageType: "login", label: "Login" },
   { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|formulario)\s+(?:de\s+)?(?:registro|registrar|sign\s*up|crear\s+cuenta)/i, pageType: "register", label: "Registro" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega)\s+(?:un?\s+)?(?:registro|sign\s*up)/i, pageType: "register", label: "Registro" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:dashboard|panel\s*(?:de\s+)?(?:control|admin)?)/i, pageType: "dashboard", label: "Dashboard" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega)\s+(?:un?\s+)?(?:dashboard|panel\s*(?:de\s+)?(?:control|admin)?)/i, pageType: "dashboard", label: "Dashboard" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:clientes|customers|contactos)/i, pageType: "clients", label: "Clientes" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|panel)\s+(?:de\s+)?(?:dashboard|panel|inicio|home|principal)/i, pageType: "dashboard", label: "Dashboard" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega)\s+(?:un?\s+)?(?:dashboard|panel\s+de\s+control)/i, pageType: "dashboard", label: "Dashboard" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla|lista)\s+(?:de\s+)?(?:clientes?|customers?)/i, pageType: "clients", label: "Clientes" },
   { pattern: /(?:crea|haz|hazme|genera|agrega)\s+(?:una?\s+)?(?:lista|tabla|vista)\s+(?:de\s+)?clientes/i, pageType: "clients", label: "Clientes" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:productos|inventario|catalogo)/i, pageType: "products", label: "Productos" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:facturas|facturacion|invoices|cobros|recibos)/i, pageType: "invoices", label: "Facturas" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:pedidos|ordenes|orders)/i, pageType: "orders", label: "Pedidos" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:productos?|inventario|catalogo)/i, pageType: "products", label: "Productos" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:facturas?|facturacion|invoices?|cobros?|recibos?)/i, pageType: "invoices", label: "Facturas" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:pedidos?|ordenes?|orders?)/i, pageType: "orders", label: "Pedidos" },
   { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:configuracion|settings|ajustes|preferencias)/i, pageType: "settings", label: "Configuración" },
   { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:perfil|profile|mi\s+cuenta)/i, pageType: "profile", label: "Perfil" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:reportes|informes|reports|estadisticas|analytics)/i, pageType: "reports", label: "Reportes" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:usuarios|users|empleados|personal|staff)/i, pageType: "users", label: "Usuarios" },
-  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:calendario|agenda|citas|appointments|reservas)/i, pageType: "calendar", label: "Calendario" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:reportes?|informes?|reports?|estadisticas?|analytics)/i, pageType: "reports", label: "Reportes" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion|tabla)\s+(?:de\s+)?(?:usuarios?|users?|empleados?|personal|staff)/i, pageType: "users", label: "Usuarios" },
+  { pattern: /(?:crea|haz|hazme|genera|agrega|pon|incluye|quiero)\s+(?:una?\s+)?(?:pagina|pantalla|vista|seccion)\s+(?:de\s+)?(?:calendario|agenda|citas?|appointments?|reservas?)/i, pageType: "calendar", label: "Calendario" },
 ];
+
+// Dynamic word-to-pageType mapping for the _dynamic_ pattern
+const dynamicPageTypeMap: Record<string, { pageType: string; label: string }> = {
+  clientes: { pageType: "clients", label: "Clientes" },
+  cliente: { pageType: "clients", label: "Clientes" },
+  facturas: { pageType: "invoices", label: "Facturas" },
+  factura: { pageType: "invoices", label: "Facturas" },
+  facturacion: { pageType: "invoices", label: "Facturas" },
+  dashboard: { pageType: "dashboard", label: "Dashboard" },
+  panel: { pageType: "dashboard", label: "Dashboard" },
+  inicio: { pageType: "dashboard", label: "Inicio" },
+  productos: { pageType: "products", label: "Productos" },
+  producto: { pageType: "products", label: "Productos" },
+  inventario: { pageType: "products", label: "Inventario" },
+  pedidos: { pageType: "orders", label: "Pedidos" },
+  ordenes: { pageType: "orders", label: "Pedidos" },
+  usuarios: { pageType: "users", label: "Usuarios" },
+  empleados: { pageType: "users", label: "Empleados" },
+  reportes: { pageType: "reports", label: "Reportes" },
+  informes: { pageType: "reports", label: "Informes" },
+  estadisticas: { pageType: "reports", label: "Estadísticas" },
+  configuracion: { pageType: "settings", label: "Configuración" },
+  ajustes: { pageType: "settings", label: "Ajustes" },
+  perfil: { pageType: "profile", label: "Perfil" },
+  cuenta: { pageType: "profile", label: "Mi Cuenta" },
+  calendario: { pageType: "calendar", label: "Calendario" },
+  agenda: { pageType: "calendar", label: "Agenda" },
+  citas: { pageType: "calendar", label: "Citas" },
+  reservas: { pageType: "calendar", label: "Reservas" },
+  login: { pageType: "login", label: "Login" },
+  registro: { pageType: "register", label: "Registro" },
+  ventas: { pageType: "invoices", label: "Ventas" },
+};
 
 function detectPageRequest(message: string): { pageType: string; label: string } | null {
   const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   for (const { pattern, pageType, label } of pageRequestPatterns) {
-    if (pattern.test(normalized)) {
+    const match = pattern.exec(normalized);
+    if (match) {
+      if (pageType === "_dynamic_" && match[1]) {
+        const word = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const mapped = dynamicPageTypeMap[word];
+        if (mapped) {
+          console.log(`[PageRequest] Dynamic detected: "${word}" -> ${mapped.pageType} (${mapped.label})`);
+          return mapped;
+        }
+        // If not mapped, create a generic page with the word as label
+        console.log(`[PageRequest] Dynamic generic: "${word}"`);
+        return { pageType: word, label: word.charAt(0).toUpperCase() + word.slice(1) };
+      }
       console.log(`[PageRequest] Detected: ${pageType} (${label})`);
       return { pageType, label };
     }
@@ -2895,6 +2944,82 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ---- PAGE REQUEST DETECTION (multi-page incremental) ----
+    const pageRequest = detectPageRequest(message);
+    if (pageRequest && projectId) {
+      console.log(`[MultiPage] Page request detected: ${pageRequest.pageType} for project ${projectId}`);
+      try {
+        const sb = getSupabaseClient();
+        const { data: projectData } = await sb.from("projects").select("html, entities").eq("id", projectId).single();
+        
+        // Load entity memory for colors
+        const mem = await loadEntityMemory(projectId);
+        const colorScheme = mem?.color_scheme || "purple";
+        const businessName = mem?.business_name || "Mi Proyecto";
+        const c = getColors(colorScheme);
+        
+        // Parse existing pages from current HTML
+        let existingPages: PageDef[] = [];
+        if (projectData?.html && projectData.html.includes("<!-- PAGE:")) {
+          existingPages = parseExistingPages(projectData.html);
+          console.log(`[MultiPage] Found ${existingPages.length} existing pages`);
+        } else if (projectData?.html && projectData.html.length > 200) {
+          // Convert existing single-page HTML to first page
+          // Extract just the body content
+          const bodyMatch = projectData.html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          const bodyContent = bodyMatch ? bodyMatch[1].trim() : projectData.html;
+          existingPages = [{ id: "home", label: "Inicio", content: bodyContent }];
+          console.log(`[MultiPage] Converted existing single-page to 'Inicio' tab`);
+        }
+        
+        // Check if page already exists
+        const alreadyExists = existingPages.some(p => p.id === pageRequest.pageType);
+        if (alreadyExists) {
+          console.log(`[MultiPage] Page "${pageRequest.pageType}" already exists, skipping`);
+          return new Response(
+            JSON.stringify({
+              intent: "conversational",
+              confidence: 1.0,
+              label: "Conversación",
+              entities: { businessName, sections: [], colorScheme, industry: "" },
+              html: "",
+              conversationalResponse: `📌 La pestaña **${pageRequest.label}** ya existe en tu proyecto. ¿Quieres que la modifique? Dime qué cambios necesitas.`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Generate new page content
+        const newPageContent = generatePageContent(pageRequest.pageType, c, businessName);
+        const newPage: PageDef = { id: pageRequest.pageType, label: pageRequest.label, content: newPageContent };
+        
+        // Compose multi-page HTML
+        const allPages = [...existingPages, newPage];
+        const html = composeMultiPageHtml(allPages, c, businessName);
+        
+        // Log interaction
+        const newLogId = await logInteraction(message, "page_add", { pageType: pageRequest.pageType, label: pageRequest.label } as unknown as Record<string, unknown>, 1.0);
+        
+        console.log(`[MultiPage] Generated multi-page HTML with ${allPages.length} pages (${allPages.map(p=>p.label).join(", ")})`);
+        
+        return new Response(
+          JSON.stringify({
+            intent: "page_add",
+            confidence: 1.0,
+            label: `Agregar ${pageRequest.label}`,
+            entities: { businessName, sections: allPages.map(p => p.label), colorScheme, industry: "" },
+            plan: [`Detectar pestaña: ${pageRequest.label}`, `Generar contenido de ${pageRequest.label}`, `Integrar con ${existingPages.length} pestañas existentes`, "Actualizar navegación"],
+            html,
+            logId: newLogId,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (err) {
+        console.error(`[MultiPage] Error:`, err);
+        // Fall through to normal classification
+      }
     }
 
     // 0. Load entity memory if projectId provided

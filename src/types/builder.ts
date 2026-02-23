@@ -49,7 +49,7 @@ export type ViewportSize = "desktop" | "tablet" | "mobile";
 
 export interface PreviewState {
   html: string;
-  status: "idle" | "loading" | "ready" | "error";
+  status: "idle" | "loading" | "updating" | "ready" | "error";
   viewport: ViewportSize;
 }
 

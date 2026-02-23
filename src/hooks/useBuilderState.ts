@@ -162,7 +162,8 @@ export function useBuilderState(projectId?: string) {
       };
       setMessages((prev) => [...prev, userMsg]);
       setIsTyping(true);
-      setPreview((p) => ({ ...p, status: "loading" }));
+      // Use "updating" if we already have HTML (live preview), "loading" for first generation
+      setPreview((p) => ({ ...p, status: p.html && p.html.length > 100 ? "updating" : "loading" }));
 
       const waitMsgId = (Date.now() + 99).toString();
       setMessages((prev) => [
@@ -198,6 +199,13 @@ export function useBuilderState(projectId?: string) {
           ]);
           setIsTyping(false);
           setPreview((p) => ({ ...p, status: "idle" }));
+          return;
+        }
+
+        // For page_add intent, execute directly (no confirmation needed)
+        if (result.intent === "page_add") {
+          pendingResult.current = result;
+          executeFromResult(result);
           return;
         }
 
