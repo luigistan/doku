@@ -1,74 +1,92 @@
 
 
-## Plan: Hacer que Ollama/tinyllama funcione perfectamente con un enfoque hibrido
+## Mejorar los prompts de tinyllama para contenido natural en espanol
 
-### El problema actual
+### Problemas detectados en los logs
 
-tinyllama (1.1B parametros) no puede generar una pagina HTML completa de 2000+ caracteres. Solo produce ~62 caracteres. El sistema actual le pide que genere TODO el HTML desde cero, lo cual es imposible para un modelo tan pequeno.
+Los logs muestran exactamente que falla:
 
-### La solucion: Enfoque hibrido (Templates + tinyllama como "escritor de contenido")
+1. **Hero subtitle**: tinyllama repite la instruccion del prompt ("Un subtitulo corto (maximo 2 oraciones) para la pa...") en vez de generar contenido.
+2. **Features**: No se enriquecieron (0 de 3). tinyllama no entiende bien el formato con `|`.
+3. **About text**: Genera con numeracion ("1. Oracion sobre...") en vez de texto natural.
+4. **Testimonials**: Solo 1 de 2 se parseo correctamente.
 
-En vez de pedirle a tinyllama que genere HTML completo, usaremos el **motor de templates que ya funciona perfectamente** y le pediremos a tinyllama solo que genere **contenido personalizado** en texto corto:
+### Causa raiz
 
-- Subtitulo del hero (1-2 oraciones)
-- Descripciones de features/servicios (1 oracion cada una)
-- Descripcion "Sobre nosotros" (2-3 oraciones)
-- Testimonios ficticios (1 oracion cada uno)
+Los prompts actuales son demasiado complejos para tinyllama (1.1B). Contienen demasiadas instrucciones negativas ("sin comillas ni explicaciones", "sin numeros") que el modelo no procesa bien. Modelos pequenos funcionan mejor con:
+- Prompts tipo "completar la frase" (few-shot by example)
+- Un solo ejemplo concreto del formato esperado
+- Instrucciones positivas en vez de negativas
 
-Esto son tareas de ~50-100 tokens que tinyllama SI puede hacer bien.
+### Cambios en `supabase/functions/builder-ai/index.ts`
 
-```text
-FLUJO ACTUAL (falla):
-  Usuario -> "Cafeteria El Buen Cafe"
-  -> tinyllama: "Genera TODO el HTML" -> 62 chars -> FALLA -> fallback a template generico
+**1. Prompt del Hero Subtitle (linea 2022-2024)**
 
-FLUJO NUEVO (hibrido):
-  Usuario -> "Cafeteria El Buen Cafe"
-  -> TF-IDF detecta intent: restaurant
-  -> tinyllama: "Escribe un subtitulo para cafeteria El Buen Cafe" -> "Cafe artesanal..."
-  -> tinyllama: "Describe 3 servicios de una cafeteria" -> textos cortos
-  -> Template engine genera HTML con contenido personalizado de tinyllama
+Cambiar de instruccion abstracta a formato "completa la frase":
+
+```
+ANTES: "Escribe UN subtitulo corto (maximo 2 oraciones) para la pagina web de "El Buen Cafe", que es un negocio de tipo restaurant. Solo responde con el texto, sin comillas ni explicaciones."
+
+DESPUES: "Subtitulo para pagina web de El Buen Cafe:\n\n"
 ```
 
-### Cambios tecnicos
+Prompt ultra-corto tipo "completion" que tinyllama puede completar naturalmente.
 
-**Archivo: `supabase/functions/builder-ai/index.ts`**
+**2. Prompt de Features (linea 2026-2028)**
 
-1. **Nueva funcion `callLLMForContent`**: Hace multiples llamadas pequenas a tinyllama con prompts simples y cortos. Cada llamada pide solo 1-2 oraciones (max_tokens: 100). Incluye parametros optimizados para tinyllama: `temperature: 0.7`, `num_predict: 100`.
+Usar few-shot example con el delimitador `|` ya incluido en el patron:
 
-2. **Nueva funcion `enrichContentWithLLM`**: Orquesta las llamadas a tinyllama para generar contenido personalizado:
-   - Subtitulo del hero personalizado para el negocio
-   - 3 descripciones de servicios/features
-   - 1 parrafo "sobre nosotros"
-   - 2-3 testimonios
+```
+ANTES: "Escribe 3 descripciones cortas (1 oracion cada una) de servicios para "El Buen Cafe" (restaurant). Separa cada descripcion con "|". Solo el texto, sin numeros ni explicaciones."
 
-3. **Modificar la logica principal (lineas 2042-2060)**: En vez de intentar generar HTML completo con el LLM y fallar, el flujo sera:
-   - Siempre usar el template engine para generar HTML (ya funciona perfecto)
-   - Si Ollama esta disponible, enriquecer el contenido del template con texto generado por tinyllama
-   - Si Ollama falla, usar el contenido estatico del template (comportamiento actual)
+DESPUES: "Servicios de El Buen Cafe:\nDesayunos frescos cada manana|Cafe de grano seleccionado|"
+```
 
-4. **Modificar las funciones de contenido**: Las funciones como `getHeroSubtitle`, `getFeatures`, `getFeaturesSubtitle` aceptaran un parametro opcional de contenido enriquecido por LLM que reemplaza el texto estatico.
+Al darle el ejemplo ya con `|`, tinyllama continuara el patron naturalmente.
 
-5. **Optimizar parametros de Ollama**: En la llamada a `/api/generate`, agregar:
-   - `num_predict: 100` (limitar la longitud de respuesta)
-   - `temperature: 0.7` (creatividad controlada)
-   - `stop: ["\n\n"]` (evitar respuestas demasiado largas)
+**3. Prompt del About (linea 2030-2032)**
 
-6. **Timeout mas corto**: Reducir el timeout de 60s a 15s para cada llamada pequena, ya que son respuestas cortas.
+```
+ANTES: "Escribe 2 oraciones sobre "El Buen Cafe" (restaurant) para la seccion "Sobre nosotros" de su pagina web. Solo responde con el texto."
 
-### Resultado esperado
+DESPUES: "Sobre nosotros: El Buen Cafe es"
+```
 
-- Los templates siguen generando el HTML completo (siempre funciona)
-- tinyllama personaliza el texto dentro del template (cuando esta disponible)
-- Si tinyllama falla o es lento, el template se usa con contenido estatico (sin interrupcion)
-- El preview siempre se renderiza correctamente
+Inicio de frase que el modelo completa de forma natural.
 
-### Pasos de implementacion
+**4. Prompt de Testimonials (linea 2034-2036)**
 
-1. Crear la funcion `callLLMShort` optimizada para respuestas cortas de tinyllama
-2. Crear la funcion `enrichContentWithLLM` que genera contenido personalizado
-3. Modificar `composeReactHtml` y las funciones de contenido para aceptar contenido enriquecido
-4. Cambiar la logica principal para usar el enfoque hibrido (template + LLM content)
-5. Redesplegar la edge function `builder-ai`
-6. Probar generando un sitio para verificar que tinyllama personaliza el contenido
+```
+ANTES: "Escribe 2 testimonios ficticios cortos (1 oracion cada uno) de clientes satisfechos de "El Buen Cafe" (restaurant). Formato: Nombre - "testimonio" - cargo. Separa con "|"."
+
+DESPUES: "Opiniones de clientes de El Buen Cafe:\nMaria Lopez - Excelente servicio y comida deliciosa - Cliente frecuente|"
+```
+
+**5. Mejorar el parsing de features (lineas 2048-2055)**
+
+Agregar limpieza adicional para manejar variaciones de tinyllama:
+- Limpiar numeracion residual ("1.", "2.", "-")
+- Aceptar `|` o saltos de linea como separadores
+- Reducir el minimo de caracteres de 10 a 5 para aceptar descripciones cortas
+
+**6. Mejorar el parsing de hero (lineas 2040-2046)**
+
+- Limpiar texto que repita el nombre del negocio al inicio si ya esta duplicado
+- Remover prefijos como "Subtitulo:" que tinyllama podria agregar
+
+**7. Aumentar `num_predict` a 150 (linea 1968)**
+
+Las features necesitan 3 descripciones separadas, 120 tokens puede ser insuficiente.
+
+### Resumen de cambios
+
+Todos los cambios son en un solo archivo: `supabase/functions/builder-ai/index.ts`
+
+- Lineas 1968: `num_predict: 120` a `150`
+- Lineas 2022-2024: Prompt hero simplificado (completion-style)
+- Lineas 2026-2028: Prompt features con few-shot example y `|`
+- Lineas 2030-2032: Prompt about simplificado
+- Lineas 2034-2036: Prompt testimonials con ejemplo concreto
+- Lineas 2040-2055: Parsing mejorado con limpieza de numeracion y separadores alternativos
+- Redesplegar edge function
 
