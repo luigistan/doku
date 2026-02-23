@@ -405,6 +405,11 @@ const phrasePatterns: { pattern: RegExp; intent: string; boost: number }[] = [
   // CRM
   { pattern: /(?:sistema|app|aplicacion)\s+(?:de\s+)?(?:clientes|crm|prospectos|leads)/i, intent: "crm", boost: 5 },
   { pattern: /(?:gestion\s+de\s+clientes|seguimiento\s+de\s+clientes)/i, intent: "crm", boost: 5 },
+  { pattern: /(?:registro\s+de\s+usuarios|registrar\s+usuarios)/i, intent: "crm", boost: 5 },
+  { pattern: /(?:sistema|app|aplicacion)\s+(?:para|de)\s+(?:crear|gestionar|registrar)\s+(?:clientes|usuarios)/i, intent: "crm", boost: 6 },
+  { pattern: /(?:login|inicio\s+de?\s+sesion).*(?:sistema|clientes|usuarios)/i, intent: "crm", boost: 6 },
+  { pattern: /(?:registro).*(?:login|sesion).*(?:clientes|sistema)/i, intent: "crm", boost: 6 },
+  { pattern: /(?:registro|login).*(?:base\s+de?\s+datos|conectad)/i, intent: "crm", boost: 5 },
   // POS
   { pattern: /(?:punto\s+de\s+venta|pos|terminal\s+de\s+venta|caja\s+registradora)/i, intent: "pos", boost: 6 },
   // Booking
@@ -554,8 +559,8 @@ const intentMap: Record<string, { keywords: string[]; bigrams: string[]; label: 
     label: "Inventario",
   },
   crm: {
-    keywords: ["crm", "clientes", "prospectos", "leads", "contactos", "oportunidades", "pipeline", "seguimiento"],
-    bigrams: ["gestion clientes", "seguimiento clientes", "base clientes"],
+    keywords: ["crm", "clientes", "prospectos", "leads", "contactos", "oportunidades", "pipeline", "seguimiento", "registro", "login", "sesion", "autenticacion", "usuarios"],
+    bigrams: ["gestion clientes", "seguimiento clientes", "base clientes", "registro usuarios", "crear clientes", "inicio sesion", "base datos"],
     label: "CRM / Gestión de Clientes",
   },
   pos: {
