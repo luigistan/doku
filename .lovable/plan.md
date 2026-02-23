@@ -1,42 +1,78 @@
 
+# Plan: Corregir Endpoints de Ollama API
 
-# Plan: Indicadores de Estado de Ollama y Base de Datos en el Header del Builder
+## Problema
 
-## Objetivo
+Los logs muestran que Ollama falla en todos los endpoints:
+- `https://api.ollama.com/v1/chat/completions` -> **401 unauthorized** (dominio incorrecto)
+- `https://ollama.com/api/chat` -> **404 model 'llama3.1:8b' not found** (modelo no existe en la nube)
+- `https://ollama-doku.onrender.com` -> tambien fallo
 
-Agregar badges/indicadores visuales en el header del Builder para que el usuario vea de un vistazo si Ollama y la base de datos estan activos, sin necesidad de abrir la configuracion.
+## Causa Raiz
 
-## Ubicacion
+Segun la documentacion oficial de Ollama:
 
-En el header, junto al nombre del proyecto y el badge "BETA", se agregaran dos badges compactos:
+1. **El dominio `api.ollama.com` no existe.** El correcto es `ollama.com`
+2. **La ruta OpenAI-compatible es `/v1/chat/completions`** (no bajo `api.ollama.com`)
+3. **La ruta nativa de Ollama es `/api/chat`** (esta correcta pero el modelo `llama3.1:8b` no existe en la nube de Ollama)
 
+### Endpoints correctos segun documentacion oficial:
+- **Nativo Ollama Cloud:** `https://ollama.com/api/chat`
+- **OpenAI-compatible Cloud:** `https://ollama.com/v1/chat/completions`
+
+## Cambios en `supabase/functions/builder-ai/index.ts`
+
+### 1. Corregir array de endpoints (lineas 989-992)
+
+Cambiar de:
 ```text
-[<-] [logo] Proyecto  BETA  [DB activa]  [Ollama]     [Exportar ZIP] [Codigo] [Settings]
+{ url: "https://api.ollama.com/v1/chat/completions", format: "openai" },
+{ url: "https://ollama.com/api/chat", format: "ollama" },
 ```
 
-## Cambios
+A:
+```text
+{ url: "https://ollama.com/v1/chat/completions", format: "openai" },
+{ url: "https://ollama.com/api/chat", format: "ollama" },
+```
 
-### 1. `src/components/builder/Header.tsx`
+### 2. Corregir modelo por defecto (linea 998)
 
-Agregar dos nuevas props:
-- `dbEnabled: boolean` - si la base de datos esta activa
-- `ollamaEnabled: boolean` - si Ollama esta habilitado (leido desde localStorage)
+El modelo por defecto debe ser `llama3` (sin version especifica) ya que `llama3.1:8b` no esta disponible en Ollama Cloud:
 
-Renderizar badges compactos junto al nombre del proyecto:
-- **DB**: Badge verde con icono Database y texto "DB" cuando `dbEnabled = true`. Oculto si no esta activo.
-- **Ollama**: Badge morado/brain con icono Brain y texto "Ollama" cuando `ollamaEnabled = true`. Oculto si no esta activo.
+```text
+const selectedModel = modelOverride || Deno.env.get("LLM_MODEL") || "llama3";
+```
 
-Estilo de los badges: similar al badge "BETA" existente pero con colores semanticos:
-- DB activa: `bg-execute/15 text-execute` (verde)
-- Ollama activo: `bg-brain/15 text-brain` (morado)
+Esto ya esta correcto en el codigo, pero el usuario puede haber configurado `llama3.1:8b` en los secrets `LLM_MODEL` o en el UI de ProjectSettings. Se debe verificar que el default en ProjectSettings tambien sea `llama3`.
 
-### 2. `src/pages/Builder.tsx`
+### 3. Corregir ruta del LLM_BASE_URL custom (linea 1084)
 
-- Leer la config de Ollama desde `localStorage` usando la key `doku_ollama_{projectId}`
-- Pasar `dbEnabled` y `ollamaEnabled` como props al Header
-- Escuchar cambios en `settingsOpen` para refrescar el estado de Ollama cuando el usuario cierre settings (por si cambio el toggle)
+Actualmente hace:
+```text
+fetch(`${llmBaseUrl}/chat/completions`, ...)
+```
 
-## Detalle Visual
+Si `LLM_BASE_URL` es algo como `https://ollama-doku.onrender.com`, la ruta correcta depende del formato:
+- Para OpenAI-compatible: `${llmBaseUrl}/v1/chat/completions`
+- Para nativo Ollama: `${llmBaseUrl}/api/chat`
 
-Los badges seran pequenos (misma altura que "BETA"), con iconos de 10-12px y texto de 10px, para no saturar el header. Solo aparecen cuando la feature esta activa, manteniendo el header limpio cuando no hay nada configurado.
+Cambiar para intentar ambos formatos con el `LLM_BASE_URL` custom, primero OpenAI-compatible y luego nativo.
 
+### 4. Verificar modelo en ProjectSettings
+
+En `src/components/builder/ProjectSettings.tsx`, el default del modelo ya es `llama3`. Solo confirmar que no haya referencia a `llama3.1:8b`.
+
+## Resumen de cambios
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/builder-ai/index.ts` | Corregir URL de `api.ollama.com` a `ollama.com`, mejorar fallback de LLM_BASE_URL con ambas rutas |
+| Deploy | Redesplegar edge function |
+
+## Resultado esperado
+
+- El endpoint OpenAI-compatible (`ollama.com/v1/chat/completions`) responde correctamente con el API key
+- Si falla, el nativo (`ollama.com/api/chat`) actua como segundo intento
+- Si ambos fallan, el `LLM_BASE_URL` custom intenta con las rutas correctas
+- El modelo por defecto es `llama3` que si existe en Ollama Cloud
