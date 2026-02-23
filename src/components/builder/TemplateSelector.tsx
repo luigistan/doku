@@ -1,62 +1,105 @@
-import {
-  Rocket,
-  UtensilsCrossed,
-  Briefcase,
-  ShoppingCart,
-  FileText,
-  LayoutDashboard,
-  Dumbbell,
-  Stethoscope,
-  Building,
-  Laptop,
-  GraduationCap,
-  PawPrint,
-  type LucideIcon,
-} from "lucide-react";
+import { useState } from "react";
+import { templates } from "@/lib/templates";
+import { TemplateCard } from "./TemplateCard";
+import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
-interface Template {
-  icon: LucideIcon;
-  name: string;
-  prompt: string;
-}
+const categoryMap: Record<string, { label: string; icon: string }> = {
+  all:        { label: "Todos",        icon: "🌐" },
+  landing:    { label: "Landing",      icon: "🚀" },
+  restaurant: { label: "Restaurante",  icon: "🍽️" },
+  ecommerce:  { label: "Tienda",       icon: "🛒" },
+  portfolio:  { label: "Portfolio",    icon: "💼" },
+  blog:       { label: "Blog",         icon: "✍️" },
+  dashboard:  { label: "Dashboard",    icon: "📊" },
+  fitness:    { label: "Fitness",      icon: "💪" },
+  agency:     { label: "Agencia",      icon: "🚀" },
+  medical:    { label: "Clínica",      icon: "🏥" },
+  education:  { label: "Educación",    icon: "🎓" },
+  realestate: { label: "Inmobiliaria", icon: "🏠" },
+  login:      { label: "Login",        icon: "🔐" },
+};
 
-const templates: Template[] = [
-  { icon: Rocket, name: "Landing Page", prompt: "Crea una landing page profesional" },
-  { icon: UtensilsCrossed, name: "Restaurante", prompt: "Crea un sitio para restaurante" },
-  { icon: Briefcase, name: "Portfolio", prompt: "Crea un portfolio profesional" },
-  { icon: ShoppingCart, name: "E-Commerce", prompt: "Crea una tienda online" },
-  { icon: FileText, name: "Blog", prompt: "Crea un blog" },
-  { icon: LayoutDashboard, name: "Dashboard", prompt: "Crea un dashboard administrativo" },
-  { icon: Dumbbell, name: "Gimnasio", prompt: "Crea un sitio para gimnasio" },
-  { icon: Stethoscope, name: "Clínica", prompt: "Crea un sitio para clinica medica" },
-  { icon: Building, name: "Inmobiliaria", prompt: "Crea un sitio de bienes raices" },
-  { icon: Laptop, name: "SaaS", prompt: "Crea una landing para producto SaaS" },
-  { icon: GraduationCap, name: "Educación", prompt: "Crea un sitio de cursos online" },
-  { icon: PawPrint, name: "Veterinaria", prompt: "Crea un sitio para veterinaria" },
-];
+const templateIcons: Record<string, string> = {
+  landing: "🚀",
+  restaurant: "🍽️",
+  ecommerce: "🛒",
+  portfolio: "💼",
+  blog: "✍️",
+  dashboard: "📊",
+  fitness: "💪",
+  agency: "🚀",
+  medical: "🏥",
+  education: "🎓",
+  realestate: "🏠",
+  login: "🔐",
+};
 
 interface TemplateSelectorProps {
   onSelect: (prompt: string) => void;
 }
 
 export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
+  const [category, setCategory] = useState("all");
+  const [previewTemplate, setPreviewTemplate] = useState<typeof templates[number] | null>(null);
+
+  const categories = ["all", ...Array.from(new Set(templates.map((t) => t.id)))];
+  const filtered = category === "all" ? templates : templates.filter((t) => t.id === category);
+
   return (
-    <div className="px-4 pb-4">
-      <p className="mb-3 text-xs font-medium text-muted-foreground">
+    <div className="px-2 pb-4">
+      <p className="mb-3 px-2 text-xs font-medium text-muted-foreground">
         O elige un template para empezar:
       </p>
-      <div className="grid grid-cols-2 gap-2">
-        {templates.map((t) => (
-          <button
-            key={t.name}
-            onClick={() => onSelect(t.prompt)}
-            className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-brain hover:bg-surface-3"
-          >
-            <t.icon className="h-4 w-4 shrink-0 text-brain" />
-            {t.name}
-          </button>
+
+      {/* Category pills */}
+      <div className="mb-3 flex gap-1.5 overflow-x-auto px-2 pb-1 scrollbar-thin">
+        {categories.map((cat) => {
+          const meta = categoryMap[cat];
+          if (!meta) return null;
+          return (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                category === cat
+                  ? "bg-brain text-brain-foreground"
+                  : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground"
+              }`}
+            >
+              <span className="text-sm">{meta.icon}</span>
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Template cards grid */}
+      <div className="grid grid-cols-1 gap-3 px-1 sm:grid-cols-2">
+        {filtered.map((t) => (
+          <TemplateCard
+            key={t.id}
+            name={t.name}
+            html={t.html}
+            icon={templateIcons[t.id]}
+            onPreview={() => setPreviewTemplate(t)}
+            onSelect={() => onSelect(`Crea un sitio tipo ${t.name} profesional`)}
+          />
         ))}
       </div>
+
+      {/* Fullscreen preview modal */}
+      {previewTemplate && (
+        <TemplatePreviewModal
+          open={!!previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          html={previewTemplate.html}
+          name={previewTemplate.name}
+          onSelect={() => {
+            onSelect(`Crea un sitio tipo ${previewTemplate.name} profesional`);
+            setPreviewTemplate(null);
+          }}
+        />
+      )}
     </div>
   );
 }
