@@ -1876,9 +1876,9 @@ function generatePlan(intent: string, entities: Entities): string[] {
 
 // ==================== LLM PROVIDER (Ollama / Gateway / OpenAI) ====================
 async function callLLM(systemPrompt: string, userPrompt: string): Promise<string | null> {
-  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const provider = Deno.env.get("LLM_PROVIDER") || "ollama";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+  const model = Deno.env.get("LLM_MODEL") || "llama3.1:8b";
   console.log(`[LLM] callLLM -> provider: ${provider}, url: ${baseUrl}, model: ${model}`);
 
   try {
@@ -1957,7 +1957,7 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
 
 // ==================== SHORT LLM CALLS (Optimized for llama3.1:8b) ====================
 async function callLLMShort(prompt: string, maxTokens = 512): Promise<string | null> {
-  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const provider = Deno.env.get("LLM_PROVIDER") || "ollama";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
   const model = Deno.env.get("OLLAMA_MODEL") || Deno.env.get("LLM_MODEL") || "llama3.1:8b";
   console.log(`[LLM] callLLMShort -> provider: ${provider}, url: ${baseUrl}, model: ${model}`);
@@ -2025,7 +2025,7 @@ interface EnrichedContent {
 
 async function enrichContentWithLLM(intent: string, businessName: string): Promise<EnrichedContent> {
   const enriched: EnrichedContent = {};
-  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const provider = Deno.env.get("LLM_PROVIDER") || "ollama";
   if (provider === "none") return enriched;
 
   console.log(`[Hybrid] Starting content enrichment with LLM for: ${businessName} (${intent})`);

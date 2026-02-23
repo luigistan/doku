@@ -11,6 +11,7 @@ import { getProject, updateProject, saveChatMessage, getChatMessages, deleteProj
 import { useAuth } from "@/contexts/AuthContext";
 import { Message } from "@/types/builder";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const Builder = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -38,6 +39,7 @@ const Builder = () => {
 
         if (project.html) {
           setPreview(prev => ({ ...prev, html: project.html!, status: "ready" }));
+          toast({ title: "✅ Progreso recuperado", description: "Tu sitio está listo en el preview." });
         }
 
         const chatMsgs = await getChatMessages(projectId);

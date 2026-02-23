@@ -4,6 +4,7 @@ import { Brain } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { ChatInput } from "./ChatInput";
+import { TemplateSelector } from "./TemplateSelector";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -45,6 +46,10 @@ export function ChatPanel({ messages, isTyping, onSend, onExecute, onAskMore }: 
             onAskMore={msg.awaitingConfirmation ? onAskMore : undefined}
           />
         ))}
+        {/* Show templates when only the welcome message exists */}
+        {messages.length <= 1 && !isTyping && (
+          <TemplateSelector onSelect={onSend} />
+        )}
         {isTyping && <TypingIndicator />}
       </div>
 
