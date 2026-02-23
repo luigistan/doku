@@ -1949,11 +1949,11 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
   }
 }
 
-// ==================== SHORT LLM CALLS (Optimized for llama3.1:70b) ====================
-async function callLLMShort(prompt: string, maxTokens = 500): Promise<string | null> {
+// ==================== SHORT LLM CALLS (Optimized for llama3.1:8b) ====================
+async function callLLMShort(prompt: string, maxTokens = 300): Promise<string | null> {
   const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
   const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
-  const model = Deno.env.get("LLM_MODEL") || "llama3.1:70b";
+  const model = Deno.env.get("LLM_MODEL") || "llama3.1:8b";
 
   try {
     if (provider === "ollama") {
@@ -1969,7 +1969,7 @@ async function callLLMShort(prompt: string, maxTokens = 500): Promise<string | n
             temperature: 0.7,
           },
         }),
-        signal: AbortSignal.timeout(maxTokens > 1000 ? 120000 : 45000),
+        signal: AbortSignal.timeout(maxTokens > 500 ? 60000 : 30000),
       });
       if (!response.ok) return null;
       const data = await response.json();
@@ -2230,12 +2230,12 @@ serve(async (req) => {
     // 5. Generate HTML - Try FULL LLM generation first, fallback to hybrid
     let html: string;
 
-    // Step A: Attempt full HTML generation with llama3.1:70b (120s timeout, 4000 tokens)
+    // Step A: Attempt full HTML generation with llama3.1:8b (60s timeout, 2000 tokens)
     const systemPrompt = buildSystemPrompt(intent, label, entities);
-    const fullHtmlResult = await callLLMShort(systemPrompt, 4000);
+    const fullHtmlResult = await callLLMShort(systemPrompt, 2000);
     const extractedHtml = fullHtmlResult ? extractHtmlFromResponse(fullHtmlResult) : null;
 
-    if (extractedHtml && extractedHtml.length > 500) {
+    if (extractedHtml && extractedHtml.length > 200) {
       // Full LLM generation succeeded
       html = extractedHtml;
       console.log(`[Full LLM] HTML generated successfully (${extractedHtml.length} chars)`);
