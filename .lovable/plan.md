@@ -1,119 +1,165 @@
 
+## Plan: Mejorar Templates, Codigo y Base de Datos en DOKU AI
 
-## Plan: Integracion Multi-Pagina, Preview en Vivo, AI Inteligente y Mejoras Generales
-
-Este plan aborda los 5 problemas principales identificados:
-
----
-
-### 1. Preview en vivo (sin overlay "loading" bloqueando)
-
-**Problema:** Cada vez que el usuario envia un mensaje, `useBuilderState` pone `status: "loading"` lo cual muestra el overlay "DOKU AI" cubriendo el preview completamente. El preview anterior desaparece.
-
-**Solucion:** Mostrar el overlay SOLO cuando no hay HTML previo. Si ya hay contenido en el preview, mantener el preview visible y mostrar un indicador pequeno (spinner en la toolbar) en vez del overlay completo.
-
-**Cambios en `src/hooks/useBuilderState.ts`:**
-- No cambiar `status` a `"loading"` si ya hay HTML en el preview -- usar un nuevo estado `"updating"` que no muestra overlay
-- Cuando el resultado llega, hacer transicion suave actualizando el HTML directamente
-
-**Cambios en `src/components/builder/PreviewPanel.tsx`:**
-- Agregar status `"updating"` al `statusConfig` con un spinner discreto en la toolbar (no overlay)
-- Solo mostrar el overlay "DOKU AI" cuando `status === "loading"` Y no hay HTML previo (primera generacion)
-- Agregar a `PreviewState` en `types/builder.ts` el status `"updating"`
+Este plan aborda tres areas: (1) mas templates y mejor codigo generado, (2) inteligencia conversacional mejorada, (3) base de datos funcional end-to-end.
 
 ---
 
-### 2. Integrar el sistema multi-pagina en el main handler
+### Diagnostico Actual
 
-**Problema critico:** Las funciones `detectPageRequest`, `generatePageContent`, `parseExistingPages` y `composeMultiPageHtml` estan definidas pero NUNCA se llaman. Cuando el usuario dice "crea una pestana de clientes", el sistema lo trata como una solicitud nueva y falla con baja confianza (22%).
+**Templates (src/lib/templates.ts):**
+- 17 templates base con React CDN (landing, restaurant, portfolio, blog, dashboard, ecommerce, fitness, agency, clinic, education, realestate, event, saas, login, pricing, veterinary, notfound)
+- Faltan templates para: billing, inventory, crm, pos, booking, hotel, lawyer, accounting, photography, music, salon, technology
+- Los intents existen en el edge function pero NO tienen templates locales, lo que causa fallback a templates genericos
 
-**Solucion:** Integrar la deteccion de paginas ANTES de la clasificacion principal en el main handler.
+**Edge Function (builder-ai):**
+- 3540 lineas, bien estructurado con SmartAI (Gemini Flash) + fallback local
+- El `composeReactHtml` genera HTML puro (no React) como fallback -- funciona bien
+- La funcion `generatePageContent` solo tiene templates para: login, register, dashboard, clients, products, invoices, orders, settings, profile, reports, users, calendar
+- El CRUD SDK se inyecta pero no se conecta con los botones "+ Agregar" de las paginas generadas
 
-**Cambios en `supabase/functions/builder-ai/index.ts` (main handler, linea ~2857):**
-
-Flujo actualizado:
-```text
-1. Conversational detection (ya existe)
-2. [NUEVO] Page request detection (detectPageRequest)
-   -> Si detecta una pagina:
-      a. Cargar HTML actual del proyecto
-      b. Parsear paginas existentes (parseExistingPages)
-      c. Generar nueva pagina (generatePageContent)
-      d. Agregar a paginas existentes
-      e. Recomponer HTML completo (composeMultiPageHtml)
-      f. Retornar directamente sin pasar por clasificacion
-3. Classification pipeline (ya existe)
-```
-
-Esto significa que mensajes como:
-- "quiero que crees una pestana que diga clientes" -- detecta `clients`, agrega la pagina
-- "agrega una pagina de facturas" -- detecta `invoices`, la agrega
-- "crea un dashboard" -- detecta `dashboard`, lo agrega al sistema de tabs
-
-Tambien agregar patrones adicionales para detectar mejor las solicitudes de pestanas/tabs:
-- `/(?:quiero|pon|agrega|crea)\s+(?:que\s+)?(?:una?\s+)?(?:pestana|tab|menu|opcion)\s+(?:que\s+diga\s+|de\s+|para\s+)?(\w+)/i`
-- Detectar "quiero que crees una pestana en el menu que diga clientes" correctamente
+**Base de Datos:**
+- Las tablas se crean correctamente en `app_tables`/`app_columns`/`app_rows` via `autoCreateProjectTables`
+- El CRUD API edge function existe y funciona
+- PROBLEMA: Los botones del HTML generado no disparan `DOKU_CRUD.showAddForm()` -- el SDK busca botones con texto que empiece con "+" pero el HTML generado usa `onclick` inline que no conecta con el SDK
+- PROBLEMA: El SDK necesita `PROJECT_ID` que se envia via `postMessage`, pero en el multi-page HTML no se solicita correctamente
 
 ---
 
-### 3. AI mas inteligente - detectar modificaciones incrementales
+### Cambios Propuestos
 
-**Problema:** El AI no distingue entre "crear un sitio nuevo" y "modificar el sitio actual". Cuando el usuario ya tiene un dashboard generado y dice "agrega clientes", el sistema intenta clasificar como un nuevo sitio.
+#### 1. Agregar Templates Locales Faltantes (src/lib/templates.ts)
 
-**Cambios en `supabase/functions/builder-ai/index.ts`:**
+Agregar 12 templates que ya tienen intents definidos pero no tienen template visual:
 
-**A. Mejorar el patron de pestana/tab**
-- Agregar regex para detectar solicitudes de tipo "quiero que crees una pestana en el menu que diga X"
-- Mapear el valor de X al `pageType` correspondiente (clientes->clients, facturas->invoices, etc.)
-- Agregar deteccion flexible: "pon un tab de X", "agrega X al menu", "incluye una seccion de X"
+| Template | Descripcion |
+|----------|-------------|
+| billing | Sistema de facturacion con tabla de facturas, clientes, totales |
+| inventory | Control de inventario con stock, alertas, movimientos |
+| crm | Gestion de clientes con pipeline, contactos, deals |
+| pos | Punto de venta con catalogo, carrito, tickets |
+| booking | Sistema de reservas/citas con calendario, servicios |
+| hotel | Pagina de hotel con habitaciones, reservaciones, galeria |
+| lawyer | Bufete legal con servicios, equipo, consultas |
+| accounting | Despacho contable con servicios, calculadora fiscal |
+| photography | Estudio fotografico con galeria masonry, paquetes |
+| music | Estudio musical con reproductor, portfolio, servicios |
+| salon | Salon de belleza con servicios, precios, reservas |
+| technology | Empresa de tecnologia/software con features, demo |
 
-**B. Convertir el sitio actual a multi-pagina automaticamente**
-- Si el proyecto ya tiene HTML pero no es multi-pagina (no tiene markers `<!-- PAGE:... -->`), convertir el HTML existente a la primera pagina ("Inicio") antes de agregar la nueva
-- Esto permite una transicion fluida de sitio landing a sistema multi-pagina
+Cada template usara `reactWrap()` con React CDN igual que los existentes, manteniendo la consistencia de estilo.
+
+#### 2. Mejorar Conexion BD en el HTML Generado (builder-ai/index.ts)
+
+**A. Arreglar el CRUD SDK para que los botones funcionen:**
+
+El SDK actual escucha clicks en botones con texto "+", pero los botones del HTML generado usan `onclick` inline. Se necesita:
+
+- Modificar `generatePageContent` para que los botones "+ Agregar" de cada pagina tengan `onclick="DOKU_CRUD.showAddForm('tableName')"` directamente
+- Agregar un `data-crud-table` attribute a las tablas para que el SDK sepa donde renderizar los datos reales
+- Cuando el SDK carga datos de una tabla, reemplazar el contenido estatico del `<tbody>` con datos reales de la BD
+
+**B. Mejorar el mapeo pagina->tabla en el SDK:**
+
+Actualmente `ptMap` mapea `clients->clients` pero no todos los tipos de pagina tienen mapeo correcto. Expandir para incluir todos los schemas de `intentDatabaseSchema`.
+
+**C. Auto-refresh despues de crear registro:**
+
+Cuando el usuario crea un registro via el modal, el SDK ya llama `onPageSwitch` para refrescar -- verificar que esto funciona correctamente cuando `PROJECT_ID` se recibe via `postMessage`.
+
+#### 3. Mejorar Inteligencia Conversacional (builder-ai/index.ts)
+
+**A. Mejorar el prompt de SmartAI:**
+
+El prompt actual de `smartClassify` es bueno pero puede mejorarse:
+- Agregar ejemplos concretos de inputs y outputs esperados (few-shot in-prompt)
+- Incluir deteccion de modificaciones mas sofisticada (ej: "cambia el color del header a rojo")
+- Agregar deteccion de cuando el usuario esta hablando de datos (ej: "agrega un cliente llamado Juan")
+
+**B. Agregar intent "data_operation":**
+
+Cuando el usuario dice "agrega un cliente llamado Juan con email juan@email.com", el sistema debe:
+1. Detectar que es una operacion de datos (no una pagina nueva ni un sitio nuevo)
+2. Extraer la tabla destino y los datos
+3. Llamar al CRUD API directamente
+4. Responder con confirmacion
+
+Agregar nuevo tipo en `SmartAIResult`: `type: "data_operation"` con campos `tableName`, `operation` (create/read/update/delete), `data`.
+
+**C. Mejorar respuestas conversacionales:**
+
+- Cuando el usuario pregunta "que tablas tengo?" -> consultar `app_tables` y listar
+- Cuando dice "muestra mis clientes" -> consultar `app_rows` y mostrar resumen
+- Cuando dice "cuantos registros hay?" -> contar y responder
+
+#### 4. Conectar la BD al Preview en Tiempo Real
+
+**A. Mejorar el `getCrudSdkScript`:**
+
+- El SDK debe cargar datos automaticamente al abrir una pagina (no solo cuando se cambia de tab)
+- Agregar un `DOMContentLoaded` listener que busca tablas con `data-crud-table` y las llena con datos reales
+- Los botones de "+ Agregar" deben abrir el modal con los campos correctos de la tabla
+
+**B. Edicion inline:**
+
+- Agregar boton de editar (lapiz) a cada fila
+- Al hacer clic, abrir modal similar al de crear pero pre-llenado con los datos existentes
+- Al guardar, llamar `DOKU_CRUD.update(rowId, data)`
 
 ---
 
-### 4. Generacion de imagenes con Stable Diffusion (investigacion)
-
-**Realidad:** Ejecutar Stable Diffusion en Render.com requiere una instancia con GPU (no incluida en planes gratuitos). Con 4 CPU y 16GB RAM no es viable correr Stable Diffusion localmente.
-
-**Alternativa gratuita viable:**
-- Usar Unsplash (ya implementado) para imagenes fotograficas
-- Usar SVG generados por Ollama para iconos e ilustraciones
-- El modelo de Ollama puede generar descripciones de imagenes que se pasan como parametros de busqueda a Unsplash
-
-No se necesita cambio de codigo para esto -- ya funciona con Unsplash. Si en el futuro se quiere agregar SD, se puede hacer como un segundo servicio Docker en Render con GPU.
-
----
-
-### 5. Base de datos del sistema de facturacion
-
-**Estado actual:** Las tablas se crean automaticamente via `autoCreateProjectTables` en `app_tables`/`app_columns`/`app_rows` (tablas dinamicas). El schema para `billing` ya incluye `clients`, `invoices`, `invoice_items`.
-
-**El problema es que el HTML generado NO interactua con la base de datos.** Los datos que se ven en el preview son estaticos (hardcoded en el HTML).
-
-Para que el sistema de facturacion funcione con datos reales, se necesitaria:
-- Que el HTML generado use la API de Supabase para leer/escribir datos
-- Esto requiere incluir el SDK de Supabase en el HTML generado via CDN
-
-**Cambio propuesto:** En la generacion de paginas multi-pagina, agregar funcionalidad basica de CRUD conectando el HTML generado con la API de Supabase del proyecto (usando las tablas de `app_tables`). Esto se hara en una fase posterior - por ahora el foco esta en que las pestanas funcionen correctamente.
-
----
-
-### Resumen de archivos a modificar
+### Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/types/builder.ts` | Agregar status `"updating"` a `PreviewState` |
-| `src/hooks/useBuilderState.ts` | Usar `"updating"` en vez de `"loading"` cuando ya hay HTML, manejar respuesta de pagina incremental |
-| `src/components/builder/PreviewPanel.tsx` | Mostrar overlay solo en primera generacion, spinner discreto para updates |
-| `supabase/functions/builder-ai/index.ts` | Integrar `detectPageRequest` en main handler, mejorar patrones de pestana/tab, conversion automatica a multi-pagina |
+| `src/lib/templates.ts` | Agregar 12 templates nuevos (billing, inventory, crm, pos, booking, hotel, lawyer, accounting, photography, music, salon, technology) |
+| `supabase/functions/builder-ai/index.ts` | (1) Mejorar `generatePageContent` con botones CRUD conectados, (2) Agregar intent `data_operation` en SmartAI, (3) Mejorar prompt de SmartAI con few-shot examples, (4) Mejorar `getCrudSdkScript` con auto-load y edicion |
+| `supabase/functions/crud-api/index.ts` | Sin cambios necesarios -- ya soporta todas las operaciones |
+| `src/hooks/useBuilderState.ts` | Agregar manejo de intent `data_operation` para ejecutar CRUD sin generar HTML |
 
-### Secuencia
+### Secuencia de Implementacion
 
-1. Actualizar tipos y preview para modo "updating" sin overlay
-2. Integrar sistema multi-pagina en el main handler del edge function
-3. Mejorar patrones de deteccion de pestanas y tabs
-4. Agregar conversion automatica de sitio simple a multi-pagina
-5. Deploy del edge function actualizado
+1. **Templates primero:** Agregar los 12 templates faltantes en `templates.ts` (esto mejora la experiencia inmediatamente sin tocar el backend)
+2. **CRUD SDK mejorado:** Actualizar `getCrudSdkScript` para auto-carga, botones conectados y edicion inline
+3. **`generatePageContent` mejorado:** Agregar atributos `data-crud-table` y `onclick` correcto a los botones
+4. **SmartAI mejorado:** Agregar `data_operation` intent y few-shot examples
+5. **`useBuilderState` update:** Manejar `data_operation` intent
+6. **Deploy** del edge function
 
+### Detalle Tecnico: Templates Nuevos
+
+Cada template seguira el patron existente:
+```text
+{
+  id: "billing",
+  name: "Facturacion",
+  keywords: [...],
+  description: "Sistema de facturacion...",
+  planSteps: [...],
+  html: reactWrap(`...React component code...`, "Mi Facturacion")
+}
+```
+
+Los templates de tipo "sistema" (billing, inventory, crm, pos) tendran:
+- Sidebar de navegacion con secciones
+- Cards de metricas con datos de ejemplo
+- Tablas con datos ficticios que seran reemplazados por datos reales via CRUD SDK
+- Formularios funcionales conectados al CRUD
+
+Los templates de tipo "sitio" (hotel, lawyer, accounting, photography, music, salon, technology) tendran:
+- Hero section con CTA
+- Seccion de servicios/features
+- Formulario de contacto/reserva
+- Footer profesional
+
+### Detalle Tecnico: Data Operations
+
+Flujo cuando el usuario dice "agrega un cliente llamado Juan":
+```text
+1. SmartAI detecta type="data_operation"
+2. Extrae: tableName="clients", operation="create", data={name:"Juan"}
+3. Edge function llama crud-api internamente
+4. Retorna: conversationalResponse="Listo, agregue a Juan como cliente"
+5. Frontend muestra el mensaje sin modificar el HTML
+6. Si el preview tiene la pagina de clientes abierta, se refresca automaticamente
+```
