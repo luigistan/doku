@@ -59,11 +59,15 @@ function useSimulatedProgress(isLoading: boolean) {
   return progress;
 }
 
-// Inject a script that prevents links from navigating out of the iframe
-function injectNavigationGuard(html: string): string {
+// Inject navigation guard + DOKU CRUD SDK into preview HTML
+function injectNavigationGuard(html: string, projectId?: string): string {
   if (!html || html.length < 50) return html;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
   const guard = `<script>
-// Robust navigation guard: prevents iframe from navigating to the parent app
+// Navigation guard + DOKU CRUD SDK
 (function() {
   // Block link clicks (allow hash, mailto, tel only)
   document.addEventListener('click', function(e) {
@@ -78,35 +82,87 @@ function injectNavigationGuard(html: string): string {
     e.stopPropagation();
   }, true);
 
-  // Handle form submissions: simulate success
+  // ===== DOKU CRUD SDK =====
+  var DOKU_PROJECT_ID = ${projectId ? JSON.stringify(projectId) : 'null'};
+  var SUPABASE_URL = ${JSON.stringify(supabaseUrl)};
+  var SUPABASE_KEY = ${JSON.stringify(supabaseKey)};
+
+  // Listen for projectId from parent
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'doku:projectId') {
+      DOKU_PROJECT_ID = e.data.projectId;
+    }
+  });
+  if (!DOKU_PROJECT_ID) {
+    parent.postMessage({ type: 'doku:requestProjectId' }, '*');
+  }
+
+  // Handle form submissions
   document.addEventListener('submit', function(e) {
     var form = e.target;
-    if (form && form.tagName === 'FORM') {
-      // Allow forms with data-real-submit attribute (auth forms)
-      if (form.hasAttribute('data-real-submit')) return;
+    if (!form || form.tagName !== 'FORM') return;
+    // Allow auth forms
+    if (form.hasAttribute('data-real-submit')) return;
+
+    // Forms with data-doku-table -> save to database
+    if (form.hasAttribute('data-doku-table')) {
       e.preventDefault();
+      var tableName = form.getAttribute('data-doku-table');
+      var formData = new FormData(form);
+      var data = {};
+      formData.forEach(function(v, k) { data[k] = v; });
+
       var btn = form.querySelector('button[type="submit"], button:not([type])');
-      if (btn) {
-        var origText = btn.textContent;
-        btn.textContent = '✓ Enviado correctamente';
-        btn.style.opacity = '0.7';
-        btn.disabled = true;
-        setTimeout(function() {
-          btn.textContent = origText;
-          btn.style.opacity = '1';
-          btn.disabled = false;
-          form.reset();
-        }, 2500);
+      var origText = btn ? btn.textContent : '';
+      if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
+
+      if (!DOKU_PROJECT_ID || !SUPABASE_URL) {
+        if (btn) { btn.textContent = 'Error: sin proyecto'; btn.disabled = false; }
+        return;
       }
+
+      fetch(SUPABASE_URL + '/functions/v1/crud-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ action: 'create', projectId: DOKU_PROJECT_ID, tableName: tableName, data: data })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (result.error) {
+          if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
+        } else {
+          if (btn) { btn.textContent = '✓ Guardado!'; }
+          form.reset();
+          setTimeout(function() { if (btn) { btn.textContent = origText; btn.disabled = false; } }, 2500);
+        }
+      })
+      .catch(function() {
+        if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
+      });
+      return;
+    }
+
+    // Forms WITHOUT data-doku-table -> simulate success (original behavior)
+    e.preventDefault();
+    var btn2 = form.querySelector('button[type="submit"], button:not([type])');
+    if (btn2) {
+      var origText2 = btn2.textContent;
+      btn2.textContent = '✓ Enviado correctamente';
+      btn2.style.opacity = '0.7';
+      btn2.disabled = true;
+      setTimeout(function() {
+        btn2.textContent = origText2;
+        btn2.style.opacity = '1';
+        btn2.disabled = false;
+        form.reset();
+      }, 2500);
     }
   });
 
   // Override window.open
   window.open = function() { return null; };
 
-  // Override history methods to prevent SPA navigation
-  var origPushState = history.pushState;
-  var origReplaceState = history.replaceState;
+  // Override history methods
   history.pushState = function() { return undefined; };
   history.replaceState = function() { return undefined; };
 
@@ -116,9 +172,7 @@ function injectNavigationGuard(html: string): string {
     e.returnValue = '';
   });
 
-  // Override window.location setter via proxy
   try {
-    var _href = window.location.href;
     Object.defineProperty(window, '__doku_nav_blocked', { value: true });
   } catch(err) {}
 })();
@@ -248,7 +302,7 @@ export function PreviewPanel({ preview, onViewportChange, onRefresh, projectSlug
           <iframe
             ref={iframeRef}
             key={preview.html.length + preview.status}
-            srcDoc={injectNavigationGuard(preview.html)}
+            srcDoc={injectNavigationGuard(preview.html, projectId)}
             className="h-full w-full border-0"
             title="Preview"
             sandbox="allow-scripts allow-same-origin allow-forms"

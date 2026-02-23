@@ -335,6 +335,16 @@ const OLLAMA_SYSTEM_PROMPT = `Eres DOKU AI, un asistente experto en crear sitios
 - Mínimo 5 secciones visibles
 - Calidad profesional como si fuera un diseñador premium
 
+**REGLA CRÍTICA - FORMULARIOS CON BASE DE DATOS:**
+- TODOS los formularios de contacto, registro, reservas, pedidos, citas, etc. DEBEN incluir el atributo data-doku-table="nombre_tabla"
+- El nombre de la tabla debe coincidir con las tablas del negocio (contacts, reservations, orders, appointments, bookings, inquiries, etc.)
+- Cada campo input/textarea/select del formulario DEBE tener el atributo name="nombre_columna" que coincida con las columnas de la tabla
+- Ejemplo: <form data-doku-table="contacts"><input name="name" placeholder="Nombre" required><input name="email" type="email" placeholder="Email"><input name="phone" placeholder="Teléfono"><textarea name="notes" placeholder="Mensaje"></textarea><button type="submit">Enviar</button></form>
+- Para CRM: data-doku-table="contacts" con name="name", name="email", name="phone", name="company", name="notes"
+- Para restaurante: data-doku-table="reservations" con name="customer_name", name="customer_email", name="date", name="guests", name="notes"
+- Para e-commerce: data-doku-table="customers" con name="name", name="email", name="phone", name="address"
+- Los formularios deben ser funcionales y tener campos que coincidan con las columnas de la tabla correspondiente
+
 RESPONDE SIEMPRE con JSON válido (sin markdown, sin backticks):
 {
   "type": "conversational" | "generative",
@@ -555,7 +565,14 @@ footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);co
 <div class="card"><h3>💎 Experiencia</h3><p>Años de experiencia nos respaldan, garantizando resultados profesionales en cada proyecto.</p></div>
 </div></section>
 <section id="contact" style="background:${c.primary}05"><h2 class="section-title">Contacto</h2>
-<div class="container" style="text-align:center"><p style="color:var(--text-muted);margin-bottom:2rem">¿Listo para empezar? Contáctanos hoy mismo.</p><button class="btn">Escríbenos</button></div></section>
+<div class="container" style="max-width:500px;margin:0 auto">
+<form data-doku-table="contacts" style="display:flex;flex-direction:column;gap:1rem">
+<input name="name" placeholder="Tu nombre" required style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
+<input name="email" type="email" placeholder="Tu email" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
+<input name="phone" placeholder="Tu teléfono" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem">
+<textarea name="notes" placeholder="Tu mensaje" rows="4" style="padding:0.8rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:1rem;resize:vertical"></textarea>
+<button type="submit" class="btn">Enviar mensaje</button>
+</form></div></section>
 <footer><p>© 2024 ${businessName}. Todos los derechos reservados. Creado con DOKU AI.</p></footer>
 </body></html>`;
 }
