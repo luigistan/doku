@@ -1,134 +1,100 @@
 
 
-## Plan: DOKU Connectors -- Conexion a Bases de Datos Externas
+## Plan: Explorador de Datos para DOKU Managed DB
 
-### Concepto
+### Situacion actual
 
-Ademas de la base de datos gestionada por DOKU (Supabase multi-tenant), el usuario podra conectar su propia base de datos externa (MySQL, PostgreSQL, SQL Server) desde la seccion "Base de Datos" en Configuracion. DOKU actua como gateway seguro: guarda credenciales encriptadas, prueba la conexion, y expone un API unificado.
+La seccion "DOKU Managed" solo muestra una lista de nombres de tablas con opcion de crear/eliminar. El usuario no puede:
+- Ver las columnas de cada tabla
+- Ver los datos (filas) de cada tabla
+- Agregar columnas o filas
 
-### Nueva tabla: `db_connections`
+### Que se va a construir
+
+Un mini explorador de base de datos dentro de ProjectSettings. Al hacer clic en una tabla, se expande y muestra:
+
+1. **Columnas de la tabla** con nombre, tipo, si es requerida, y valor por defecto
+2. **Filas de datos** en formato tabla con los valores de cada columna
+3. **Botones para agregar** columnas y filas
+4. **Boton para eliminar** columnas y filas
 
 ```text
-db_connections
-  id          uuid PK
-  project_id  uuid FK -> projects.id
-  type        text (mysql | postgres | mssql)
-  host        text
-  port        integer
-  database    text
-  username    text
-  password_encrypted  text (encriptado con pgcrypto)
-  use_ssl     boolean default false
-  status      text default 'pending' (pending | ok | fail)
-  status_message text nullable
-  is_default  boolean default false
-  created_at  timestamp
-  updated_at  timestamp
+Base de Datos > DOKU Managed
+
+  [Base de datos activa]
+
+  ▶ productos
+  ▼ usuarios                          [x]
+    Columnas: nombre (text) | email (text) | edad (number)
+    [+ Agregar columna]
+    
+    | nombre  | email           | edad |
+    |---------|-----------------|------|
+    | Carlos  | carlos@mail.com | 28   | [x]
+    | Maria   | maria@mail.com  | 32   | [x]
+    
+    [+ Agregar fila]
+
+  [Nueva tabla: ________] [+]
 ```
 
-RLS: solo el dueno del proyecto puede ver/editar sus conexiones. El campo `password_encrypted` se encripta con `pgp_sym_encrypt` usando una clave almacenada como secret de Supabase (`DB_ENCRYPTION_KEY`).
+### Cambios tecnicos
 
-### Funciones de base de datos
+**1. `src/services/projectService.ts`** -- Agregar funciones CRUD para columnas y filas:
 
-- `encrypt_db_password(password text)` -- encripta con pgcrypto
-- `decrypt_db_password(encrypted text)` -- desencripta (SECURITY DEFINER, solo accesible por service role)
+- `getAppColumns(tableId)` -- obtiene columnas de una tabla
+- `createAppColumn(tableId, name, type, isRequired, defaultValue)` -- crea columna
+- `deleteAppColumn(columnId)` -- elimina columna
+- `getAppRows(tableId)` -- obtiene filas de una tabla
+- `createAppRow(tableId, data)` -- crea fila con datos JSON
+- `updateAppRow(rowId, data)` -- actualiza datos de una fila
+- `deleteAppRow(rowId)` -- elimina fila
 
-### Edge Function: `db-connector`
+Tipos exportados: `AppColumn` y `AppRow`
 
-Nuevo edge function con 3 endpoints:
+**2. `src/components/builder/TableDataViewer.tsx`** -- Nuevo componente
 
-**POST /test** -- Prueba conexion
-- Recibe: host, port, database, username, password, type, use_ssl
-- Intenta conectar y hacer un `SELECT 1`
-- Retorna: `{ success: true }` o `{ success: false, error: "..." }`
+Componente que recibe un `tableId` y muestra:
+- Lista de columnas con tipo y opciones
+- Formulario inline para agregar columna (nombre + select de tipo: text, number, boolean, date)
+- Tabla de datos con las filas existentes
+- Formulario inline para agregar fila (inputs dinamicos segun columnas)
+- Botones eliminar en cada fila y columna
+- Estado expandido/colapsado
 
-**POST /save** -- Guarda conexion (encripta password)
-- Recibe: projectId, host, port, database, username, password, type, use_ssl
-- Guarda en `db_connections` con password encriptado
-- Retorna: la conexion creada (sin password)
+**3. `src/components/builder/ProjectSettings.tsx`** -- Modificar seccion managed
 
-**POST /query** -- Ejecuta query seguro (Query Builder API)
-- Recibe: `{ connectionId, action, table, where, limit, orderBy }`
-- Desencripta credenciales, conecta a la DB, ejecuta query parametrizado
-- Solo soporta: `select`, `insert`, `update`, `delete`
-- Retorna: filas de resultado
+- Cada tabla ahora es clickeable y se expande para mostrar el `TableDataViewer`
+- Se reemplaza la lista simple por un acordeon con icono de flecha
+- El modal se hace un poco mas ancho (`max-w-lg` o `max-w-2xl`) para acomodar la tabla de datos
 
-Librerias en Deno:
-- MySQL: `npm:mysql2/promise`
-- PostgreSQL: `npm:pg`
+### Tipos de columna soportados
 
-### Cambios en la UI
+- `text` -- campo de texto
+- `number` -- campo numerico
+- `boolean` -- checkbox (true/false)
+- `date` -- fecha
 
-**`ProjectSettings.tsx`** -- La seccion "Base de Datos" se divide en dos tabs/opciones:
+### Flujo del usuario
 
-1. **DOKU Managed** (lo que ya existe) -- con el icono de Database verde y las tablas
-2. **Conectar DB Externa** -- nuevo formulario:
-   - Select de tipo: MySQL / PostgreSQL / SQL Server
-   - Inputs: Host, Puerto, Base de datos, Usuario, Contrasena
-   - Toggle SSL
-   - Boton "Probar Conexion" (llama al edge function /test)
-   - Boton "Guardar" (llama al edge function /save)
-   - Lista de conexiones guardadas con status (ok/fail) y boton eliminar
-   - Badge "Default" en la conexion principal
-
-### Service Layer
-
-**`src/services/connectorService.ts`** -- nuevo archivo:
-
-- `testConnection(params)` -- llama a edge function db-connector/test
-- `saveConnection(params)` -- llama a edge function db-connector/save
-- `getConnections(projectId)` -- lee de `db_connections` via Supabase client
-- `deleteConnection(connectionId)` -- elimina de `db_connections`
-- `setDefaultConnection(connectionId)` -- marca como default
-
-### Seguridad
-
-- Las contrasenas NUNCA se envian al frontend despues de guardar
-- Solo el edge function con service role puede desencriptar
-- El endpoint `/query` valida que el usuario sea dueno del proyecto
-- No se permite SQL libre -- solo Query Builder API parametrizado
-- Rate limiting basico (max 100 queries/min por proyecto)
+1. Abre Configuracion > Base de Datos > DOKU Managed
+2. Ve sus tablas (ej: "productos", "usuarios")
+3. Hace clic en "usuarios" -- se expande
+4. Ve columnas: nombre (text), email (text), edad (number)
+5. Ve filas con los datos actuales en formato tabla
+6. Puede agregar nueva columna con nombre y tipo
+7. Puede agregar nueva fila llenando inputs dinamicos
+8. Puede eliminar filas o columnas individuales
 
 ### Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| Migracion SQL | Crear `db_connections`, extension `pgcrypto`, funciones encrypt/decrypt, RLS |
-| `supabase/functions/db-connector/index.ts` | Nuevo edge function con endpoints test/save/query |
-| `supabase/config.toml` | Agregar `[functions.db-connector]` |
-| `src/services/connectorService.ts` | Nuevo -- funciones CRUD para conexiones |
-| `src/components/builder/ProjectSettings.tsx` | Agregar seccion "Conectar DB Externa" con form y lista |
-| `src/pages/Builder.tsx` | Pasar estado de conexiones al modal |
+| `src/services/projectService.ts` | Agregar CRUD de columnas y filas |
+| `src/components/builder/TableDataViewer.tsx` | Nuevo -- visor de columnas y datos |
+| `src/components/builder/ProjectSettings.tsx` | Integrar TableDataViewer en cada tabla, hacer modal mas ancho |
 
-### Secuencia de implementacion
+### No se necesitan migraciones
 
-1. Agregar secret `DB_ENCRYPTION_KEY` para encriptacion de contrasenas
-2. Migracion SQL: tabla + funciones + RLS
-3. Edge function `db-connector` con test/save/query
-4. Service layer en frontend
-5. UI en ProjectSettings con formulario de conexion
-
-### UX final en la seccion Base de Datos
-
-```text
-Base de Datos
-  [DOKU Managed]          [DB Externa]
-  
-  -- Tab DOKU Managed --
-  (lo que ya existe: tablas del proyecto)
-
-  -- Tab DB Externa --
-  Tipo: [MySQL v]
-  Host: [_____________]
-  Puerto: [3306]
-  Base de datos: [_____________]
-  Usuario: [_____________]
-  Contrasena: [_____________]
-  [ ] Usar SSL
-  
-  [Probar Conexion]  [Guardar]
-  
-  -- Conexiones guardadas --
-  mysql://user@host:3306/mydb  [OK]  [Default]  [x]
-```
+Las tablas `app_columns` y `app_rows` ya existen en la base de datos con RLS configurado. Solo falta el codigo frontend para consultarlas.
 
