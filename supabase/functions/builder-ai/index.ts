@@ -967,10 +967,11 @@ interface BlockConfig {
   colors: ColorScheme;
   sections: string[];
   intent: string;
+  enriched?: EnrichedContent;
 }
 
 function composeReactHtml(config: BlockConfig): string {
-  const { name, colors: c, sections, intent } = config;
+  const { name, colors: c, sections, intent, enriched } = config;
 
   // Build React component code
   const components: string[] = [];
@@ -1037,7 +1038,7 @@ const Hero: React.FC = () => {
           <div style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(30px)',transition:'all 0.6s ease'}}>
             <div style={{display:'inline-block',background:'color-mix(in srgb,var(--primary) 12%,transparent)',color:'var(--primary-light)',padding:'0.4rem 1rem',borderRadius:99,fontSize:'0.8rem',fontWeight:600,marginBottom:'var(--space-md)',letterSpacing:'0.05em'}}>${getHeroBadge(intent)}</div>
             <h1 style={{marginBottom:'var(--space-md)'}}><span className="gradient-text">${name}</span></h1>
-            <p style={{color:'var(--text-muted)',fontSize:'clamp(1rem,1.8vw,1.15rem)',marginBottom:'var(--space-lg)',maxWidth:500,lineHeight:1.8}}>${getHeroSubtitle(intent, name)}</p>
+            <p style={{color:'var(--text-muted)',fontSize:'clamp(1rem,1.8vw,1.15rem)',marginBottom:'var(--space-lg)',maxWidth:500,lineHeight:1.8}}>${enriched?.heroSubtitle ? enriched.heroSubtitle.replace(/'/g, "\\'") : getHeroSubtitle(intent, name)}</p>
             <div style={{display:'flex',gap:'var(--space-sm)',flexWrap:'wrap'}}>
               <button className="btn">${getHeroCTA(intent)}</button>
               <button className="btn btn-outline">${getHeroSecondaryCTA(intent)}</button>
@@ -1057,7 +1058,14 @@ const Hero: React.FC = () => {
 
   // Features component
   if (sections.includes("features")) {
-    const feats = getFeatures(intent);
+    let feats = getFeatures(intent);
+    // Enrich feature descriptions with LLM content if available
+    if (enriched?.featuresDescriptions && enriched.featuresDescriptions.length > 0) {
+      feats = feats.map((f, i) => ({
+        ...f,
+        desc: enriched.featuresDescriptions![i] || f.desc,
+      }));
+    }
     components.push(`
 const Features: React.FC = () => {
   interface Feature { icon: string; title: string; desc: string; }
@@ -1096,7 +1104,7 @@ const About: React.FC = () => (
         </div>
         <div>
           <h2 style={{marginBottom:'var(--space-md)'}}>Sobre <span className="gradient-text">Nosotros</span></h2>
-          <p style={{color:'var(--text-muted)',lineHeight:1.8,fontSize:'1.02rem',marginBottom:'var(--space-md)'}}>${getAboutText(intent, name)}</p>
+          <p style={{color:'var(--text-muted)',lineHeight:1.8,fontSize:'1.02rem',marginBottom:'var(--space-md)'}}>${enriched?.aboutText ? enriched.aboutText.replace(/'/g, "\\'") : getAboutText(intent, name)}</p>
           <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'var(--space-sm)',textAlign:'center'}}>
             ${stats.map(s => `<div style={{padding:'var(--space-sm)',borderRadius:'var(--radius-sm)',background:'var(--bg-card)',border:'1px solid var(--border)'}}><div className="gradient-text" style={{fontSize:'1.6rem',fontWeight:800,fontFamily:'var(--font-display)'}}>${s.value}</div><div style={{color:'var(--text-muted)',fontSize:'0.8rem',marginTop:2}}>${s.label}</div></div>`).join("\n            ")}
           </div>
@@ -1191,7 +1199,9 @@ const Pricing: React.FC = () => {
 
   // Testimonials component
   if (sections.includes("testimonials")) {
-    const testimonials = getTestimonials();
+    const testimonials = enriched?.testimonials && enriched.testimonials.length > 0
+      ? enriched.testimonials
+      : getTestimonials();
     components.push(`
 const Testimonials: React.FC = () => {
   interface Testimonial { name: string; text: string; role: string; }
@@ -1939,6 +1949,145 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
   }
 }
 
+// ==================== SHORT LLM CALLS (Optimized for tinyllama) ====================
+async function callLLMShort(prompt: string): Promise<string | null> {
+  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  const baseUrl = Deno.env.get("LLM_BASE_URL") || "";
+  const model = Deno.env.get("LLM_MODEL") || "tinyllama";
+
+  try {
+    if (provider === "ollama") {
+      const response = await fetch(`${baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt,
+          stream: false,
+          options: {
+            num_predict: 120,
+            temperature: 0.7,
+            stop: ["\n\n", "---", "```"],
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const text = (data.response || "").trim();
+      return text.length > 5 ? text : null;
+
+    } else if (provider === "gateway") {
+      const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 150,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content?.trim() || null;
+    }
+    return null;
+  } catch (err) {
+    console.warn("LLM short call failed:", err);
+    return null;
+  }
+}
+
+// ==================== CONTENT ENRICHMENT WITH LLM ====================
+interface EnrichedContent {
+  heroSubtitle?: string;
+  featuresDescriptions?: string[];
+  aboutText?: string;
+  testimonials?: { name: string; text: string; role: string }[];
+}
+
+async function enrichContentWithLLM(intent: string, businessName: string): Promise<EnrichedContent> {
+  const enriched: EnrichedContent = {};
+  const provider = Deno.env.get("LLM_PROVIDER") || "gateway";
+  if (provider === "none") return enriched;
+
+  console.log(`[Hybrid] Starting content enrichment with LLM for: ${businessName} (${intent})`);
+
+  // Run multiple short prompts in parallel for speed
+  const [heroResult, featResult, aboutResult, testimonialsResult] = await Promise.allSettled([
+    // 1. Hero subtitle
+    callLLMShort(
+      `Escribe UN subtitulo corto (maximo 2 oraciones) para la pagina web de "${businessName}", que es un negocio de tipo ${intent}. Solo responde con el texto, sin comillas ni explicaciones.`
+    ),
+    // 2. Feature descriptions (3 short ones)
+    callLLMShort(
+      `Escribe 3 descripciones cortas (1 oracion cada una) de servicios para "${businessName}" (${intent}). Separa cada descripcion con "|". Solo el texto, sin numeros ni explicaciones.`
+    ),
+    // 3. About text
+    callLLMShort(
+      `Escribe 2 oraciones sobre "${businessName}" (${intent}) para la seccion "Sobre nosotros" de su pagina web. Solo responde con el texto.`
+    ),
+    // 4. Testimonials
+    callLLMShort(
+      `Escribe 2 testimonios ficticios cortos (1 oracion cada uno) de clientes satisfechos de "${businessName}" (${intent}). Formato: Nombre - "testimonio" - cargo. Separa con "|".`
+    ),
+  ]);
+
+  // Process hero subtitle
+  if (heroResult.status === "fulfilled" && heroResult.value) {
+    const cleaned = heroResult.value.replace(/^["']|["']$/g, "").trim();
+    if (cleaned.length > 10 && cleaned.length < 300) {
+      enriched.heroSubtitle = cleaned;
+      console.log(`[Hybrid] Hero subtitle enriched: ${cleaned.substring(0, 50)}...`);
+    }
+  }
+
+  // Process feature descriptions
+  if (featResult.status === "fulfilled" && featResult.value) {
+    const parts = featResult.value.split("|").map(s => s.trim()).filter(s => s.length > 10);
+    if (parts.length >= 2) {
+      enriched.featuresDescriptions = parts.slice(0, 3);
+      console.log(`[Hybrid] Features enriched: ${parts.length} descriptions`);
+    }
+  }
+
+  // Process about text
+  if (aboutResult.status === "fulfilled" && aboutResult.value) {
+    const cleaned = aboutResult.value.replace(/^["']|["']$/g, "").trim();
+    if (cleaned.length > 20 && cleaned.length < 500) {
+      enriched.aboutText = cleaned;
+      console.log(`[Hybrid] About text enriched: ${cleaned.substring(0, 50)}...`);
+    }
+  }
+
+  // Process testimonials
+  if (testimonialsResult.status === "fulfilled" && testimonialsResult.value) {
+    const parts = testimonialsResult.value.split("|").map(s => s.trim()).filter(s => s.length > 10);
+    if (parts.length >= 1) {
+      enriched.testimonials = parts.slice(0, 3).map((t, i) => {
+        // Try to parse "Name - "text" - role" format
+        const match = t.match(/^([^-"]+)\s*[-–]\s*"?([^"]+)"?\s*[-–]\s*(.+)$/);
+        if (match) {
+          return { name: match[1].trim(), text: match[2].trim(), role: match[3].trim() };
+        }
+        return {
+          name: ["Laura Méndez", "Carlos Ortiz", "Sofía Rivera"][i] || "Cliente",
+          text: t.replace(/^["']|["']$/g, "").trim(),
+          role: "Cliente satisfecho",
+        };
+      });
+      console.log(`[Hybrid] Testimonials enriched: ${enriched.testimonials.length} items`);
+    }
+  }
+
+  const enrichedCount = Object.keys(enriched).length;
+  console.log(`[Hybrid] Content enrichment complete: ${enrichedCount}/4 sections enriched`);
+  return enriched;
+}
+
 function buildSystemPrompt(intent: string, label: string, entities: Entities): string {
   return `Eres un generador de sitios web profesionales.
 Genera HTML completo (desde <!DOCTYPE html> hasta </html>), moderno, responsivo.
@@ -2039,25 +2188,19 @@ serve(async (req) => {
 
     const colors = getColors(entities.colorScheme);
 
-    // 5. Generate HTML (LLM first, template fallback)
-    let html: string;
-    const llmProvider = Deno.env.get("LLM_PROVIDER") || "none";
+    // 5. Generate HTML using HYBRID approach (Template + LLM content enrichment)
+    // Step A: Enrich content with LLM (short calls, parallel, fault-tolerant)
+    const enrichedContent = await enrichContentWithLLM(intent, entities.businessName);
 
-    if (llmProvider !== "none") {
-      const systemPrompt = buildSystemPrompt(intent, label, entities);
-      const llmResponse = await callLLM(systemPrompt, message);
-      const llmHtml = llmResponse ? extractHtmlFromResponse(llmResponse) : null;
-
-      if (llmHtml && llmHtml.length > 200) {
-        console.log(`LLM (${llmProvider}) generated HTML: ${llmHtml.length} chars`);
-        html = llmHtml;
-      } else {
-        console.log(`LLM fallback to templates (response length: ${llmHtml?.length || 0})`);
-        html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
-      }
-    } else {
-      html = composeReactHtml({ name: entities.businessName, colors, sections: entities.sections, intent });
-    }
+    // Step B: Always use template engine for HTML structure (reliable)
+    // Pass enriched content to personalize the template text
+    const html = composeReactHtml({
+      name: entities.businessName,
+      colors,
+      sections: entities.sections,
+      intent,
+      enriched: enrichedContent,
+    });
 
     // 6. Log interaction for learning
     const newLogId = await logInteraction(message, intent, entities as unknown as Record<string, unknown>, confidence);
